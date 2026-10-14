@@ -1,6 +1,26 @@
 server:
   port: 8082
+  servlet:
+    context-path: /api/v1/auth
+  compression:
+    enabled: true
+    mime-types:
+      - application/json
+      - text/plain
+      - application/xml
+    min-response-size: 1024
 
 spring:
   application:
     name: authorization
+  threads:
+    virtual:
+      enabled: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${random.value}
