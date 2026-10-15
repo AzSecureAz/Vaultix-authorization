@@ -21,6 +21,8 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -110,15 +112,28 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
         activeKeyCache.put("active", newKey);
         log.info("Successfully rotated signing key locally. New active kid: {}", newKey.getKeyID());
 
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    broadcastKeyRotation(newKey.getKeyID());
+                }
+            });
+        } else {
+            broadcastKeyRotation(newKey.getKeyID());
+        }
+
+        return newKey;
+    }
+
+    private void broadcastKeyRotation(String kid) {
         try {
-            String payload = "KEY_ROTATED:" + newKey.getKeyID();
+            String payload = "KEY_ROTATED:" + kid;
             stringRedisTemplate.convertAndSend(ROTATION_TOPIC, payload);
             log.info("Broadcasted key rotation event to Redis topic '{}': {}", ROTATION_TOPIC, payload);
         } catch (Exception e) {
             log.warn("Failed to publish key rotation event to Redis. Other instances will sync on cache TTL expiry", e);
         }
-
-        return newKey;
     }
 
     @Override

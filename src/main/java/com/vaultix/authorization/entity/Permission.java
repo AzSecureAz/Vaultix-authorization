@@ -43,7 +43,7 @@ public class Permission {
     @ToString.Include
     private UUID id;
 
-    @Column(name = "name", length = 128, nullable = false, unique = true)
+    @Column(name = "name", length = 128, nullable = false, unique = true, updatable = false)
     @ToString.Include
     private String name;
 
