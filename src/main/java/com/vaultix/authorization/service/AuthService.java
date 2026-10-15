@@ -8,4 +8,6 @@ public interface AuthService {
     AuthResponse login(LoginRequest request, String deviceInfo, String ipAddress);
 
     AuthResponse refreshToken(String rawRefreshToken, String deviceInfo, String ipAddress);
+
+    void logout(String accessTokenJti);
 }

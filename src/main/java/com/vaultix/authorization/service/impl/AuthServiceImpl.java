@@ -41,4 +41,10 @@ public class AuthServiceImpl implements AuthService {
         log.info("Processing token refresh request");
         return tokenService.refreshTokens(rawRefreshToken, deviceInfo, ipAddress);
     }
+
+    @Override
+    public void logout(String accessTokenJti) {
+        log.info("Processing logout request for accessTokenJti: {}", accessTokenJti);
+        tokenService.logout(accessTokenJti);
+    }
 }

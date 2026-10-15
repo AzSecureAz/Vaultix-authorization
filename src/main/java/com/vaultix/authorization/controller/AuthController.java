@@ -6,6 +6,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -76,6 +78,33 @@ public class AuthController {
     @GetMapping("/.well-known/jwks.json")
     public Map<String, Object> getJwks() {
         return signingKeyService.getJwkSetAsMap();
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(
+            @AuthenticationPrincipal Jwt jwt,
+            HttpServletRequest httpRequest) {
+
+        if (jwt != null && jwt.getId() != null) {
+            authService.logout(jwt.getId());
+        }
+
+        ResponseCookie cleanCookie = ResponseCookie.from("refresh_token", "")
+                .httpOnly(true)
+                .secure(httpRequest.isSecure() || "https".equalsIgnoreCase(httpRequest.getHeader("X-Forwarded-Proto")))
+                .sameSite("Strict")
+                .path("/api/v1/auth/refresh")
+                .maxAge(0)
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cleanCookie.toString())
+                .body(ApiResponse.success("Logged out successfully"));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getMe(@AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(ApiResponse.success("Current user profile", jwt.getClaims()));
     }
 
     private ResponseCookie createRefreshTokenCookie(String refreshToken, HttpServletRequest httpRequest) {

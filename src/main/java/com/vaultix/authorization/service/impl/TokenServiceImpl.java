@@ -203,6 +203,30 @@ public class TokenServiceImpl implements TokenService {
         return buildAuthResponse(userDetails, newAccessTokenJti, existingSession.getRefreshTokenJti(), nextGen, accessExp, newRefreshExp);
     }
 
+    @Override
+    @Transactional
+    public void logout(String accessTokenJti) {
+        if (accessTokenJti == null || accessTokenJti.isBlank()) {
+            return;
+        }
+
+        log.info("Processing logout for access token JTI: {}", accessTokenJti);
+
+        tokenBlacklistService.blacklist(accessTokenJti.trim(), jwtProperties.accessTokenExpiration());
+
+        try {
+            UUID jtiUuid = UUID.fromString(accessTokenJti.trim());
+            refreshTokenRepository.findByAccessTokenJti(jtiUuid).ifPresent(session -> {
+                session.setRevoked(true);
+                session.setRevokedAt(Instant.now());
+                refreshTokenRepository.save(session);
+                log.info("Revoked refresh token session for user ID: {} upon logout", session.getUser().getId());
+            });
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid UUID format for access token JTI during logout: {}", accessTokenJti);
+        }
+    }
+
     private AuthResponse buildAuthResponse(
             CustomUserDetails userDetails,
             UUID accessTokenJti,

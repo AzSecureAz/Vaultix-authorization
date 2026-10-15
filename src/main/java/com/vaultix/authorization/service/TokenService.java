@@ -8,4 +8,6 @@ public interface TokenService {
     AuthResponse issueTokens(CustomUserDetails userDetails, String deviceInfo, String ipAddress);
 
     AuthResponse refreshTokens(String rawRefreshToken, String deviceInfo, String ipAddress);
+
+    void logout(String accessTokenJti);
 }
