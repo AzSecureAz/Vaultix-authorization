@@ -5,11 +5,21 @@ import java.util.Map;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
+import com.vaultix.common.security.CustomAccessDeniedHandler;
+import com.vaultix.common.security.CustomAuthenticationEntryPoint;
+import com.vaultix.common.security.CustomJwtAuthenticationConverter;
+import com.vaultix.common.security.JwtBlacklistValidator;
+import com.vaultix.common.security.RedisTokenBlacklistService;
+import com.vaultix.common.security.TokenBlacklistService;
+
+import tools.jackson.databind.ObjectMapper;
 
 @Configuration
 public class SecurityBeansConfig {
@@ -27,5 +37,30 @@ public class SecurityBeansConfig {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
+    }
+
+    @Bean
+    public TokenBlacklistService tokenBlacklistService(StringRedisTemplate stringRedisTemplate) {
+        return new RedisTokenBlacklistService(stringRedisTemplate);
+    }
+
+    @Bean
+    public CustomJwtAuthenticationConverter customJwtAuthenticationConverter() {
+        return new CustomJwtAuthenticationConverter();
+    }
+
+    @Bean
+    public CustomAuthenticationEntryPoint customAuthenticationEntryPoint(ObjectMapper objectMapper) {
+        return new CustomAuthenticationEntryPoint(objectMapper);
+    }
+
+    @Bean
+    public CustomAccessDeniedHandler customAccessDeniedHandler(ObjectMapper objectMapper) {
+        return new CustomAccessDeniedHandler(objectMapper);
+    }
+
+    @Bean
+    public JwtBlacklistValidator jwtBlacklistValidator(TokenBlacklistService tokenBlacklistService) {
+        return new JwtBlacklistValidator(tokenBlacklistService);
     }
 }
