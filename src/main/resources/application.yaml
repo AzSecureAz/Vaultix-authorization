@@ -71,4 +71,7 @@ vaultix:
   security:
     kek:
       master-key: ${VAULTIX_SECURITY_KEK_MASTER_KEY:3xhw5B4DZicmirWLS4h3ZkA4pBFZwyKlG6cvEYvdf7I=}
+    jwt:
+      access-token-expiration: ${VAULTIX_JWT_ACCESS_TOKEN_EXPIRATION:5m}
+      refresh-token-expiration: ${VAULTIX_JWT_REFRESH_TOKEN_EXPIRATION:7d}
 
