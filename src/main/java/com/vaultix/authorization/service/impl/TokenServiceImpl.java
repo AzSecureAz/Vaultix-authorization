@@ -256,13 +256,7 @@ public class TokenServiceImpl implements TokenService {
                     .jwtID(accessTokenJti.toString())
                     .issueTime(Date.from(now))
                     .expirationTime(Date.from(accessExp))
-                    .claim("username", userDetails.getUsername())
-                    .claim("email", userDetails.getEmail())
-                    .claim("roles", roles)
                     .claim("roles_permissions", userDetails.getRolePermissions())
-                    .claim("email_verified", userDetails.isEmailVerified())
-                    .claim("must_change_password", userDetails.isMustChangePassword())
-                    .claim("mfa_enabled", userDetails.isMfaEnabled())
                     .build();
 
             SignedJWT signedAccessToken = new SignedJWT(header, accessClaims);
