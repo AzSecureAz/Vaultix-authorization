@@ -46,7 +46,7 @@ public class RefreshToken {
     @JoinColumn(name = "user_id", nullable = false, updatable = false)
     private User user;
 
-    @Column(name = "refresh_token_jti", nullable = false, unique = true)
+    @Column(name = "refresh_token_jti", nullable = false, unique = true, updatable = false)
     @ToString.Include
     private UUID refreshTokenJti;
 

@@ -22,7 +22,7 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/register", "/login", "/.well-known/jwks.json").permitAll()
+                        .requestMatchers("/register", "/login", "/refresh", "/.well-known/jwks.json").permitAll()
                         .anyRequest().authenticated()
                 )
                 .build();

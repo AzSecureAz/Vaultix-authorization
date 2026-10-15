@@ -147,7 +147,7 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
             String privateKeyPem = toPem(privateKey.getEncoded(), "PRIVATE KEY");
 
             String encryptedPrivateKey = AesGcmCryptoUtil.encrypt(privateKeyPem, kekProperties.masterKey());
-            String kid = "vaultix-" + UUID.randomUUID();
+            String kid = "vaultix-" + UUID.ofEpochMillis(System.currentTimeMillis());
 
             SigningKey signingKey = SigningKey.builder()
                     .kid(kid)
