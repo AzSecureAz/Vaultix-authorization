@@ -22,7 +22,7 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/ping").permitAll()
+                        .requestMatchers("/ping", "/register", "/login").permitAll()
                         .anyRequest().authenticated()
                 )
                 .build();
