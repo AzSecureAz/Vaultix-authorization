@@ -44,6 +44,11 @@ spring:
     locations: classpath:db/migration
 
   data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      username: ${SPRING_DATA_REDIS_USERNAME:auth_user}
+      password: ${SPRING_DATA_REDIS_PASSWORD:auth_password}
     web:
       pageable:
         serialization-mode: via-dto
