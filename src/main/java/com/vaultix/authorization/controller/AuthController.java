@@ -1,6 +1,7 @@
 package com.vaultix.authorization.controller;
 
 import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.vaultix.authorization.dto.AuthResponse;
 import com.vaultix.authorization.dto.LoginRequest;
 import com.vaultix.authorization.dto.RefreshTokenRequest;
+import com.vaultix.authorization.dto.UserProfileDto;
 import com.vaultix.authorization.security.AuthCookieHelper;
 import com.vaultix.authorization.service.AuthService;
 import com.vaultix.authorization.service.SigningKeyService;
@@ -101,7 +103,12 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getMe(@AuthenticationPrincipal Jwt jwt) {
-        return ResponseEntity.ok(ApiResponse.success("Current user profile", jwt.getClaims()));
+    public ResponseEntity<ApiResponse<UserProfileDto>> getMe(@AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null || jwt.getSubject() == null) {
+            throw new BadCredentialsException("Invalid or missing authentication token");
+        }
+        UUID userId = UUID.fromString(jwt.getSubject());
+        UserProfileDto profile = authService.getProfile(userId);
+        return ResponseEntity.ok(ApiResponse.success("Current user profile", profile));
     }
 }

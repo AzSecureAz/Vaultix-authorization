@@ -1,12 +1,19 @@
 package com.vaultix.authorization.service.impl;
 
+import java.util.UUID;
+
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.vaultix.authorization.dto.AuthResponse;
 import com.vaultix.authorization.dto.LoginRequest;
+import com.vaultix.authorization.dto.UserProfileDto;
+import com.vaultix.authorization.entity.User;
+import com.vaultix.authorization.repository.UserRepository;
 import com.vaultix.authorization.security.CustomUserDetails;
 import com.vaultix.authorization.service.AuthService;
 import com.vaultix.authorization.service.TokenService;
@@ -21,6 +28,7 @@ public class AuthServiceImpl implements AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final TokenService tokenService;
+    private final UserRepository userRepository;
 
     @Override
     public AuthResponse login(LoginRequest request, String deviceInfo, String ipAddress) {
@@ -46,5 +54,15 @@ public class AuthServiceImpl implements AuthService {
     public void logout(String accessTokenJti) {
         log.info("Processing logout request for accessTokenJti: {}", accessTokenJti);
         tokenService.logout(accessTokenJti);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserProfileDto getProfile(UUID userId) {
+        log.info("Fetching profile for user ID: {}", userId);
+        User user = userRepository.findWithRolesAndPermissionsById(userId)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with ID: " + userId));
+
+        return UserProfileDto.from(user);
     }
 }

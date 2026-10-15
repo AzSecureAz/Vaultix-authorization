@@ -1,7 +1,10 @@
 package com.vaultix.authorization.service;
 
+import java.util.UUID;
+
 import com.vaultix.authorization.dto.AuthResponse;
 import com.vaultix.authorization.dto.LoginRequest;
+import com.vaultix.authorization.dto.UserProfileDto;
 
 public interface AuthService {
 
@@ -10,4 +13,6 @@ public interface AuthService {
     AuthResponse refreshToken(String rawRefreshToken, String deviceInfo, String ipAddress);
 
     void logout(String accessTokenJti);
+
+    UserProfileDto getProfile(UUID userId);
 }
