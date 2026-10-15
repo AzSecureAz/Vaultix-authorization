@@ -63,4 +63,7 @@ vaultix:
     email: ${VAULTIX_ADMIN_EMAIL:admin@vaultix.com}
     password: ${VAULTIX_ADMIN_PASSWORD:Admin@Vaultix2026!}
     full-name: ${VAULTIX_ADMIN_FULL_NAME:Vaultix Administrator}
+  security:
+    kek:
+      master-key: ${VAULTIX_SECURITY_KEK_MASTER_KEY:3xhw5B4DZicmirWLS4h3ZkA4pBFZwyKlG6cvEYvdf7I=}
 
