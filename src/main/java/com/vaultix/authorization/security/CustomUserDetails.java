@@ -17,8 +17,10 @@ import com.vaultix.authorization.entity.enums.RoleStatus;
 import com.vaultix.authorization.entity.enums.UserStatus;
 
 import lombok.Getter;
+import lombok.ToString;
 
 @Getter
+@ToString(exclude = "password")
 public class CustomUserDetails implements UserDetails {
 
     private final UUID id;
