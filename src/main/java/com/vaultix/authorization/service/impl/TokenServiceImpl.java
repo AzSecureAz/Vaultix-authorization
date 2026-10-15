@@ -3,7 +3,6 @@ package com.vaultix.authorization.service.impl;
 import java.text.ParseException;
 import java.time.Instant;
 import java.util.Date;
-import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.security.authentication.BadCredentialsException;
@@ -246,10 +245,6 @@ public class TokenServiceImpl implements TokenService {
 
             Instant now = Instant.now();
 
-            Set<String> roles = userDetails.getRolePermissions() != null
-                    ? userDetails.getRolePermissions().keySet()
-                    : Set.of();
-
             JWTClaimsSet accessClaims = new JWTClaimsSet.Builder()
                     .issuer(jwtProperties.issuer())
                     .subject(userDetails.getId().toString())
@@ -286,7 +281,6 @@ public class TokenServiceImpl implements TokenService {
                     .mfaEnabled(userDetails.isMfaEnabled())
                     .passkeyEnabled(userDetails.isPasskeyEnabled())
                     .hasSocialAccounts(userDetails.isHasSocialAccounts())
-                    .roles(roles)
                     .rolePermissions(userDetails.getRolePermissions())
                     .build();
 

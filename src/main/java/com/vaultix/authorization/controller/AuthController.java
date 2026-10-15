@@ -15,13 +15,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.vaultix.authorization.config.properties.JwtProperties;
 import com.vaultix.authorization.dto.AuthResponse;
 import com.vaultix.authorization.dto.LoginRequest;
 import com.vaultix.authorization.dto.RefreshTokenRequest;
+import com.vaultix.authorization.security.AuthCookieHelper;
 import com.vaultix.authorization.service.AuthService;
 import com.vaultix.authorization.service.SigningKeyService;
 import com.vaultix.common.dto.ApiResponse;
+import com.vaultix.common.util.ClientContextUtil;
+import com.vaultix.common.util.ClientContextUtil.ClientContext;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -34,15 +36,16 @@ public class AuthController {
 
     private final AuthService authService;
     private final SigningKeyService signingKeyService;
-    private final JwtProperties jwtProperties;
+    private final AuthCookieHelper authCookieHelper;
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(
             @Valid @RequestBody LoginRequest request,
             HttpServletRequest httpRequest) {
 
-        AuthResponse authResponse = authService.login(request, "Unknown", "Unknown");
-        ResponseCookie refreshCookie = createRefreshTokenCookie(authResponse.refreshToken(), httpRequest);
+        ClientContext clientContext = ClientContextUtil.extract(httpRequest);
+        AuthResponse authResponse = authService.login(request, clientContext.deviceInfo(), clientContext.ip());
+        ResponseCookie refreshCookie = authCookieHelper.createRefreshTokenCookie(authResponse.refreshToken(), httpRequest);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
@@ -67,8 +70,9 @@ public class AuthController {
             throw new BadCredentialsException("Refresh token exceeds maximum allowed length");
         }
 
-        AuthResponse authResponse = authService.refreshToken(token, "Unknown", "Unknown");
-        ResponseCookie refreshCookie = createRefreshTokenCookie(authResponse.refreshToken(), httpRequest);
+        ClientContext clientContext = ClientContextUtil.extract(httpRequest);
+        AuthResponse authResponse = authService.refreshToken(token, clientContext.deviceInfo(), clientContext.ip());
+        ResponseCookie refreshCookie = authCookieHelper.createRefreshTokenCookie(authResponse.refreshToken(), httpRequest);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
@@ -89,13 +93,7 @@ public class AuthController {
             authService.logout(jwt.getId());
         }
 
-        ResponseCookie cleanCookie = ResponseCookie.from("refresh_token", "")
-                .httpOnly(true)
-                .secure(httpRequest.isSecure() || "https".equalsIgnoreCase(httpRequest.getHeader("X-Forwarded-Proto")))
-                .sameSite("Strict")
-                .path("/api/v1/auth/refresh")
-                .maxAge(0)
-                .build();
+        ResponseCookie cleanCookie = authCookieHelper.createCleanCookie(httpRequest);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cleanCookie.toString())
@@ -105,15 +103,5 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getMe(@AuthenticationPrincipal Jwt jwt) {
         return ResponseEntity.ok(ApiResponse.success("Current user profile", jwt.getClaims()));
-    }
-
-    private ResponseCookie createRefreshTokenCookie(String refreshToken, HttpServletRequest httpRequest) {
-        return ResponseCookie.from("refresh_token", refreshToken)
-                .httpOnly(true)
-                .secure(httpRequest.isSecure() || "https".equalsIgnoreCase(httpRequest.getHeader("X-Forwarded-Proto")))
-                .sameSite("Strict")
-                .path("/api/v1/auth/refresh")
-                .maxAge(jwtProperties.refreshTokenExpiration())
-                .build();
     }
 }

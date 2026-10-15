@@ -21,7 +21,6 @@ public record UserSummaryDto(
         boolean passkeyEnabled,
         @JsonProperty("has_social_accounts")
         boolean hasSocialAccounts,
-        Set<String> roles,
         @JsonProperty("roles_permissions")
         Map<String, Set<String>> rolePermissions) {
 
