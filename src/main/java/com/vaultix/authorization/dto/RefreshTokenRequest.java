@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Size;
 
 public record RefreshTokenRequest(
-        @Size(max = MAX_LENGTH, message = "Refresh token exceeds maximum allowed length")
+        @Size(max = MAX_LENGTH, message = "Refresh token cannot exceed " + MAX_LENGTH + " characters")
         @JsonProperty("refresh_token")
         String refreshToken) {
 

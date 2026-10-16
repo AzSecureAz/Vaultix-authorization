@@ -10,7 +10,7 @@ public record LoginRequest(
         @Size(max = 256, message = "Identifier cannot exceed 256 characters")
         String identifier,
         @NotBlank(message = "Password is required")
-        @Size(max = StrongPassword.MAX_LENGTH, message = "Password exceeds maximum allowed length")
+        @Size(max = StrongPassword.MAX_LENGTH, message = "Password cannot exceed " + StrongPassword.MAX_LENGTH + " characters")
         String password) {
 
 }

@@ -66,7 +66,7 @@ public class AuthController {
         }
 
         if (token.length() > RefreshTokenRequest.MAX_LENGTH) {
-            throw new BadCredentialsException("Refresh token exceeds maximum allowed length");
+            throw new BadCredentialsException("Refresh token cannot exceed " + RefreshTokenRequest.MAX_LENGTH + " characters");
         }
 
         ClientContext clientContext = ClientContextUtil.extract(httpRequest);
