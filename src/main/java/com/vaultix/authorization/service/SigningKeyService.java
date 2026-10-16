@@ -19,7 +19,7 @@ public interface SigningKeyService {
 
     Map<String, Object> getJwkSetAsMap();
 
-    RSAKey rotateKey();
+    SigningKeyResponse rotateKey();
 
     int cleanExpiredKeys();
 

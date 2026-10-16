@@ -98,7 +98,7 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
 
     @Override
     @Transactional
-    public RSAKey rotateKey() {
+    public SigningKeyResponse rotateKey() {
         log.info("Initiating RSA signing key rotation...");
 
         signingKeyRepository.findByStatus(KeyStatus.ACTIVE).ifPresent(currentKey -> {
@@ -126,7 +126,9 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
             broadcastKeyRotation(newKey.getKeyID());
         }
 
-        return newKey;
+        return signingKeyRepository.findByStatus(KeyStatus.ACTIVE)
+                .map(SigningKeyResponse::fromEntity)
+                .orElseThrow(() -> new IllegalStateException("Active signing key not found after rotation"));
     }
 
     private void broadcastKeyRotation(String kid) {

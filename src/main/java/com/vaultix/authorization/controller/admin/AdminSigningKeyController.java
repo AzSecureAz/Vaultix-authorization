@@ -7,6 +7,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -34,5 +35,13 @@ public class AdminSigningKeyController {
         log.info("Admin request to retrieve signing keys with pageable: {}", pageable);
         Page<SigningKeyResponse> keys = signingKeyService.getAllSigningKeys(pageable);
         return ResponseEntity.ok(ApiResponse.success("Cryptographic signing keys retrieved successfully", keys));
+    }
+
+    @PostMapping("/rotate")
+    @PreAuthorize(AuthSecurityExpressions.CAN_ROTATE_KEYS)
+    public ResponseEntity<ApiResponse<SigningKeyResponse>> rotateSigningKey() {
+        log.info("Admin request to manually rotate signing key");
+        SigningKeyResponse rotatedKey = signingKeyService.rotateKey();
+        return ResponseEntity.ok(ApiResponse.success("Cryptographic signing key rotated successfully", rotatedKey));
     }
 }
