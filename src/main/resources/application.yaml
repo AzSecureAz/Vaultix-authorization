@@ -79,4 +79,6 @@ vaultix:
       key-cleanup-cron: ${VAULTIX_KEY_CLEANUP_CRON:0 10 2 * * ?}
       key-cleanup-grace-period: ${VAULTIX_KEY_CLEANUP_GRACE_PERIOD:7d}
       key-cleanup-batch-size: ${VAULTIX_KEY_CLEANUP_BATCH_SIZE:100}
-
+      refresh-token-cleanup-cron: ${VAULTIX_REFRESH_TOKEN_CLEANUP_CRON:0 20 2 * * ?}
+      refresh-token-cleanup-grace-period: ${VAULTIX_REFRESH_TOKEN_CLEANUP_GRACE_PERIOD:7d}
+      refresh-token-cleanup-batch-size: ${VAULTIX_REFRESH_TOKEN_CLEANUP_BATCH_SIZE:500}

@@ -33,6 +33,15 @@ public record JwtProperties(
         Duration keyCleanupGracePeriod,
         @Positive(message = "Key cleanup batch size must be positive")
         @DefaultValue("100")
-        int keyCleanupBatchSize) {
+        int keyCleanupBatchSize,
+        @NotBlank(message = "Refresh token cleanup cron expression is required")
+        @DefaultValue("0 20 2 * * ?")
+        String refreshTokenCleanupCron,
+        @NotNull(message = "Refresh token cleanup grace period is required")
+        @DefaultValue("7d")
+        Duration refreshTokenCleanupGracePeriod,
+        @Positive(message = "Refresh token cleanup batch size must be positive")
+        @DefaultValue("500")
+        int refreshTokenCleanupBatchSize) {
 
 }

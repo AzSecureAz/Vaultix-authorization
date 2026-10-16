@@ -287,4 +287,28 @@ public class TokenServiceImpl implements TokenService {
             throw new IllegalStateException("Failed to sign JWT tokens", e);
         }
     }
+
+    @Override
+    @Transactional
+    public int cleanExpiredTokens() {
+        Instant now = Instant.now();
+        Instant revokedThreshold = now.minus(jwtProperties.refreshTokenCleanupGracePeriod());
+        Instant expiredThreshold = now;
+
+        int totalDeleted = 0;
+        int deleted;
+        do {
+            deleted = refreshTokenRepository.deleteExpiredTokensBatch(
+                    revokedThreshold,
+                    expiredThreshold,
+                    jwtProperties.refreshTokenCleanupBatchSize()
+            );
+            totalDeleted += deleted;
+        } while (deleted == jwtProperties.refreshTokenCleanupBatchSize());
+
+        if (totalDeleted > 0) {
+            log.info("Cleaned up {} expired/revoked refresh tokens from database", totalDeleted);
+        }
+        return totalDeleted;
+    }
 }

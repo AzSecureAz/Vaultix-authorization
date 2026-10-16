@@ -11,4 +11,6 @@ public interface TokenService {
     AuthResponse refreshTokens(String rawRefreshToken, ClientContext clientContext);
 
     void logout(String accessTokenJti);
+
+    int cleanExpiredTokens();
 }
