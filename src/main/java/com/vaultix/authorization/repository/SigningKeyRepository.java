@@ -19,6 +19,8 @@ public interface SigningKeyRepository extends JpaRepository<SigningKey, UUID> {
 
     Optional<SigningKey> findByStatus(KeyStatus status);
 
+    Optional<SigningKey> findByKid(String kid);
+
     @Query("SELECT k FROM SigningKey k WHERE k.status = com.vaultix.authorization.entity.enums.KeyStatus.ACTIVE OR (k.status = com.vaultix.authorization.entity.enums.KeyStatus.ROTATED AND k.updatedAt >= :threshold)")
     List<SigningKey> findActiveAndValidRotatedKeys(@Param("threshold") Instant threshold);
 

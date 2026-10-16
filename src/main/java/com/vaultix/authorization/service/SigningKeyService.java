@@ -29,4 +29,6 @@ public interface SigningKeyService {
     void handleRotationEvent(String eventPayload);
 
     Page<SigningKeyResponse> getAllSigningKeys(Pageable pageable);
+
+    SigningKeyResponse getKeyByKid(String kid);
 }

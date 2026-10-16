@@ -41,6 +41,7 @@ import com.vaultix.authorization.entity.enums.KeyStatus;
 import com.vaultix.authorization.repository.SigningKeyRepository;
 import com.vaultix.authorization.service.SigningKeyService;
 import com.vaultix.common.crypto.AesGcmCryptoUtil;
+import com.vaultix.common.exception.ResourceNotFoundException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -190,6 +191,14 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
     public Page<SigningKeyResponse> getAllSigningKeys(Pageable pageable) {
         return signingKeyRepository.findAll(pageable)
                 .map(SigningKeyResponse::fromEntity);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SigningKeyResponse getKeyByKid(String kid) {
+        return signingKeyRepository.findByKid(kid)
+                .map(SigningKeyResponse::fromEntity)
+                .orElseThrow(() -> new ResourceNotFoundException("Signing key not found with kid: " + kid));
     }
 
     private RSAKey createAndSaveNewActiveKey(UUID actorId) {
