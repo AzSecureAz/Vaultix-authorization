@@ -18,6 +18,8 @@ import java.util.concurrent.TimeUnit;
 
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +35,7 @@ import com.nimbusds.jose.jwk.KeyUse;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.vaultix.authorization.config.properties.JwtProperties;
 import com.vaultix.authorization.config.properties.KekProperties;
+import com.vaultix.authorization.dto.admin.SigningKeyResponse;
 import com.vaultix.authorization.entity.SigningKey;
 import com.vaultix.authorization.entity.enums.KeyStatus;
 import com.vaultix.authorization.repository.SigningKeyRepository;
@@ -171,6 +174,13 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
             log.info("Cleaned up {} expired/revoked signing keys from database", totalDeleted);
         }
         return totalDeleted;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<SigningKeyResponse> getAllSigningKeys(Pageable pageable) {
+        return signingKeyRepository.findAll(pageable)
+                .map(SigningKeyResponse::fromEntity);
     }
 
     private RSAKey createAndSaveNewActiveKey() {
