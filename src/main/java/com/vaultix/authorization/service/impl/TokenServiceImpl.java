@@ -23,7 +23,6 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import com.vaultix.authorization.config.properties.JwtProperties;
 import com.vaultix.authorization.dto.AuthResponse;
-import com.vaultix.authorization.dto.UserSummaryDto;
 import com.vaultix.authorization.entity.RefreshToken;
 import com.vaultix.authorization.entity.User;
 import com.vaultix.authorization.entity.enums.UserStatus;
@@ -251,6 +250,7 @@ public class TokenServiceImpl implements TokenService {
                     .jwtID(accessTokenJti.toString())
                     .issueTime(Date.from(now))
                     .expirationTime(Date.from(accessExp))
+                    .claim("token_type", "access")
                     .claim("roles_permissions", userDetails.getRolePermissions())
                     .build();
 
@@ -265,7 +265,6 @@ public class TokenServiceImpl implements TokenService {
                     .issueTime(Date.from(now))
                     .expirationTime(Date.from(refreshExp))
                     .claim("token_type", "refresh")
-                    .claim("access_token_jti", accessTokenJti.toString())
                     .claim("gen", gen)
                     .build();
 
@@ -273,24 +272,11 @@ public class TokenServiceImpl implements TokenService {
             signedRefreshToken.sign(signer);
             String refreshTokenString = signedRefreshToken.serialize();
 
-            UserSummaryDto userSummary = UserSummaryDto.builder()
-                    .id(userDetails.getId())
-                    .username(userDetails.getUsername())
-                    .email(userDetails.getEmail())
-                    .emailVerified(userDetails.isEmailVerified())
-                    .mfaEnabled(userDetails.isMfaEnabled())
-                    .passkeyEnabled(userDetails.isPasskeyEnabled())
-                    .hasSocialAccounts(userDetails.isHasSocialAccounts())
-                    .rolePermissions(userDetails.getRolePermissions())
-                    .build();
-
             return AuthResponse.builder()
                     .accessToken(accessTokenString)
                     .refreshToken(refreshTokenString)
                     .tokenType(AuthResponse.TOKEN_TYPE_BEARER)
                     .expiresIn(jwtProperties.accessTokenExpiration().toSeconds())
-                    .mustChangePassword(userDetails.isMustChangePassword())
-                    .user(userSummary)
                     .build();
 
         } catch (JOSEException e) {
