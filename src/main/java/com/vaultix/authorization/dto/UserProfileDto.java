@@ -31,8 +31,6 @@ public record UserProfileDto(
         UserStatus status,
         @JsonProperty("email_verified")
         boolean emailVerified,
-        @JsonProperty("must_change_password")
-        boolean mustChangePassword,
         @JsonProperty("mfa_enabled")
         boolean mfaEnabled,
         @JsonProperty("passkey_enabled")
@@ -90,7 +88,6 @@ public record UserProfileDto(
                 .phoneNumber(user.getPhoneNumber())
                 .status(user.getStatus())
                 .emailVerified(user.isEmailVerified())
-                .mustChangePassword(user.isMustChangePassword())
                 .mfaEnabled(user.isMfaEnabled())
                 .passkeyEnabled(user.isPasskeyEnabled())
                 .hasSocialAccounts(user.isHasSocialAccounts())

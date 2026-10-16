@@ -79,11 +79,6 @@ public class User {
     @ToString.Include
     private boolean emailVerified = false;
 
-    @Column(name = "must_change_password", nullable = false)
-    @Builder.Default
-    @ToString.Include
-    private boolean mustChangePassword = false;
-
     @Column(name = "mfa_enabled", nullable = false)
     @Builder.Default
     @ToString.Include

@@ -32,6 +32,7 @@ import com.vaultix.authorization.security.CustomUserDetails;
 import com.vaultix.authorization.service.SigningKeyService;
 import com.vaultix.authorization.service.TokenService;
 import com.vaultix.common.security.TokenBlacklistService;
+import com.vaultix.common.util.ClientContextUtil.ClientContext;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,7 +50,7 @@ public class TokenServiceImpl implements TokenService {
 
     @Override
     @Transactional
-    public AuthResponse issueTokens(CustomUserDetails userDetails, String deviceInfo, String ipAddress) {
+    public AuthResponse issueTokens(CustomUserDetails userDetails, ClientContext clientContext) {
         log.info("Issuing initial access and refresh tokens for user ID: {}", userDetails.getId());
 
         Instant now = Instant.now();
@@ -64,8 +65,9 @@ public class TokenServiceImpl implements TokenService {
                 .refreshTokenJti(refreshTokenJti)
                 .accessTokenJti(accessTokenJti)
                 .gen(1)
-                .deviceInfo(deviceInfo)
-                .ipAddress(ipAddress)
+                .deviceInfo(clientContext.deviceInfo())
+                .ipAddress(clientContext.ip())
+                .locationInfo(clientContext.location())
                 .revoked(false)
                 .expiresAt(refreshExp)
                 .build();
@@ -77,7 +79,7 @@ public class TokenServiceImpl implements TokenService {
 
     @Override
     @Transactional
-    public AuthResponse refreshTokens(String rawRefreshToken, String deviceInfo, String ipAddress) {
+    public AuthResponse refreshTokens(String rawRefreshToken, ClientContext clientContext) {
         if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
             throw new BadCredentialsException("Refresh token is required");
         }
@@ -189,8 +191,9 @@ public class TokenServiceImpl implements TokenService {
         existingSession.setAccessTokenJti(newAccessTokenJti);
         existingSession.setGen(nextGen);
         existingSession.setExpiresAt(newRefreshExp);
-        existingSession.setDeviceInfo(deviceInfo);
-        existingSession.setIpAddress(ipAddress);
+        existingSession.setDeviceInfo(clientContext.deviceInfo());
+        existingSession.setIpAddress(clientContext.ip());
+        existingSession.setLocationInfo(clientContext.location());
         refreshTokenRepository.save(existingSession);
 
         log.info("Updated refresh token session in-place for user ID: {} (Generation: {} -> {})",

@@ -5,12 +5,13 @@ import java.util.UUID;
 import com.vaultix.authorization.dto.AuthResponse;
 import com.vaultix.authorization.dto.LoginRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
+import com.vaultix.common.util.ClientContextUtil.ClientContext;
 
 public interface AuthService {
 
-    AuthResponse login(LoginRequest request, String deviceInfo, String ipAddress);
+    AuthResponse login(LoginRequest request, ClientContext clientContext);
 
-    AuthResponse refreshToken(String rawRefreshToken, String deviceInfo, String ipAddress);
+    AuthResponse refreshToken(String rawRefreshToken, ClientContext clientContext);
 
     void logout(String accessTokenJti);
 

@@ -57,12 +57,11 @@ public class AdminUserInitializer implements ApplicationRunner {
                 .fullName(adminProps.fullName())
                 .status(UserStatus.ACTIVE)
                 .emailVerified(true)
-                .mustChangePassword(true)
                 .roles(new HashSet<>(Set.of(adminRole)))
                 .build();
 
         userRepository.save(admin);
-        log.info("Initial admin user '{}' ({}) successfully bootstrapped with ROLE_ADMIN. [mustChangePassword=true]",
+        log.info("Initial admin user '{}' ({}) successfully bootstrapped with ROLE_ADMIN.",
                 adminProps.username(), adminProps.email());
     }
 }

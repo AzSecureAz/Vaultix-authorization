@@ -17,6 +17,7 @@ import com.vaultix.authorization.repository.UserRepository;
 import com.vaultix.authorization.security.CustomUserDetails;
 import com.vaultix.authorization.service.AuthService;
 import com.vaultix.authorization.service.TokenService;
+import com.vaultix.common.util.ClientContextUtil.ClientContext;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +32,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
 
     @Override
-    public AuthResponse login(LoginRequest request, String deviceInfo, String ipAddress) {
+    public AuthResponse login(LoginRequest request, ClientContext clientContext) {
         log.info("Attempting authentication for identifier: {}", request.identifier());
 
         Authentication authentication = authenticationManager.authenticate(
@@ -41,13 +42,13 @@ public class AuthServiceImpl implements AuthService {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         log.info("Authentication successful for user: {}", userDetails.getUsername());
 
-        return tokenService.issueTokens(userDetails, deviceInfo, ipAddress);
+        return tokenService.issueTokens(userDetails, clientContext);
     }
 
     @Override
-    public AuthResponse refreshToken(String rawRefreshToken, String deviceInfo, String ipAddress) {
+    public AuthResponse refreshToken(String rawRefreshToken, ClientContext clientContext) {
         log.info("Processing token refresh request");
-        return tokenService.refreshTokens(rawRefreshToken, deviceInfo, ipAddress);
+        return tokenService.refreshTokens(rawRefreshToken, clientContext);
     }
 
     @Override

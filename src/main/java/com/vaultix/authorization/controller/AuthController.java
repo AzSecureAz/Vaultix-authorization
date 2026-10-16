@@ -46,7 +46,7 @@ public class AuthController {
             HttpServletRequest httpRequest) {
 
         ClientContext clientContext = ClientContextUtil.extract(httpRequest);
-        AuthResponse authResponse = authService.login(request, clientContext.deviceInfo(), clientContext.ip());
+        AuthResponse authResponse = authService.login(request, clientContext);
         ResponseCookie refreshCookie = authCookieHelper.createRefreshTokenCookie(authResponse.refreshToken(), httpRequest);
 
         return ResponseEntity.ok()
@@ -73,7 +73,7 @@ public class AuthController {
         }
 
         ClientContext clientContext = ClientContextUtil.extract(httpRequest);
-        AuthResponse authResponse = authService.refreshToken(token, clientContext.deviceInfo(), clientContext.ip());
+        AuthResponse authResponse = authService.refreshToken(token, clientContext);
         ResponseCookie refreshCookie = authCookieHelper.createRefreshTokenCookie(authResponse.refreshToken(), httpRequest);
 
         return ResponseEntity.ok()

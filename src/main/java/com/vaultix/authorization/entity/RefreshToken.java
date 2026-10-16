@@ -67,6 +67,10 @@ public class RefreshToken {
     @ToString.Include
     private String ipAddress;
 
+    @Column(name = "location_info", length = 256, nullable = false)
+    @ToString.Include
+    private String locationInfo;
+
     @Column(name = "revoked", nullable = false)
     @Builder.Default
     @ToString.Include
