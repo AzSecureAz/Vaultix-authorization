@@ -28,13 +28,7 @@ public class CustomUserDetails implements UserDetails {
 
     private final UUID id;
     private final String username;
-    private final String email;
     private final String password;
-    private final boolean emailVerified;
-    private final boolean mustChangePassword;
-    private final boolean mfaEnabled;
-    private final boolean passkeyEnabled;
-    private final boolean hasSocialAccounts;
     private final UserStatus status;
     private final Instant lockedUntil;
     private final Collection<? extends GrantedAuthority> authorities;
@@ -43,13 +37,7 @@ public class CustomUserDetails implements UserDetails {
     public CustomUserDetails(User user) {
         this.id = user.getId();
         this.username = user.getUsername();
-        this.email = user.getEmail();
         this.password = user.getPasswordHash();
-        this.emailVerified = user.isEmailVerified();
-        this.mustChangePassword = user.isMustChangePassword();
-        this.mfaEnabled = user.isMfaEnabled();
-        this.passkeyEnabled = user.isPasskeyEnabled();
-        this.hasSocialAccounts = user.isHasSocialAccounts();
         this.status = user.getStatus();
         this.lockedUntil = user.getLockedUntil();
 
