@@ -149,6 +149,30 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
         }
     }
 
+    @Override
+    @Transactional
+    public int cleanExpiredKeys() {
+        Instant now = Instant.now();
+        Instant revokedThreshold = now.minus(jwtProperties.keyCleanupGracePeriod());
+        Instant rotatedThreshold = now.minus(jwtProperties.refreshTokenExpiration().plus(jwtProperties.keyCleanupGracePeriod()));
+
+        int totalDeleted = 0;
+        int deleted;
+        do {
+            deleted = signingKeyRepository.deleteExpiredSigningKeysBatch(
+                    revokedThreshold,
+                    rotatedThreshold,
+                    jwtProperties.keyCleanupBatchSize()
+            );
+            totalDeleted += deleted;
+        } while (deleted == jwtProperties.keyCleanupBatchSize());
+
+        if (totalDeleted > 0) {
+            log.info("Cleaned up {} expired/revoked signing keys from database", totalDeleted);
+        }
+        return totalDeleted;
+    }
+
     private RSAKey createAndSaveNewActiveKey() {
         try {
             KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");

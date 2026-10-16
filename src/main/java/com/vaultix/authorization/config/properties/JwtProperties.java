@@ -8,6 +8,7 @@ import org.springframework.validation.annotation.Validated;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
 @Validated
 @ConfigurationProperties(prefix = "vaultix.security.jwt")
@@ -23,6 +24,15 @@ public record JwtProperties(
         Duration refreshTokenExpiration,
         @NotBlank(message = "Key rotation cron expression is required")
         @DefaultValue("0 * * * * ?")
-        String keyRotationCron) {
+        String keyRotationCron,
+        @NotBlank(message = "Key cleanup cron expression is required")
+        @DefaultValue("0 * * * * ?")
+        String keyCleanupCron,
+        @NotNull(message = "Key cleanup grace period is required")
+        @DefaultValue("1m")
+        Duration keyCleanupGracePeriod,
+        @Positive(message = "Key cleanup batch size must be positive")
+        @DefaultValue("100")
+        int keyCleanupBatchSize) {
 
 }

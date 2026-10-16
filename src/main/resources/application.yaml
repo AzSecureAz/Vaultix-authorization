@@ -76,4 +76,7 @@ vaultix:
       access-token-expiration: ${VAULTIX_JWT_ACCESS_TOKEN_EXPIRATION:5m}
       refresh-token-expiration: ${VAULTIX_JWT_REFRESH_TOKEN_EXPIRATION:7d}
       key-rotation-cron: ${VAULTIX_KEY_ROTATION_CRON:0 * * * * ?}
+      key-cleanup-cron: ${VAULTIX_KEY_CLEANUP_CRON:0 * * * * ?}
+      key-cleanup-grace-period: ${VAULTIX_KEY_CLEANUP_GRACE_PERIOD:1m}
+      key-cleanup-batch-size: ${VAULTIX_KEY_CLEANUP_BATCH_SIZE:100}
 

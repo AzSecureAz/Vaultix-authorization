@@ -17,5 +17,7 @@ public interface SigningKeyService {
 
     RSAKey rotateKey();
 
+    int cleanExpiredKeys();
+
     void handleRotationEvent(String eventPayload);
 }

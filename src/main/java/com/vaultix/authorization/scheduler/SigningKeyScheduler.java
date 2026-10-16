@@ -12,7 +12,7 @@ import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class SigningKeyRotationScheduler {
+public class SigningKeyScheduler {
 
     private final SigningKeyService signingKeyService;
 
@@ -21,5 +21,12 @@ public class SigningKeyRotationScheduler {
     public void scheduleKeyRotation() {
         log.info("Triggering scheduled signing key rotation...");
         signingKeyService.rotateKey();
+    }
+
+    @Scheduled(cron = "${vaultix.security.jwt.key-cleanup-cron:0 * * * * ?}")
+    @SchedulerLock(name = "signingKeyCleanup", lockAtMostFor = "50s", lockAtLeastFor = "10s")
+    public void scheduleKeyCleanup() {
+        log.info("Triggering scheduled signing key cleanup...");
+        signingKeyService.cleanExpiredKeys();
     }
 }
