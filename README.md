@@ -104,6 +104,8 @@ authorization/
     │   │   ├── SigningKey.java
     │   │   └── User.java
     │   ├── repository/
+    │   ├── scheduler/
+    │   │   └── SigningKeyRotationScheduler.java
     │   ├── security/
     │   │   ├── AuthCookieHelper.java
     │   │   ├── CustomUserDetails.java

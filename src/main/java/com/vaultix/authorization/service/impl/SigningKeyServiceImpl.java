@@ -100,7 +100,7 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
 
         signingKeyRepository.findByStatus(KeyStatus.ACTIVE).ifPresent(currentKey -> {
             currentKey.setStatus(KeyStatus.ROTATED);
-            signingKeyRepository.save(currentKey);
+            signingKeyRepository.saveAndFlush(currentKey);
             log.info("Marked previous active key as ROTATED. kid: {}", currentKey.getKid());
         });
 

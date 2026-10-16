@@ -75,4 +75,5 @@ vaultix:
       issuer: ${VAULTIX_JWT_ISSUER:https://auth.vaultix.com}
       access-token-expiration: ${VAULTIX_JWT_ACCESS_TOKEN_EXPIRATION:5m}
       refresh-token-expiration: ${VAULTIX_JWT_REFRESH_TOKEN_EXPIRATION:7d}
+      key-rotation-cron: ${VAULTIX_KEY_ROTATION_CRON:0 * * * * ?}
 

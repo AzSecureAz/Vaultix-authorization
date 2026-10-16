@@ -20,6 +20,9 @@ public record JwtProperties(
         Duration accessTokenExpiration,
         @NotNull(message = "Refresh token expiration duration is required")
         @DefaultValue("7d")
-        Duration refreshTokenExpiration) {
+        Duration refreshTokenExpiration,
+        @NotBlank(message = "Key rotation cron expression is required")
+        @DefaultValue("0 * * * * ?")
+        String keyRotationCron) {
 
 }
