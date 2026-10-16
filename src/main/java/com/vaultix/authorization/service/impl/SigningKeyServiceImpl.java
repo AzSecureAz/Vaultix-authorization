@@ -76,7 +76,7 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
     public RSAKey getActiveSigningKey() {
         return activeKeyCache.get("active", key -> signingKeyRepository.findByStatus(KeyStatus.ACTIVE)
                 .map(entity -> toRsaKey(entity, true))
-                .orElseGet(this::createAndSaveNewActiveKey));
+                .orElseGet(() -> createAndSaveNewActiveKey(null)));
     }
 
     @Override
@@ -99,15 +99,22 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
     @Override
     @Transactional
     public SigningKeyResponse rotateKey() {
-        log.info("Initiating RSA signing key rotation...");
+        return rotateKey(null);
+    }
+
+    @Override
+    @Transactional
+    public SigningKeyResponse rotateKey(UUID actorId) {
+        log.info("Initiating RSA signing key rotation by actor: {}...", actorId != null ? actorId : "SYSTEM");
 
         signingKeyRepository.findByStatus(KeyStatus.ACTIVE).ifPresent(currentKey -> {
             currentKey.setStatus(KeyStatus.ROTATED);
+            currentKey.setUpdatedBy(actorId);
             signingKeyRepository.saveAndFlush(currentKey);
-            log.info("Marked previous active key as ROTATED. kid: {}", currentKey.getKid());
+            log.info("Marked previous active key as ROTATED by {}. kid: {}", actorId != null ? actorId : "SYSTEM", currentKey.getKid());
         });
 
-        RSAKey newKey = createAndSaveNewActiveKey();
+        RSAKey newKey = createAndSaveNewActiveKey(actorId);
 
         activeKeyCache.invalidateAll();
         jwkSetCache.invalidateAll();
@@ -185,7 +192,7 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
                 .map(SigningKeyResponse::fromEntity);
     }
 
-    private RSAKey createAndSaveNewActiveKey() {
+    private RSAKey createAndSaveNewActiveKey(UUID actorId) {
         try {
             KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
             generator.initialize(2048);
@@ -207,6 +214,7 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
                     .publicKeyPem(publicKeyPem)
                     .encryptedPrivateKey(encryptedPrivateKey)
                     .status(KeyStatus.ACTIVE)
+                    .createdBy(actorId)
                     .build();
 
             signingKeyRepository.save(signingKey);

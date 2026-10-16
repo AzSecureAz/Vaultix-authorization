@@ -1,6 +1,7 @@
 package com.vaultix.authorization.service;
 
 import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +21,8 @@ public interface SigningKeyService {
     Map<String, Object> getJwkSetAsMap();
 
     SigningKeyResponse rotateKey();
+
+    SigningKeyResponse rotateKey(UUID actorId);
 
     int cleanExpiredKeys();
 
