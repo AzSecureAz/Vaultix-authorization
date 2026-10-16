@@ -66,6 +66,7 @@ Client Request ──► Gateway ──► AuthController ──► AuthService 
 | `POST` | `/refresh` | Rotate refresh token and issue new access token | Cookie / Body | Yes |
 | `POST` | `/logout` | Revoke refresh token and wipe session cookie | Cookie / Body | No |
 | `GET` | `/me` | Retrieve authenticated user profile with roles & permissions | Bearer JWT | No |
+| `GET` | `/.well-known/jwks.json` | Public JWK Set containing RSA-2048 verification keys | No | No |
 
 ---
 
@@ -87,7 +88,8 @@ authorization/
     │   │   ├── SecurityConfig.java
     │   │   └── properties/
     │   ├── controller/
-    │   │   └── AuthController.java
+    │   │   ├── AuthController.java
+    │   │   └── JwksController.java
     │   ├── dto/
     │   │   ├── AuthResponse.java
     │   │   ├── LoginRequest.java

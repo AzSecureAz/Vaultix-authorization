@@ -1,6 +1,5 @@
 package com.vaultix.authorization.controller;
 
-import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.http.HttpHeaders;
@@ -22,7 +21,6 @@ import com.vaultix.authorization.dto.RefreshTokenRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
 import com.vaultix.authorization.security.AuthCookieHelper;
 import com.vaultix.authorization.service.AuthService;
-import com.vaultix.authorization.service.SigningKeyService;
 import com.vaultix.common.dto.ApiResponse;
 import com.vaultix.common.util.ClientContextUtil;
 import com.vaultix.common.util.ClientContextUtil.ClientContext;
@@ -37,7 +35,6 @@ import lombok.RequiredArgsConstructor;
 public class AuthController {
 
     private final AuthService authService;
-    private final SigningKeyService signingKeyService;
     private final AuthCookieHelper authCookieHelper;
 
     @PostMapping("/login")
@@ -79,11 +76,6 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
                 .body(ApiResponse.success("Token refreshed successfully", authResponse));
-    }
-
-    @GetMapping("/.well-known/jwks.json")
-    public Map<String, Object> getJwks() {
-        return signingKeyService.getJwkSetAsMap();
     }
 
     @PostMapping("/logout")
