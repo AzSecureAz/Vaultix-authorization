@@ -23,13 +23,13 @@ public record JwtProperties(
         @DefaultValue("7d")
         Duration refreshTokenExpiration,
         @NotBlank(message = "Key rotation cron expression is required")
-        @DefaultValue("0 * * * * ?")
+        @DefaultValue("0 0 2 * * ?")
         String keyRotationCron,
         @NotBlank(message = "Key cleanup cron expression is required")
-        @DefaultValue("0 * * * * ?")
+        @DefaultValue("0 10 2 * * ?")
         String keyCleanupCron,
         @NotNull(message = "Key cleanup grace period is required")
-        @DefaultValue("1m")
+        @DefaultValue("7d")
         Duration keyCleanupGracePeriod,
         @Positive(message = "Key cleanup batch size must be positive")
         @DefaultValue("100")

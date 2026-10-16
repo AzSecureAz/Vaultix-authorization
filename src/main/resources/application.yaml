@@ -75,8 +75,8 @@ vaultix:
       issuer: ${VAULTIX_JWT_ISSUER:https://auth.vaultix.com}
       access-token-expiration: ${VAULTIX_JWT_ACCESS_TOKEN_EXPIRATION:5m}
       refresh-token-expiration: ${VAULTIX_JWT_REFRESH_TOKEN_EXPIRATION:7d}
-      key-rotation-cron: ${VAULTIX_KEY_ROTATION_CRON:0 * * * * ?}
-      key-cleanup-cron: ${VAULTIX_KEY_CLEANUP_CRON:0 * * * * ?}
-      key-cleanup-grace-period: ${VAULTIX_KEY_CLEANUP_GRACE_PERIOD:1m}
+      key-rotation-cron: ${VAULTIX_KEY_ROTATION_CRON:0 0 2 * * ?}
+      key-cleanup-cron: ${VAULTIX_KEY_CLEANUP_CRON:0 10 2 * * ?}
+      key-cleanup-grace-period: ${VAULTIX_KEY_CLEANUP_GRACE_PERIOD:7d}
       key-cleanup-batch-size: ${VAULTIX_KEY_CLEANUP_BATCH_SIZE:100}
 
