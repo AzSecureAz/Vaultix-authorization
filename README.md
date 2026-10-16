@@ -84,6 +84,7 @@ authorization/
     │   ├── config/
     │   │   ├── JwtDecoderConfig.java
     │   │   ├── RedisPubSubConfig.java
+    │   │   ├── SchedulerConfig.java
     │   │   ├── SecurityBeansConfig.java
     │   │   ├── SecurityConfig.java
     │   │   └── properties/
