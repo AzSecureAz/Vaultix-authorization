@@ -19,16 +19,28 @@ public class RedisPubSubConfig {
     }
 
     @Bean
+    public ChannelTopic signingKeyRevocationTopic() {
+        return new ChannelTopic(SigningKeyService.REVOCATION_TOPIC);
+    }
+
+    @Bean
     public RedisMessageListenerContainer redisMessageListenerContainer(
             RedisConnectionFactory connectionFactory,
             SigningKeyService signingKeyService,
-            ChannelTopic signingKeyRotationTopic) {
+            ChannelTopic signingKeyRotationTopic,
+            ChannelTopic signingKeyRevocationTopic) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
+
         container.addMessageListener((message, pattern) -> {
             String payload = new String(message.getBody(), StandardCharsets.UTF_8);
             signingKeyService.handleRotationEvent(payload);
         }, signingKeyRotationTopic);
+
+        container.addMessageListener((message, pattern) -> {
+            String payload = new String(message.getBody(), StandardCharsets.UTF_8);
+            signingKeyService.handleRevocationEvent(payload);
+        }, signingKeyRevocationTopic);
 
         return container;
     }

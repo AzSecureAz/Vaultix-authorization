@@ -41,6 +41,7 @@ import com.vaultix.authorization.entity.enums.KeyStatus;
 import com.vaultix.authorization.repository.SigningKeyRepository;
 import com.vaultix.authorization.service.SigningKeyService;
 import com.vaultix.common.crypto.AesGcmCryptoUtil;
+import com.vaultix.common.exception.ResourceConflictException;
 import com.vaultix.common.exception.ResourceNotFoundException;
 
 import lombok.RequiredArgsConstructor;
@@ -163,6 +164,12 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
     }
 
     @Override
+    public void handleRevocationEvent(String eventPayload) {
+        log.info("Received key revocation notification from Redis: {}. Invalidating JWKS cache...", eventPayload);
+        jwkSetCache.invalidateAll();
+    }
+
+    @Override
     @Transactional
     public int cleanExpiredKeys() {
         Instant now = Instant.now();
@@ -199,6 +206,55 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
         return signingKeyRepository.findByKid(kid)
                 .map(SigningKeyResponse::fromEntity)
                 .orElseThrow(() -> new ResourceNotFoundException("Signing key not found with kid: " + kid));
+    }
+
+    @Override
+    @Transactional
+    public SigningKeyResponse revokeKey(String kid, UUID actorId) {
+        log.info("Initiating revocation of signing key with kid: {} by actor: {}...", kid, actorId != null ? actorId : "SYSTEM");
+
+        SigningKey key = signingKeyRepository.findByKid(kid)
+                .orElseThrow(() -> new ResourceNotFoundException("Signing key not found with kid: " + kid));
+
+        if (key.getStatus() == KeyStatus.ACTIVE) {
+            throw new ResourceConflictException("Cannot revoke the active signing key. Rotate keys first, then revoke this key.");
+        }
+
+        if (key.getStatus() == KeyStatus.REVOKED) {
+            log.info("Signing key with kid: {} is already revoked", kid);
+            return SigningKeyResponse.fromEntity(key);
+        }
+
+        key.setStatus(KeyStatus.REVOKED);
+        key.setUpdatedBy(actorId);
+        signingKeyRepository.saveAndFlush(key);
+        log.info("Marked signing key with kid: {} as REVOKED by {}", kid, actorId != null ? actorId : "SYSTEM");
+
+        activeKeyCache.invalidateAll();
+        jwkSetCache.invalidateAll();
+
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    broadcastKeyRevocation(kid);
+                }
+            });
+        } else {
+            broadcastKeyRevocation(kid);
+        }
+
+        return SigningKeyResponse.fromEntity(key);
+    }
+
+    private void broadcastKeyRevocation(String kid) {
+        try {
+            String payload = "KEY_REVOKED:" + kid;
+            stringRedisTemplate.convertAndSend(REVOCATION_TOPIC, payload);
+            log.info("Broadcasted key revocation event to Redis topic '{}': {}", REVOCATION_TOPIC, payload);
+        } catch (Exception e) {
+            log.warn("Failed to publish key revocation event to Redis. Other instances will sync on cache TTL expiry", e);
+        }
     }
 
     private RSAKey createAndSaveNewActiveKey(UUID actorId) {

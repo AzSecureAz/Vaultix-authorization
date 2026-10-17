@@ -21,6 +21,7 @@ import com.vaultix.authorization.dto.admin.SigningKeyResponse;
 import com.vaultix.authorization.security.AuthSecurityExpressions;
 import com.vaultix.authorization.service.SigningKeyService;
 import com.vaultix.common.dto.ApiResponse;
+import com.vaultix.common.security.CommonSecurityExpressions;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -67,5 +68,19 @@ public class AdminSigningKeyController {
         log.info("Admin request to manually rotate signing key by user ID: {}", actorId);
         SigningKeyResponse rotatedKey = signingKeyService.rotateKey(actorId);
         return ResponseEntity.ok(ApiResponse.success("Cryptographic signing key rotated successfully", rotatedKey));
+    }
+
+    @PostMapping("/{kid}/revoke")
+    @PreAuthorize(CommonSecurityExpressions.IS_ADMIN)
+    public ResponseEntity<ApiResponse<SigningKeyResponse>> revokeSigningKey(
+            @PathVariable("kid")
+            @NotBlank(message = "Key ID is required")
+            @Size(max = 64, message = "Key ID cannot exceed 64 characters") String kid,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        UUID actorId = jwt != null && jwt.getSubject() != null ? UUID.fromString(jwt.getSubject()) : null;
+        log.info("Admin request to revoke signing key with kid: {} by user ID: {}", kid, actorId);
+        SigningKeyResponse revokedKey = signingKeyService.revokeKey(kid, actorId);
+        return ResponseEntity.ok(ApiResponse.success("Cryptographic signing key revoked successfully", revokedKey));
     }
 }

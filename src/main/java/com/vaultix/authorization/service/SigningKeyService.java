@@ -13,6 +13,7 @@ import com.vaultix.authorization.dto.admin.SigningKeyResponse;
 public interface SigningKeyService {
 
     String ROTATION_TOPIC = "auth:signing-key:rotation";
+    String REVOCATION_TOPIC = "auth:signing-key:revocation";
 
     RSAKey getActiveSigningKey();
 
@@ -28,7 +29,11 @@ public interface SigningKeyService {
 
     void handleRotationEvent(String eventPayload);
 
+    void handleRevocationEvent(String eventPayload);
+
     Page<SigningKeyResponse> getAllSigningKeys(Pageable pageable);
 
     SigningKeyResponse getKeyByKid(String kid);
+
+    SigningKeyResponse revokeKey(String kid, UUID actorId);
 }
