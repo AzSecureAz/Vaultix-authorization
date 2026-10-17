@@ -64,6 +64,6 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findWithRolesAndPermissionsById(userId)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with ID: " + userId));
 
-        return UserProfileDto.from(user);
+        return UserProfileDto.fromEntity(user);
     }
 }

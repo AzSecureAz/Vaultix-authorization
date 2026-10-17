@@ -50,7 +50,7 @@ public record UserProfileDto(
         @JsonProperty("roles_permissions")
         Map<String, Set<String>> rolePermissions) {
 
-    public static UserProfileDto from(User user) {
+    public static UserProfileDto fromEntity(User user) {
         if (user == null) {
             return null;
         }
@@ -70,14 +70,6 @@ public record UserProfileDto(
                     rolePermissions.put(role.getName(), perms);
                 }
             }
-        }
-
-        return from(user, rolePermissions);
-    }
-
-    public static UserProfileDto from(User user, Map<String, Set<String>> rolePermissions) {
-        if (user == null) {
-            return null;
         }
 
         return UserProfileDto.builder()
