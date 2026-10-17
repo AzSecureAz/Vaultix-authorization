@@ -16,7 +16,11 @@ import com.vaultix.common.security.CustomAccessDeniedHandler;
 import com.vaultix.common.security.CustomAuthenticationEntryPoint;
 import com.vaultix.common.security.CustomJwtAuthenticationConverter;
 import com.vaultix.common.security.JwtBlacklistValidator;
+import com.vaultix.common.security.PermissionRevocationService;
+import com.vaultix.common.security.RedisPermissionRevocationService;
+import com.vaultix.common.security.RedisRoleRevocationService;
 import com.vaultix.common.security.RedisTokenBlacklistService;
+import com.vaultix.common.security.RoleRevocationService;
 import com.vaultix.common.security.TokenBlacklistService;
 
 import tools.jackson.databind.ObjectMapper;
@@ -45,8 +49,20 @@ public class SecurityBeansConfig {
     }
 
     @Bean
-    public CustomJwtAuthenticationConverter customJwtAuthenticationConverter() {
-        return new CustomJwtAuthenticationConverter();
+    public PermissionRevocationService permissionRevocationService(StringRedisTemplate stringRedisTemplate) {
+        return new RedisPermissionRevocationService(stringRedisTemplate);
+    }
+
+    @Bean
+    public RoleRevocationService roleRevocationService(StringRedisTemplate stringRedisTemplate) {
+        return new RedisRoleRevocationService(stringRedisTemplate);
+    }
+
+    @Bean
+    public CustomJwtAuthenticationConverter customJwtAuthenticationConverter(
+            RoleRevocationService roleRevocationService,
+            PermissionRevocationService permissionRevocationService) {
+        return new CustomJwtAuthenticationConverter(roleRevocationService, permissionRevocationService);
     }
 
     @Bean
