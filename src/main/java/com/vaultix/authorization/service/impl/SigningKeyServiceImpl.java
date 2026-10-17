@@ -203,32 +203,42 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
     @Override
     @Transactional(readOnly = true)
     public SigningKeyResponse getKeyByKid(String kid) {
-        return signingKeyRepository.findByKid(kid)
+        if (kid == null || kid.isBlank()) {
+            throw new ResourceNotFoundException("Key ID cannot be blank");
+        }
+
+        String strippedKid = kid.strip();
+        return signingKeyRepository.findByKid(strippedKid)
                 .map(SigningKeyResponse::fromEntity)
-                .orElseThrow(() -> new ResourceNotFoundException("Signing key not found with kid: " + kid));
+                .orElseThrow(() -> new ResourceNotFoundException("Signing key not found with kid: " + strippedKid));
     }
 
     @Override
     @Transactional
     public SigningKeyResponse revokeKey(String kid, UUID actorId) {
-        log.info("Initiating revocation of signing key with kid: {} by actor: {}...", kid, actorId != null ? actorId : "SYSTEM");
+        if (kid == null || kid.isBlank()) {
+            throw new ResourceNotFoundException("Key ID cannot be blank");
+        }
 
-        SigningKey key = signingKeyRepository.findByKid(kid)
-                .orElseThrow(() -> new ResourceNotFoundException("Signing key not found with kid: " + kid));
+        String strippedKid = kid.strip();
+        log.info("Initiating revocation of signing key with kid: {} by actor: {}...", strippedKid, actorId != null ? actorId : "SYSTEM");
+
+        SigningKey key = signingKeyRepository.findByKid(strippedKid)
+                .orElseThrow(() -> new ResourceNotFoundException("Signing key not found with kid: " + strippedKid));
 
         if (key.getStatus() == KeyStatus.ACTIVE) {
             throw new ResourceConflictException("Cannot revoke the active signing key. Rotate keys first, then revoke this key.");
         }
 
         if (key.getStatus() == KeyStatus.REVOKED) {
-            log.info("Signing key with kid: {} is already revoked", kid);
+            log.info("Signing key with kid: {} is already revoked", strippedKid);
             return SigningKeyResponse.fromEntity(key);
         }
 
         key.setStatus(KeyStatus.REVOKED);
         key.setUpdatedBy(actorId);
         signingKeyRepository.saveAndFlush(key);
-        log.info("Marked signing key with kid: {} as REVOKED by {}", kid, actorId != null ? actorId : "SYSTEM");
+        log.info("Marked signing key with kid: {} as REVOKED by {}", strippedKid, actorId != null ? actorId : "SYSTEM");
 
         activeKeyCache.invalidateAll();
         jwkSetCache.invalidateAll();
@@ -237,11 +247,11 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    broadcastKeyRevocation(kid);
+                    broadcastKeyRevocation(strippedKid);
                 }
             });
         } else {
-            broadcastKeyRevocation(kid);
+            broadcastKeyRevocation(strippedKid);
         }
 
         return SigningKeyResponse.fromEntity(key);
