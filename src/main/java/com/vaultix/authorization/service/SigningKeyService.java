@@ -9,11 +9,12 @@ import org.springframework.data.domain.Pageable;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.vaultix.authorization.dto.admin.SigningKeyResponse;
+import com.vaultix.common.constant.SecurityTopics;
 
 public interface SigningKeyService {
 
     String ROTATION_TOPIC = "auth:signing-key:rotation";
-    String REVOCATION_TOPIC = "auth:signing-key:revocation";
+    String REVOCATION_TOPIC = SecurityTopics.SIGNING_KEY_REVOCATION;
 
     RSAKey getActiveSigningKey();
 
