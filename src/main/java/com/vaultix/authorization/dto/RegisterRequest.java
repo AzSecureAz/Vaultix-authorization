@@ -1,5 +1,6 @@
 package com.vaultix.authorization.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.vaultix.authorization.validation.StrongPassword;
 import com.vaultix.authorization.validation.ValidUsername;
 
@@ -19,8 +20,10 @@ public record RegisterRequest(
         @StrongPassword
         String password,
         @Size(max = 256, message = "Full name cannot exceed 256 characters")
+        @JsonProperty("full_name")
         String fullName,
         @Size(max = 32, message = "Phone number cannot exceed 32 characters")
+        @JsonProperty("phone_number")
         String phoneNumber) {
 
 }
