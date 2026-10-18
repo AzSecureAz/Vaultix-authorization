@@ -17,12 +17,14 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.vaultix.authorization.dto.admin.CreateRoleRequest;
 import com.vaultix.authorization.dto.admin.RoleResponse;
+import com.vaultix.authorization.dto.admin.UpdateRoleRequest;
 import com.vaultix.authorization.security.AuthSecurityExpressions;
 import com.vaultix.authorization.service.RoleService;
 import com.vaultix.common.dto.ApiResponse;
@@ -76,6 +78,22 @@ public class AdminRoleController {
         log.info("Admin request to retrieve role with identifier: {}", cleanIdentifier);
         RoleResponse role = roleService.getRoleByIdentifier(cleanIdentifier);
         return ResponseEntity.ok(ApiResponse.success("Role retrieved successfully", role));
+    }
+
+    @PutMapping("/{identifier}")
+    @PreAuthorize(AuthSecurityExpressions.CAN_UPDATE_ROLES)
+    public ResponseEntity<ApiResponse<RoleResponse>> updateRole(
+            @PathVariable("identifier")
+            @NotBlank(message = "Role identifier is required")
+            @Size(max = 64, message = "Role identifier cannot exceed 64 characters") String identifier,
+            @Valid @RequestBody UpdateRoleRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        String cleanIdentifier = identifier.strip().toUpperCase(Locale.ROOT);
+        UUID actorId = extractActorId(jwt);
+        log.info("Admin request to update role with identifier: {} by user ID: {}", cleanIdentifier, actorId);
+        RoleResponse updatedRole = roleService.updateRole(cleanIdentifier, request, actorId);
+        return ResponseEntity.ok(ApiResponse.success("Role updated successfully", updatedRole));
     }
 
     @PostMapping("/{identifier}/disable")

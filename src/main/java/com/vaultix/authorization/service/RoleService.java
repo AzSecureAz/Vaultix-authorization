@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 
 import com.vaultix.authorization.dto.admin.CreateRoleRequest;
 import com.vaultix.authorization.dto.admin.RoleResponse;
+import com.vaultix.authorization.dto.admin.UpdateRoleRequest;
 
 public interface RoleService {
 
@@ -15,6 +16,8 @@ public interface RoleService {
     RoleResponse getRoleByIdentifier(String identifier);
 
     RoleResponse createRole(CreateRoleRequest request, UUID actorId);
+
+    RoleResponse updateRole(String identifier, UpdateRoleRequest request, UUID actorId);
 
     RoleResponse disableRole(String identifier, UUID actorId);
 

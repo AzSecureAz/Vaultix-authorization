@@ -71,7 +71,7 @@ public class PermissionServiceImpl implements PermissionService {
 
         permission.setStatus(PermissionStatus.DISABLED);
         permission.setUpdatedBy(actorId);
-        permissionRepository.saveAndFlush(permission);
+        permissionRepository.save(permission);
         log.info("Marked permission '{}' as DISABLED by actor: {}", permissionName, actorId);
 
         if (TransactionSynchronizationManager.isActualTransactionActive()) {

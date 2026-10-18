@@ -249,7 +249,7 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
 
         key.setStatus(KeyStatus.REVOKED);
         key.setUpdatedBy(actorId);
-        signingKeyRepository.saveAndFlush(key);
+        signingKeyRepository.save(key);
         log.info("Marked signing key with kid: {} as REVOKED by {}", strippedKid, actorId);
 
         activeKeyCache.invalidateAll();

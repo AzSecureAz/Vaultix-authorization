@@ -21,6 +21,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import com.vaultix.authorization.config.properties.JwtProperties;
 import com.vaultix.authorization.dto.admin.CreateRoleRequest;
 import com.vaultix.authorization.dto.admin.RoleResponse;
+import com.vaultix.authorization.dto.admin.UpdateRoleRequest;
 import com.vaultix.authorization.entity.Permission;
 import com.vaultix.authorization.entity.Role;
 import com.vaultix.authorization.entity.User;
@@ -69,42 +70,17 @@ public class RoleServiceImpl implements RoleService {
     @Override
     @Transactional
     public RoleResponse createRole(CreateRoleRequest request, UUID actorId) {
-        if (actorId == null) {
-            throw new AccessDeniedException("Actor ID is required to create a role");
+        if (request == null) {
+            throw new IllegalArgumentException("Create role request cannot be null");
         }
 
-        User actor = userRepository.findWithRolesAndPermissionsById(actorId)
-                .orElseThrow(() -> new ResourceNotFoundException("Actor user not found with ID: " + actorId));
+        ActorContext actor = resolveActorContext(actorId, "create");
 
-        int actorHighestLevel = Integer.MAX_VALUE;
-        Set<String> actorPermissions = new HashSet<>();
-
-        if (actor.getRoles() != null) {
-            for (Role r : actor.getRoles()) {
-                if (r.getStatus() == RoleStatus.ENABLED) {
-                    if (r.getLevel() < actorHighestLevel) {
-                        actorHighestLevel = r.getLevel();
-                    }
-                    if (r.getPermissions() != null) {
-                        for (Permission p : r.getPermissions()) {
-                            if (p.getStatus() == PermissionStatus.ENABLED) {
-                                actorPermissions.add(p.getName());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if (actorHighestLevel == Integer.MAX_VALUE) {
-            throw new AccessDeniedException("Actor has no active roles and cannot create roles");
-        }
-
-        if (request.level() <= actorHighestLevel) {
+        if (request.level() <= actor.highestLevel()) {
             log.warn("Actor {} with highest level {} attempted to create role '{}' with level {}",
-                    actorId, actorHighestLevel, request.name(), request.level());
+                    actorId, actor.highestLevel(), request.name(), request.level());
             throw new AccessDeniedException("Insufficient privilege: Cannot create a role with level " + request.level()
-                    + " (must be strictly greater than your highest active role level " + actorHighestLevel + ")");
+                    + " (must be strictly greater than your highest active role level " + actor.highestLevel() + ")");
         }
 
         Set<Permission> permissionsToAssign = new HashSet<>();
@@ -114,30 +90,7 @@ public class RoleServiceImpl implements RoleService {
                     .map(perm -> perm.strip().toLowerCase(Locale.ROOT))
                     .collect(Collectors.toSet());
 
-            Set<String> unheldPermissions = requestedPermNames.stream()
-                    .filter(perm -> !actorPermissions.contains(perm))
-                    .collect(Collectors.toSet());
-
-            if (!unheldPermissions.isEmpty()) {
-                log.warn("Actor {} attempted to assign permissions they do not possess: {}", actorId, unheldPermissions);
-                throw new AccessDeniedException("Insufficient privilege: Cannot assign permissions you do not possess: "
-                        + unheldPermissions);
-            }
-
-            permissionsToAssign = permissionRepository.findAllByNameIn(requestedPermNames);
-            if (permissionsToAssign.size() != requestedPermNames.size()) {
-                Set<String> foundNames = permissionsToAssign.stream().map(Permission::getName).collect(Collectors.toSet());
-                Set<String> missing = requestedPermNames.stream().filter(p -> !foundNames.contains(p)).collect(Collectors.toSet());
-                throw new ResourceNotFoundException("Permissions not found: " + missing);
-            }
-
-            Set<String> disabledPerms = permissionsToAssign.stream()
-                    .filter(p -> p.getStatus() != PermissionStatus.ENABLED)
-                    .map(Permission::getName)
-                    .collect(Collectors.toSet());
-            if (!disabledPerms.isEmpty()) {
-                throw new AccessDeniedException("Cannot assign disabled permissions: " + disabledPerms);
-            }
+            permissionsToAssign = resolvePermissions(requestedPermNames, actor.permissions(), actorId);
         }
 
         String stripped = request.name().strip();
@@ -165,6 +118,71 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     @Transactional
+    public RoleResponse updateRole(String identifier, UpdateRoleRequest request, UUID actorId) {
+        if (request == null) {
+            throw new IllegalArgumentException("Update role request cannot be null");
+        }
+
+        ActorContext actor = resolveActorContext(actorId, "update");
+        Role role = findRoleEntityByIdentifier(identifier);
+
+        if (role.getLevel() <= actor.highestLevel()) {
+            log.warn("Actor {} with highest level {} attempted to update role '{}' with level {}",
+                    actorId, actor.highestLevel(), role.getName(), role.getLevel());
+            throw new AccessDeniedException("Insufficient privilege to update role '" + role.getName()
+                    + "' with level " + role.getLevel() + " (your highest active role level is " + actor.highestLevel() + ")");
+        }
+
+        boolean needsRevocation = false;
+
+        if (request.description() != null) {
+            String strippedDesc = request.description().strip();
+            role.setDescription(strippedDesc.isBlank() ? null : strippedDesc);
+        }
+
+        if (request.level() != null) {
+            if (request.level() <= actor.highestLevel()) {
+                log.warn("Actor {} with highest level {} attempted to set level to {} on role '{}'",
+                        actorId, actor.highestLevel(), request.level(), role.getName());
+                throw new AccessDeniedException("Insufficient privilege: Cannot set role level to " + request.level()
+                        + " (must be strictly greater than your highest active role level " + actor.highestLevel() + ")");
+            }
+            if (!request.level().equals(role.getLevel())) {
+                role.setLevel(request.level());
+                needsRevocation = true;
+            }
+        }
+
+        if (request.permissions() != null) {
+            Set<String> requestedPermNames = request.permissions().stream()
+                    .filter(perm -> perm != null && !perm.isBlank())
+                    .map(perm -> perm.strip().toLowerCase(Locale.ROOT))
+                    .collect(Collectors.toSet());
+
+            Set<String> currentPermNames = role.getPermissions().stream()
+                    .map(Permission::getName)
+                    .collect(Collectors.toSet());
+
+            if (!currentPermNames.equals(requestedPermNames)) {
+                Set<Permission> permissionsToAssign = resolvePermissions(requestedPermNames, actor.permissions(), actorId);
+                role.setPermissions(permissionsToAssign);
+                needsRevocation = true;
+            }
+        }
+
+        role.setUpdatedBy(actorId);
+        Role savedRole = roleRepository.save(role);
+        log.info("Role '{}' updated successfully by actor {}", savedRole.getName(), actorId);
+
+        if (needsRevocation) {
+            publishRevocationAfterCommit(savedRole.getName());
+        }
+
+        return RoleResponse.fromEntity(savedRole);
+    }
+
+    @Override
+    @Transactional
     public RoleResponse disableRole(String identifier, UUID actorId) {
         if (actorId == null) {
             throw new AccessDeniedException("Actor ID is required to disable a role");
@@ -182,19 +200,10 @@ public class RoleServiceImpl implements RoleService {
 
         role.setStatus(RoleStatus.DISABLED);
         role.setUpdatedBy(actorId);
-        roleRepository.saveAndFlush(role);
+        roleRepository.save(role);
         log.info("Marked role '{}' as DISABLED by actor: {}", roleName, actorId);
 
-        if (TransactionSynchronizationManager.isActualTransactionActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    broadcastRoleRevocation(roleName);
-                }
-            });
-        } else {
-            broadcastRoleRevocation(roleName);
-        }
+        publishRevocationAfterCommit(roleName);
 
         return RoleResponse.fromEntity(role);
     }
@@ -225,6 +234,16 @@ public class RoleServiceImpl implements RoleService {
     }
 
     private void validateActorPrivilege(Role role, UUID actorId, String action) {
+        ActorContext actor = resolveActorContext(actorId, action);
+        if (role.getLevel() <= actor.highestLevel()) {
+            log.warn("Actor {} with highest level {} attempted to {} role '{}' with level {}",
+                    actorId, actor.highestLevel(), action, role.getName(), role.getLevel());
+            throw new AccessDeniedException("Insufficient privilege to " + action + " role '" + role.getName()
+                    + "' with level " + role.getLevel() + " (your highest active role level is " + actor.highestLevel() + ")");
+        }
+    }
+
+    private ActorContext resolveActorContext(UUID actorId, String action) {
         if (actorId == null) {
             throw new AccessDeniedException("Actor ID is required to " + action + " a role");
         }
@@ -232,22 +251,81 @@ public class RoleServiceImpl implements RoleService {
         User actor = userRepository.findWithRolesAndPermissionsById(actorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Actor user not found with ID: " + actorId));
 
-        int actorHighestLevel = actor.getRoles().stream()
-                .filter(r -> r.getStatus() == RoleStatus.ENABLED)
-                .mapToInt(Role::getLevel)
-                .min()
-                .orElse(Integer.MAX_VALUE);
+        int highestLevel = Integer.MAX_VALUE;
+        Set<String> permissions = new HashSet<>();
 
-        if (actorHighestLevel == Integer.MAX_VALUE) {
+        if (actor.getRoles() != null) {
+            for (Role r : actor.getRoles()) {
+                if (r.getStatus() == RoleStatus.ENABLED) {
+                    if (r.getLevel() < highestLevel) {
+                        highestLevel = r.getLevel();
+                    }
+                    if (r.getPermissions() != null) {
+                        for (Permission p : r.getPermissions()) {
+                            if (p.getStatus() == PermissionStatus.ENABLED) {
+                                permissions.add(p.getName());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (highestLevel == Integer.MAX_VALUE) {
             throw new AccessDeniedException("Actor has no active roles and cannot " + action + " roles");
         }
 
-        if (role.getLevel() <= actorHighestLevel) {
-            log.warn("Actor {} with highest level {} attempted to {} role '{}' with level {}",
-                    actorId, actorHighestLevel, action, role.getName(), role.getLevel());
-            throw new AccessDeniedException("Insufficient privilege to " + action + " role '" + role.getName()
-                    + "' with level " + role.getLevel() + " (your highest active role level is " + actorHighestLevel + ")");
+        return new ActorContext(highestLevel, permissions);
+    }
+
+    private Set<Permission> resolvePermissions(Set<String> requestedNames, Set<String> actorPermissions, UUID actorId) {
+        if (requestedNames == null || requestedNames.isEmpty()) {
+            return new HashSet<>();
         }
+
+        Set<String> unheldPermissions = requestedNames.stream()
+                .filter(perm -> !actorPermissions.contains(perm))
+                .collect(Collectors.toSet());
+
+        if (!unheldPermissions.isEmpty()) {
+            log.warn("Actor {} attempted to assign permissions they do not possess: {}", actorId, unheldPermissions);
+            throw new AccessDeniedException("Insufficient privilege: Cannot assign permissions you do not possess: "
+                    + unheldPermissions);
+        }
+
+        Set<Permission> permissionsToAssign = permissionRepository.findAllByNameIn(requestedNames);
+        if (permissionsToAssign.size() != requestedNames.size()) {
+            Set<String> foundNames = permissionsToAssign.stream().map(Permission::getName).collect(Collectors.toSet());
+            Set<String> missing = requestedNames.stream().filter(p -> !foundNames.contains(p)).collect(Collectors.toSet());
+            throw new ResourceNotFoundException("Permissions not found: " + missing);
+        }
+
+        Set<String> disabledPerms = permissionsToAssign.stream()
+                .filter(p -> p.getStatus() != PermissionStatus.ENABLED)
+                .map(Permission::getName)
+                .collect(Collectors.toSet());
+        if (!disabledPerms.isEmpty()) {
+            throw new AccessDeniedException("Cannot assign disabled permissions: " + disabledPerms);
+        }
+
+        return permissionsToAssign;
+    }
+
+    private void publishRevocationAfterCommit(String roleName) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    broadcastRoleRevocation(roleName);
+                }
+            });
+        } else {
+            broadcastRoleRevocation(roleName);
+        }
+    }
+
+    private record ActorContext(int highestLevel, Set<String> permissions) {
+
     }
 
     private Role findRoleEntityByIdentifier(String identifier) {
