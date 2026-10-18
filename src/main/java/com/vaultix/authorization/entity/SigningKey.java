@@ -88,7 +88,18 @@ public class SigningKey {
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = Instant.now();
+        if (this.createdAt == null) {
+            this.createdAt = Instant.now();
+        }
+        if (this.status == null) {
+            this.status = KeyStatus.ACTIVE;
+        }
+        if (this.algorithm == null) {
+            this.algorithm = "RS256";
+        }
+        if (this.keyUse == null) {
+            this.keyUse = "sig";
+        }
     }
 
     @PreUpdate

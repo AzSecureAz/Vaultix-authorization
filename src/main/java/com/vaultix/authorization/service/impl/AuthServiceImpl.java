@@ -38,6 +38,9 @@ public class AuthServiceImpl implements AuthService {
         if (request == null || request.identifier() == null || request.identifier().isBlank()) {
             throw new BadCredentialsException("Identifier cannot be null or blank");
         }
+        if (request.password() == null || request.password().isBlank()) {
+            throw new BadCredentialsException("Password cannot be null or blank");
+        }
 
         String identifier = request.identifier().strip().toLowerCase(Locale.ROOT);
         log.info("Attempting authentication for identifier: {}", identifier);

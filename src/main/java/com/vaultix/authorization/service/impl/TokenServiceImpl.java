@@ -60,14 +60,16 @@ public class TokenServiceImpl implements TokenService {
         UUID accessTokenJti = UUID.ofEpochMillis(System.currentTimeMillis());
         UUID refreshTokenJti = UUID.ofEpochMillis(System.currentTimeMillis());
 
+        ClientContext context = ClientContext.ofNullable(clientContext);
+
         RefreshToken refreshTokenEntity = RefreshToken.builder()
                 .user(userRepository.getReferenceById(userDetails.getId()))
                 .refreshTokenJti(refreshTokenJti)
                 .accessTokenJti(accessTokenJti)
                 .gen(1)
-                .deviceInfo(clientContext.deviceInfo())
-                .ipAddress(clientContext.ip())
-                .locationInfo(clientContext.location())
+                .deviceInfo(truncate(context.deviceInfo(), 256))
+                .ipAddress(truncate(context.ip(), 64))
+                .locationInfo(truncate(context.location(), 256))
                 .revoked(false)
                 .expiresAt(refreshExp)
                 .build();
@@ -188,12 +190,13 @@ public class TokenServiceImpl implements TokenService {
         Instant accessExp = now.plus(jwtProperties.accessTokenExpiration());
         Instant newRefreshExp = now.plus(jwtProperties.refreshTokenExpiration());
 
+        ClientContext context = ClientContext.ofNullable(clientContext);
         existingSession.setAccessTokenJti(newAccessTokenJti);
         existingSession.setGen(nextGen);
         existingSession.setExpiresAt(newRefreshExp);
-        existingSession.setDeviceInfo(clientContext.deviceInfo());
-        existingSession.setIpAddress(clientContext.ip());
-        existingSession.setLocationInfo(clientContext.location());
+        existingSession.setDeviceInfo(truncate(context.deviceInfo(), 256));
+        existingSession.setIpAddress(truncate(context.ip(), 64));
+        existingSession.setLocationInfo(truncate(context.location(), 256));
         refreshTokenRepository.save(existingSession);
 
         log.info("Updated refresh token session in-place for user ID: {} (Generation: {} -> {})",
@@ -211,12 +214,13 @@ public class TokenServiceImpl implements TokenService {
             return;
         }
 
-        log.info("Processing logout for access token JTI: {}", accessTokenJti);
+        String cleanedJti = accessTokenJti.strip();
+        log.info("Processing logout for access token JTI: {}", cleanedJti);
 
-        tokenBlacklistService.blacklist(accessTokenJti.trim(), jwtProperties.accessTokenExpiration());
+        tokenBlacklistService.blacklist(cleanedJti, jwtProperties.accessTokenExpiration());
 
         try {
-            UUID jtiUuid = UUID.fromString(accessTokenJti.trim());
+            UUID jtiUuid = UUID.fromString(cleanedJti);
             refreshTokenRepository.findByAccessTokenJti(jtiUuid).ifPresent(session -> {
                 session.setRevoked(true);
                 session.setRevokedAt(Instant.now());
@@ -224,7 +228,7 @@ public class TokenServiceImpl implements TokenService {
                 log.info("Revoked refresh token session for user ID: {} upon logout", session.getUser().getId());
             });
         } catch (IllegalArgumentException e) {
-            log.warn("Invalid UUID format for access token JTI during logout: {}", accessTokenJti);
+            log.warn("Invalid UUID format for access token JTI during logout: {}", cleanedJti);
         }
     }
 
@@ -310,5 +314,12 @@ public class TokenServiceImpl implements TokenService {
             log.info("Cleaned up {} expired/revoked refresh tokens from database", totalDeleted);
         }
         return totalDeleted;
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null) {
+            return ClientContext.EMPTY.deviceInfo();
+        }
+        return value.length() > maxLength ? value.substring(0, maxLength) : value;
     }
 }

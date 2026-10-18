@@ -2,6 +2,7 @@ package com.vaultix.authorization.config.properties;
 
 import java.time.Duration;
 
+import org.hibernate.validator.constraints.URL;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
@@ -9,11 +10,14 @@ import org.springframework.validation.annotation.Validated;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 
 @Validated
 @ConfigurationProperties(prefix = "vaultix.security.jwt")
 public record JwtProperties(
         @NotBlank(message = "Token issuer is required")
+        @URL(message = "Token issuer must be a valid URL")
+        @Size(max = 1024, message = "Token issuer cannot exceed 1024 characters")
         @DefaultValue("https://auth.vaultix.com")
         String issuer,
         @NotNull(message = "Access token expiration duration is required")
