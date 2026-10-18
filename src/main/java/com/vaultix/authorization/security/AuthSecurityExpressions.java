@@ -13,4 +13,5 @@ public final class AuthSecurityExpressions {
     public static final String CAN_READ_ROLES = "hasAuthority('role:read')";
     public static final String CAN_CREATE_ROLES = "hasAuthority('role:create')";
     public static final String CAN_UPDATE_ROLES = "hasAuthority('role:update')";
+    public static final String CAN_READ_USERS = "hasAuthority('user:read')";
 }
