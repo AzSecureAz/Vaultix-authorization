@@ -21,7 +21,6 @@ import com.vaultix.authorization.dto.admin.RoleResponse;
 import com.vaultix.authorization.security.AuthSecurityExpressions;
 import com.vaultix.authorization.service.RoleService;
 import com.vaultix.common.dto.ApiResponse;
-import com.vaultix.common.security.CommonSecurityExpressions;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -60,7 +59,7 @@ public class AdminRoleController {
     }
 
     @PostMapping("/{identifier}/disable")
-    @PreAuthorize(CommonSecurityExpressions.IS_ADMIN)
+    @PreAuthorize(AuthSecurityExpressions.CAN_UPDATE_ROLES)
     public ResponseEntity<ApiResponse<RoleResponse>> disableRole(
             @PathVariable("identifier")
             @NotBlank(message = "Role identifier is required")
@@ -74,7 +73,7 @@ public class AdminRoleController {
     }
 
     @PostMapping("/{identifier}/enable")
-    @PreAuthorize(CommonSecurityExpressions.IS_ADMIN)
+    @PreAuthorize(AuthSecurityExpressions.CAN_UPDATE_ROLES)
     public ResponseEntity<ApiResponse<RoleResponse>> enableRole(
             @PathVariable("identifier")
             @NotBlank(message = "Role identifier is required")
