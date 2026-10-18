@@ -1,5 +1,7 @@
 package com.vaultix.authorization.security;
 
+import java.util.Locale;
+
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsPasswordService;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -21,8 +23,13 @@ public class CustomUserDetailsService implements UserDetailsService, UserDetails
     @Override
     @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
-        User user = userRepository.findWithRolesAndPermissionsByUsernameOrEmail(identifier, identifier)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with username or email: " + identifier));
+        if (identifier == null || identifier.isBlank()) {
+            throw new UsernameNotFoundException("Identifier cannot be null or blank");
+        }
+
+        String normalized = identifier.strip().toLowerCase(Locale.ROOT);
+        User user = userRepository.findWithRolesAndPermissionsByUsernameOrEmail(normalized, normalized)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with username or email: " + normalized));
 
         return new CustomUserDetails(user);
     }

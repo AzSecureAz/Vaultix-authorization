@@ -1,8 +1,10 @@
 package com.vaultix.authorization.service.impl;
 
+import java.util.Locale;
 import java.util.UUID;
 
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -33,10 +35,15 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthResponse login(LoginRequest request, ClientContext clientContext) {
-        log.info("Attempting authentication for identifier: {}", request.identifier());
+        if (request == null || request.identifier() == null || request.identifier().isBlank()) {
+            throw new BadCredentialsException("Identifier cannot be null or blank");
+        }
+
+        String identifier = request.identifier().strip().toLowerCase(Locale.ROOT);
+        log.info("Attempting authentication for identifier: {}", identifier);
 
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.identifier(), request.password())
+                new UsernamePasswordAuthenticationToken(identifier, request.password())
         );
 
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
