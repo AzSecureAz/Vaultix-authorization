@@ -99,6 +99,12 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return status == UserStatus.ACTIVE;
+        if (status == UserStatus.ACTIVE) {
+            return true;
+        }
+        if (status == UserStatus.LOCKED) {
+            return lockedUntil != null && lockedUntil.isBefore(Instant.now());
+        }
+        return false;
     }
 }

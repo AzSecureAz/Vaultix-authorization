@@ -69,6 +69,9 @@ vaultix:
     password: ${VAULTIX_ADMIN_PASSWORD:Admin@Vaultix2026!}
     full-name: ${VAULTIX_ADMIN_FULL_NAME:Vaultix Administrator}
   security:
+    lockout:
+      max-failed-attempts: ${VAULTIX_AUTH_LOCKOUT_MAX_FAILED_ATTEMPTS:5}
+      duration: ${VAULTIX_AUTH_LOCKOUT_DURATION:15m}
     kek:
       master-key: ${VAULTIX_SECURITY_KEK_MASTER_KEY:3xhw5B4DZicmirWLS4h3ZkA4pBFZwyKlG6cvEYvdf7I=}
     jwt:

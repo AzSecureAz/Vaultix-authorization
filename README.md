@@ -135,7 +135,8 @@ authorization/
     │   │   ├── SecurityConfig.java
     │   │   └── properties/
     │   │       ├── JwtProperties.java
-    │   │       └── KekProperties.java
+    │   │       ├── KekProperties.java
+    │   │       └── LockoutProperties.java
     │   ├── controller/
     │   │   ├── AuthController.java
     │   │   ├── JwksController.java
