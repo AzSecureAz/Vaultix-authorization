@@ -1,9 +1,8 @@
 package com.vaultix.authorization.dto;
 
 import java.time.Instant;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -41,33 +40,28 @@ public record UserProfileDto(
         Instant lastLoginAt,
         @JsonProperty("created_at")
         Instant createdAt,
-        @JsonProperty("created_by")
-        UUID createdBy,
-        @JsonProperty("updated_at")
-        Instant updatedAt,
-        @JsonProperty("updated_by")
-        UUID updatedBy,
-        @JsonProperty("roles_permissions")
-        Map<String, Set<String>> rolePermissions) {
+        Set<String> roles,
+        Set<String> permissions) {
 
     public static UserProfileDto fromEntity(User user) {
         if (user == null) {
             return null;
         }
 
-        Map<String, Set<String>> rolePermissions = new HashMap<>();
+        Set<String> roleNames = new HashSet<>();
+        Set<String> permissionNames = new HashSet<>();
+
         if (user.getRoles() != null) {
             for (Role role : user.getRoles()) {
                 if (role.getStatus() == RoleStatus.ENABLED) {
-                    Set<String> perms = new HashSet<>();
+                    roleNames.add(role.getName());
                     if (role.getPermissions() != null) {
                         for (Permission perm : role.getPermissions()) {
                             if (perm.getStatus() == PermissionStatus.ENABLED) {
-                                perms.add(perm.getName());
+                                permissionNames.add(perm.getName());
                             }
                         }
                     }
-                    rolePermissions.put(role.getName(), perms);
                 }
             }
         }
@@ -85,10 +79,8 @@ public record UserProfileDto(
                 .hasSocialAccounts(user.isHasSocialAccounts())
                 .lastLoginAt(user.getLastLoginAt())
                 .createdAt(user.getCreatedAt())
-                .createdBy(user.getCreatedBy())
-                .updatedAt(user.getUpdatedAt())
-                .updatedBy(user.getUpdatedBy())
-                .rolePermissions(rolePermissions)
+                .roles(Collections.unmodifiableSet(roleNames))
+                .permissions(Collections.unmodifiableSet(permissionNames))
                 .build();
     }
 }
