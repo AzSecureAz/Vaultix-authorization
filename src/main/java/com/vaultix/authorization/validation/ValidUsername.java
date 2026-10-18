@@ -18,7 +18,7 @@ public @interface ValidUsername {
     int MIN_LENGTH = 3;
     int MAX_LENGTH = 128;
 
-    String message() default "Username must be between 3 and 128 characters and contain only letters, numbers, underscores, dots, or hyphens";
+    String message() default "Username must start and end with an alphanumeric character, contain only letters, numbers, underscores, dots, or hyphens, and be between 3 and 128 characters";
 
     Class<?>[] groups() default {};
 

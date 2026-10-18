@@ -32,6 +32,7 @@
 		<lombok.version>1.18.48</lombok.version>
 		<common.version>0.0.1</common.version>
 		<shedlock.version>7.10.1</shedlock.version>
+		<libphonenumber.version>9.0.41</libphonenumber.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -101,6 +102,12 @@
 			<groupId>net.javacrumbs.shedlock</groupId>
 			<artifactId>shedlock-provider-redis-spring</artifactId>
 			<version>${shedlock.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.googlecode.libphonenumber</groupId>
+			<artifactId>libphonenumber</artifactId>
+			<version>${libphonenumber.version}</version>
 		</dependency>
 	</dependencies>
 	<dependencyManagement>

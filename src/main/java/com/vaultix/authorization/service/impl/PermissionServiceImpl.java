@@ -115,18 +115,17 @@ public class PermissionServiceImpl implements PermissionService {
             throw new ResourceNotFoundException("Permission identifier cannot be blank");
         }
 
-        String stripped = identifier.strip();
+        String normalized = identifier.strip().toLowerCase(Locale.ROOT);
 
         try {
-            UUID id = UUID.fromString(stripped);
+            UUID id = UUID.fromString(normalized);
             return permissionRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Permission not found with identifier: " + stripped));
+                    .orElseThrow(() -> new ResourceNotFoundException("Permission not found with identifier: " + normalized));
         } catch (IllegalArgumentException ignored) {
         }
 
-        String normalizedName = stripped.toLowerCase(Locale.ROOT);
-        return permissionRepository.findByName(normalizedName)
-                .orElseThrow(() -> new ResourceNotFoundException("Permission not found with identifier: " + stripped));
+        return permissionRepository.findByName(normalized)
+                .orElseThrow(() -> new ResourceNotFoundException("Permission not found with identifier: " + normalized));
     }
 
     private void broadcastPermissionRevocation(String permissionName) {
