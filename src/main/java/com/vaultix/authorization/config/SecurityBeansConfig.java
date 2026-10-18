@@ -45,17 +45,23 @@ public class SecurityBeansConfig {
 
     @Bean
     public TokenBlacklistService tokenBlacklistService(StringRedisTemplate stringRedisTemplate) {
-        return new RedisTokenBlacklistService(stringRedisTemplate);
+        return RedisTokenBlacklistService.builder()
+                .stringRedisTemplate(stringRedisTemplate)
+                .build();
     }
 
     @Bean
     public PermissionRevocationService permissionRevocationService(StringRedisTemplate stringRedisTemplate) {
-        return new RedisPermissionRevocationService(stringRedisTemplate);
+        return RedisPermissionRevocationService.builder()
+                .stringRedisTemplate(stringRedisTemplate)
+                .build();
     }
 
     @Bean
     public RoleRevocationService roleRevocationService(StringRedisTemplate stringRedisTemplate) {
-        return new RedisRoleRevocationService(stringRedisTemplate);
+        return RedisRoleRevocationService.builder()
+                .stringRedisTemplate(stringRedisTemplate)
+                .build();
     }
 
     @Bean
@@ -70,16 +76,22 @@ public class SecurityBeansConfig {
 
     @Bean
     public CustomAuthenticationEntryPoint customAuthenticationEntryPoint(ObjectMapper objectMapper) {
-        return new CustomAuthenticationEntryPoint(objectMapper);
+        return CustomAuthenticationEntryPoint.builder()
+                .objectMapper(objectMapper)
+                .build();
     }
 
     @Bean
     public CustomAccessDeniedHandler customAccessDeniedHandler(ObjectMapper objectMapper) {
-        return new CustomAccessDeniedHandler(objectMapper);
+        return CustomAccessDeniedHandler.builder()
+                .objectMapper(objectMapper)
+                .build();
     }
 
     @Bean
     public JwtBlacklistValidator jwtBlacklistValidator(TokenBlacklistService tokenBlacklistService) {
-        return new JwtBlacklistValidator(tokenBlacklistService);
+        return JwtBlacklistValidator.builder()
+                .tokenBlacklistService(tokenBlacklistService)
+                .build();
     }
 }
