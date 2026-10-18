@@ -53,8 +53,9 @@ public class RoleServiceImpl implements RoleService {
     @Override
     @Transactional(readOnly = true)
     public Page<RoleResponse> getAllRoles(Pageable pageable) {
-        log.debug("Retrieving all roles with pageable: {}", pageable);
-        return roleRepository.findAllWithPermissionsBy(pageable)
+        Pageable page = (pageable != null) ? pageable : Pageable.unpaged();
+        log.debug("Retrieving all roles with pageable: {}", page);
+        return roleRepository.findAllWithPermissionsBy(page)
                 .map(RoleResponse::fromEntity);
     }
 
@@ -109,7 +110,8 @@ public class RoleServiceImpl implements RoleService {
         Set<Permission> permissionsToAssign = new HashSet<>();
         if (request.permissions() != null && !request.permissions().isEmpty()) {
             Set<String> requestedPermNames = request.permissions().stream()
-                    .map(String::strip)
+                    .filter(perm -> perm != null && !perm.isBlank())
+                    .map(perm -> perm.strip().toLowerCase(Locale.ROOT))
                     .collect(Collectors.toSet());
 
             Set<String> unheldPermissions = requestedPermNames.stream()
@@ -141,10 +143,6 @@ public class RoleServiceImpl implements RoleService {
         String stripped = request.name().strip();
         String upper = stripped.toUpperCase(Locale.ROOT);
         String canonicalName = upper.startsWith("ROLE_") ? upper : "ROLE_" + upper;
-
-        if ("ROLE_ADMIN".equalsIgnoreCase(canonicalName)) {
-            throw new AccessDeniedException("Creating or modifying ROLE_ADMIN is strictly prohibited");
-        }
 
         if (roleRepository.findByName(canonicalName).isPresent()) {
             throw new ResourceConflictException("Role already exists with name: " + canonicalName);
@@ -258,6 +256,9 @@ public class RoleServiceImpl implements RoleService {
         }
 
         String stripped = identifier.strip();
+        if (stripped.length() > 64) {
+            throw new ResourceNotFoundException("Role not found with identifier: " + stripped);
+        }
 
         try {
             UUID id = UUID.fromString(stripped);
@@ -274,9 +275,15 @@ public class RoleServiceImpl implements RoleService {
     }
 
     private void broadcastRoleRevocation(String roleName) {
+        if (roleName == null || roleName.isBlank()) {
+            return;
+        }
+
+        String cleanName = roleName.strip().toUpperCase(Locale.ROOT);
+
         try {
             Instant now = Instant.now();
-            stringRedisTemplate.opsForHash().put(RoleRevocationService.KEY, roleName, now.toString());
+            stringRedisTemplate.opsForHash().put(RoleRevocationService.KEY, cleanName, now.toString());
 
             long ttlSeconds = jwtProperties.accessTokenExpiration().toSeconds();
             stringRedisTemplate.execute((RedisCallback<Object>) connection -> connection.execute(
@@ -285,15 +292,15 @@ public class RoleServiceImpl implements RoleService {
                     String.valueOf(ttlSeconds).getBytes(StandardCharsets.UTF_8),
                     "FIELDS".getBytes(StandardCharsets.UTF_8),
                     "1".getBytes(StandardCharsets.UTF_8),
-                    roleName.getBytes(StandardCharsets.UTF_8)
+                    cleanName.getBytes(StandardCharsets.UTF_8)
             ));
 
-            stringRedisTemplate.convertAndSend(SecurityTopics.ROLE_REVOCATION, roleName);
-            roleRevocationService.handleRevocationEvent(roleName);
+            stringRedisTemplate.convertAndSend(SecurityTopics.ROLE_REVOCATION, cleanName);
+            roleRevocationService.handleRevocationEvent(cleanName);
             log.info("Persisted disabled role '{}' to Redis hash '{}' with TTL {}s and broadcasted to topic '{}'",
-                    roleName, RoleRevocationService.KEY, ttlSeconds, SecurityTopics.ROLE_REVOCATION);
+                    cleanName, RoleRevocationService.KEY, ttlSeconds, SecurityTopics.ROLE_REVOCATION);
         } catch (Exception e) {
-            log.warn("Failed to update Redis for disabled role '{}'. Other instances will sync on cache TTL expiry", roleName, e);
+            log.warn("Failed to update Redis for disabled role '{}'. Other instances will sync on cache TTL expiry", cleanName, e);
         }
     }
 }

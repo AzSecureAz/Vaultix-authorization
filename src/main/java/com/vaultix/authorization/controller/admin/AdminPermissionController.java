@@ -1,5 +1,6 @@
 package com.vaultix.authorization.controller.admin;
 
+import java.util.Locale;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -8,6 +9,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
@@ -54,8 +56,9 @@ public class AdminPermissionController {
             @NotBlank(message = "Permission identifier is required")
             @Size(max = 128, message = "Permission identifier cannot exceed 128 characters") String identifier) {
 
-        log.info("Admin request to retrieve permission with identifier: {}", identifier);
-        PermissionResponse permission = permissionService.getPermissionByIdentifier(identifier);
+        String cleanIdentifier = identifier.strip().toLowerCase(Locale.ROOT);
+        log.info("Admin request to retrieve permission with identifier: {}", cleanIdentifier);
+        PermissionResponse permission = permissionService.getPermissionByIdentifier(cleanIdentifier);
         return ResponseEntity.ok(ApiResponse.success("Permission retrieved successfully", permission));
     }
 
@@ -67,9 +70,10 @@ public class AdminPermissionController {
             @Size(max = 128, message = "Permission identifier cannot exceed 128 characters") String identifier,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID actorId = jwt != null && jwt.getSubject() != null ? UUID.fromString(jwt.getSubject()) : null;
-        log.info("Admin request to disable permission with identifier: {} by user ID: {}", identifier, actorId);
-        PermissionResponse disabledPermission = permissionService.disablePermission(identifier, actorId);
+        String cleanIdentifier = identifier.strip().toLowerCase(Locale.ROOT);
+        UUID actorId = extractActorId(jwt);
+        log.info("Admin request to disable permission with identifier: {} by user ID: {}", cleanIdentifier, actorId);
+        PermissionResponse disabledPermission = permissionService.disablePermission(cleanIdentifier, actorId);
         return ResponseEntity.ok(ApiResponse.success("Permission disabled successfully", disabledPermission));
     }
 
@@ -81,9 +85,21 @@ public class AdminPermissionController {
             @Size(max = 128, message = "Permission identifier cannot exceed 128 characters") String identifier,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID actorId = jwt != null && jwt.getSubject() != null ? UUID.fromString(jwt.getSubject()) : null;
-        log.info("Admin request to enable permission with identifier: {} by user ID: {}", identifier, actorId);
-        PermissionResponse enabledPermission = permissionService.enablePermission(identifier, actorId);
+        String cleanIdentifier = identifier.strip().toLowerCase(Locale.ROOT);
+        UUID actorId = extractActorId(jwt);
+        log.info("Admin request to enable permission with identifier: {} by user ID: {}", cleanIdentifier, actorId);
+        PermissionResponse enabledPermission = permissionService.enablePermission(cleanIdentifier, actorId);
         return ResponseEntity.ok(ApiResponse.success("Permission enabled successfully", enabledPermission));
+    }
+
+    private UUID extractActorId(Jwt jwt) {
+        if (jwt == null || jwt.getSubject() == null || jwt.getSubject().isBlank()) {
+            throw new BadCredentialsException("Invalid or missing authentication token");
+        }
+        try {
+            return UUID.fromString(jwt.getSubject().strip());
+        } catch (IllegalArgumentException e) {
+            throw new BadCredentialsException("Invalid actor ID in authentication token");
+        }
     }
 }

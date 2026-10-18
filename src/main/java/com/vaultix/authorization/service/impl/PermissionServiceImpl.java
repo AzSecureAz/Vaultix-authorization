@@ -41,8 +41,9 @@ public class PermissionServiceImpl implements PermissionService {
     @Override
     @Transactional(readOnly = true)
     public Page<PermissionResponse> getAllPermissions(Pageable pageable) {
-        log.debug("Retrieving all permissions with pageable: {}", pageable);
-        return permissionRepository.findAll(pageable)
+        Pageable page = (pageable != null) ? pageable : Pageable.unpaged();
+        log.debug("Retrieving all permissions with pageable: {}", page);
+        return permissionRepository.findAll(page)
                 .map(PermissionResponse::fromEntity);
     }
 
@@ -116,6 +117,9 @@ public class PermissionServiceImpl implements PermissionService {
         }
 
         String normalized = identifier.strip().toLowerCase(Locale.ROOT);
+        if (normalized.length() > 128) {
+            throw new ResourceNotFoundException("Permission not found with identifier: " + normalized);
+        }
 
         try {
             UUID id = UUID.fromString(normalized);
@@ -129,9 +133,15 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     private void broadcastPermissionRevocation(String permissionName) {
+        if (permissionName == null || permissionName.isBlank()) {
+            return;
+        }
+
+        String cleanName = permissionName.strip().toLowerCase(Locale.ROOT);
+
         try {
             Instant now = Instant.now();
-            stringRedisTemplate.opsForHash().put(PermissionRevocationService.KEY, permissionName, now.toString());
+            stringRedisTemplate.opsForHash().put(PermissionRevocationService.KEY, cleanName, now.toString());
 
             long ttlSeconds = jwtProperties.accessTokenExpiration().toSeconds();
             stringRedisTemplate.execute((RedisCallback<Object>) connection -> connection.execute(
@@ -140,15 +150,15 @@ public class PermissionServiceImpl implements PermissionService {
                     String.valueOf(ttlSeconds).getBytes(StandardCharsets.UTF_8),
                     "FIELDS".getBytes(StandardCharsets.UTF_8),
                     "1".getBytes(StandardCharsets.UTF_8),
-                    permissionName.getBytes(StandardCharsets.UTF_8)
+                    cleanName.getBytes(StandardCharsets.UTF_8)
             ));
 
-            stringRedisTemplate.convertAndSend(SecurityTopics.PERMISSION_REVOCATION, permissionName);
-            permissionRevocationService.handleRevocationEvent(permissionName);
+            stringRedisTemplate.convertAndSend(SecurityTopics.PERMISSION_REVOCATION, cleanName);
+            permissionRevocationService.handleRevocationEvent(cleanName);
             log.info("Persisted disabled permission '{}' to Redis hash '{}' with TTL {}s and broadcasted to topic '{}'",
-                    permissionName, PermissionRevocationService.KEY, ttlSeconds, SecurityTopics.PERMISSION_REVOCATION);
+                    cleanName, PermissionRevocationService.KEY, ttlSeconds, SecurityTopics.PERMISSION_REVOCATION);
         } catch (Exception e) {
-            log.warn("Failed to update Redis for disabled permission '{}'. Other instances will sync on cache TTL expiry", permissionName, e);
+            log.warn("Failed to update Redis for disabled permission '{}'. Other instances will sync on cache TTL expiry", cleanName, e);
         }
     }
 }

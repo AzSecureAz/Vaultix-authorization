@@ -65,6 +65,8 @@ public class AuthController {
             throw new BadCredentialsException("Refresh token is required");
         }
 
+        token = token.strip();
+
         if (token.length() > RefreshTokenRequest.MAX_LENGTH) {
             throw new BadCredentialsException("Refresh token cannot exceed " + RefreshTokenRequest.MAX_LENGTH + " characters");
         }
@@ -83,8 +85,8 @@ public class AuthController {
             @AuthenticationPrincipal Jwt jwt,
             HttpServletRequest httpRequest) {
 
-        if (jwt != null && jwt.getId() != null) {
-            authService.logout(jwt.getId());
+        if (jwt != null && jwt.getId() != null && !jwt.getId().isBlank()) {
+            authService.logout(jwt.getId().strip());
         }
 
         ResponseCookie cleanCookie = authCookieHelper.createCleanCookie(httpRequest);
@@ -96,10 +98,17 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserProfileDto>> getMe(@AuthenticationPrincipal Jwt jwt) {
-        if (jwt == null || jwt.getSubject() == null) {
+        if (jwt == null || jwt.getSubject() == null || jwt.getSubject().isBlank()) {
             throw new BadCredentialsException("Invalid or missing authentication token");
         }
-        UUID userId = UUID.fromString(jwt.getSubject());
+
+        UUID userId;
+        try {
+            userId = UUID.fromString(jwt.getSubject().strip());
+        } catch (IllegalArgumentException e) {
+            throw new BadCredentialsException("Invalid user ID in authentication token");
+        }
+
         UserProfileDto profile = authService.getProfile(userId);
         return ResponseEntity.ok(ApiResponse.success("Current user profile", profile));
     }

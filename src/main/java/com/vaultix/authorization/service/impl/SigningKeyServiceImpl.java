@@ -197,7 +197,8 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
     @Override
     @Transactional(readOnly = true)
     public Page<SigningKeyResponse> getAllSigningKeys(Pageable pageable) {
-        return signingKeyRepository.findAll(pageable)
+        Pageable page = (pageable != null) ? pageable : Pageable.unpaged();
+        return signingKeyRepository.findAll(page)
                 .map(SigningKeyResponse::fromEntity);
     }
 
@@ -209,6 +210,9 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
         }
 
         String strippedKid = kid.strip();
+        if (strippedKid.length() > 64) {
+            throw new ResourceNotFoundException("Signing key not found with kid: " + strippedKid);
+        }
         return signingKeyRepository.findByKid(strippedKid)
                 .map(SigningKeyResponse::fromEntity)
                 .orElseThrow(() -> new ResourceNotFoundException("Signing key not found with kid: " + strippedKid));
@@ -226,6 +230,9 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
         }
 
         String strippedKid = kid.strip();
+        if (strippedKid.length() > 64) {
+            throw new ResourceNotFoundException("Signing key not found with kid: " + strippedKid);
+        }
         log.info("Initiating revocation of signing key with kid: {} by actor: {}...", strippedKid, actorId);
 
         SigningKey key = signingKeyRepository.findByKid(strippedKid)

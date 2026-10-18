@@ -8,6 +8,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
@@ -54,8 +55,9 @@ public class AdminSigningKeyController {
             @NotBlank(message = "Key ID is required")
             @Size(max = 64, message = "Key ID cannot exceed 64 characters") String kid) {
 
-        log.info("Admin request to retrieve signing key with kid: {}", kid);
-        SigningKeyResponse key = signingKeyService.getKeyByKid(kid);
+        String cleanKid = kid.strip();
+        log.info("Admin request to retrieve signing key with kid: {}", cleanKid);
+        SigningKeyResponse key = signingKeyService.getKeyByKid(cleanKid);
         return ResponseEntity.ok(ApiResponse.success("Cryptographic signing key retrieved successfully", key));
     }
 
@@ -64,7 +66,7 @@ public class AdminSigningKeyController {
     public ResponseEntity<ApiResponse<SigningKeyResponse>> rotateSigningKey(
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID actorId = jwt != null && jwt.getSubject() != null ? UUID.fromString(jwt.getSubject()) : null;
+        UUID actorId = extractActorId(jwt);
         log.info("Admin request to manually rotate signing key by user ID: {}", actorId);
         SigningKeyResponse rotatedKey = signingKeyService.rotateKey(actorId);
         return ResponseEntity.ok(ApiResponse.success("Cryptographic signing key rotated successfully", rotatedKey));
@@ -78,9 +80,21 @@ public class AdminSigningKeyController {
             @Size(max = 64, message = "Key ID cannot exceed 64 characters") String kid,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID actorId = jwt != null && jwt.getSubject() != null ? UUID.fromString(jwt.getSubject()) : null;
-        log.info("Admin request to revoke signing key with kid: {} by user ID: {}", kid, actorId);
-        SigningKeyResponse revokedKey = signingKeyService.revokeKey(kid, actorId);
+        String cleanKid = kid.strip();
+        UUID actorId = extractActorId(jwt);
+        log.info("Admin request to revoke signing key with kid: {} by user ID: {}", cleanKid, actorId);
+        SigningKeyResponse revokedKey = signingKeyService.revokeKey(cleanKid, actorId);
         return ResponseEntity.ok(ApiResponse.success("Cryptographic signing key revoked successfully", revokedKey));
+    }
+
+    private UUID extractActorId(Jwt jwt) {
+        if (jwt == null || jwt.getSubject() == null || jwt.getSubject().isBlank()) {
+            throw new BadCredentialsException("Invalid or missing authentication token");
+        }
+        try {
+            return UUID.fromString(jwt.getSubject().strip());
+        } catch (IllegalArgumentException e) {
+            throw new BadCredentialsException("Invalid actor ID in authentication token");
+        }
     }
 }
