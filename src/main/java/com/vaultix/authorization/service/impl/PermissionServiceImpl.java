@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -55,6 +56,10 @@ public class PermissionServiceImpl implements PermissionService {
     @Override
     @Transactional
     public PermissionResponse disablePermission(String identifier, UUID actorId) {
+        if (actorId == null) {
+            throw new AccessDeniedException("Actor ID is required to disable a permission");
+        }
+
         Permission permission = findPermissionEntityByIdentifier(identifier);
         String permissionName = permission.getName();
 
@@ -66,7 +71,7 @@ public class PermissionServiceImpl implements PermissionService {
         permission.setStatus(PermissionStatus.DISABLED);
         permission.setUpdatedBy(actorId);
         permissionRepository.saveAndFlush(permission);
-        log.info("Marked permission '{}' as DISABLED by actor: {}", permissionName, actorId != null ? actorId : "SYSTEM");
+        log.info("Marked permission '{}' as DISABLED by actor: {}", permissionName, actorId);
 
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -85,6 +90,10 @@ public class PermissionServiceImpl implements PermissionService {
     @Override
     @Transactional
     public PermissionResponse enablePermission(String identifier, UUID actorId) {
+        if (actorId == null) {
+            throw new AccessDeniedException("Actor ID is required to enable a permission");
+        }
+
         Permission permission = findPermissionEntityByIdentifier(identifier);
         String permissionName = permission.getName();
 
@@ -96,7 +105,7 @@ public class PermissionServiceImpl implements PermissionService {
         permission.setStatus(PermissionStatus.ENABLED);
         permission.setUpdatedBy(actorId);
         permissionRepository.save(permission);
-        log.info("Marked permission '{}' as ENABLED by actor: {}", permissionName, actorId != null ? actorId : "SYSTEM");
+        log.info("Marked permission '{}' as ENABLED by actor: {}", permissionName, actorId);
 
         return PermissionResponse.fromEntity(permission);
     }

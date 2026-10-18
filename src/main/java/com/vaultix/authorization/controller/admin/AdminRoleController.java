@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -14,14 +15,17 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.vaultix.authorization.dto.admin.CreateRoleRequest;
 import com.vaultix.authorization.dto.admin.RoleResponse;
 import com.vaultix.authorization.security.AuthSecurityExpressions;
 import com.vaultix.authorization.service.RoleService;
 import com.vaultix.common.dto.ApiResponse;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +39,19 @@ import lombok.extern.slf4j.Slf4j;
 public class AdminRoleController {
 
     private final RoleService roleService;
+
+    @PostMapping
+    @PreAuthorize(AuthSecurityExpressions.CAN_CREATE_ROLES)
+    public ResponseEntity<ApiResponse<RoleResponse>> createRole(
+            @Valid @RequestBody CreateRoleRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        UUID actorId = jwt != null && jwt.getSubject() != null ? UUID.fromString(jwt.getSubject()) : null;
+        log.info("Admin request to create role with name: '{}' by user ID: {}", request.name(), actorId);
+        RoleResponse createdRole = roleService.createRole(request, actorId);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Role created successfully", createdRole));
+    }
 
     @GetMapping
     @PreAuthorize(AuthSecurityExpressions.CAN_READ_ROLES)

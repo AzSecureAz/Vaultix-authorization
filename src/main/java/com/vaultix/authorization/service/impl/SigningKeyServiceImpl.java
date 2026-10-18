@@ -21,6 +21,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -216,12 +217,16 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
     @Override
     @Transactional
     public SigningKeyResponse revokeKey(String kid, UUID actorId) {
+        if (actorId == null) {
+            throw new AccessDeniedException("Actor ID is required to revoke a signing key");
+        }
+
         if (kid == null || kid.isBlank()) {
             throw new ResourceNotFoundException("Key ID cannot be blank");
         }
 
         String strippedKid = kid.strip();
-        log.info("Initiating revocation of signing key with kid: {} by actor: {}...", strippedKid, actorId != null ? actorId : "SYSTEM");
+        log.info("Initiating revocation of signing key with kid: {} by actor: {}...", strippedKid, actorId);
 
         SigningKey key = signingKeyRepository.findByKid(strippedKid)
                 .orElseThrow(() -> new ResourceNotFoundException("Signing key not found with kid: " + strippedKid));
@@ -238,7 +243,7 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
         key.setStatus(KeyStatus.REVOKED);
         key.setUpdatedBy(actorId);
         signingKeyRepository.saveAndFlush(key);
-        log.info("Marked signing key with kid: {} as REVOKED by {}", strippedKid, actorId != null ? actorId : "SYSTEM");
+        log.info("Marked signing key with kid: {} as REVOKED by {}", strippedKid, actorId);
 
         activeKeyCache.invalidateAll();
         jwkSetCache.invalidateAll();
