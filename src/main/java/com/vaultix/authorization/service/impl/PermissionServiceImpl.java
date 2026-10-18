@@ -74,16 +74,7 @@ public class PermissionServiceImpl implements PermissionService {
         permissionRepository.save(permission);
         log.info("Marked permission '{}' as DISABLED by actor: {}", permissionName, actorId);
 
-        if (TransactionSynchronizationManager.isActualTransactionActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    broadcastPermissionRevocation(permissionName);
-                }
-            });
-        } else {
-            broadcastPermissionRevocation(permissionName);
-        }
+        publishRevocationAfterCommit(permissionName);
 
         return PermissionResponse.fromEntity(permission);
     }
@@ -116,20 +107,21 @@ public class PermissionServiceImpl implements PermissionService {
             throw new ResourceNotFoundException("Permission identifier cannot be blank");
         }
 
-        String normalized = identifier.strip().toLowerCase(Locale.ROOT);
-        if (normalized.length() > 128) {
-            throw new ResourceNotFoundException("Permission not found with identifier: " + normalized);
+        String stripped = identifier.strip();
+        if (stripped.length() > 128) {
+            throw new ResourceNotFoundException("Permission not found with identifier: " + stripped);
         }
 
         try {
-            UUID id = UUID.fromString(normalized);
+            UUID id = UUID.fromString(stripped);
             return permissionRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Permission not found with identifier: " + normalized));
+                    .orElseThrow(() -> new ResourceNotFoundException("Permission not found with identifier: " + stripped));
         } catch (IllegalArgumentException ignored) {
         }
 
+        String normalized = stripped.toLowerCase(Locale.ROOT);
         return permissionRepository.findByName(normalized)
-                .orElseThrow(() -> new ResourceNotFoundException("Permission not found with identifier: " + normalized));
+                .orElseThrow(() -> new ResourceNotFoundException("Permission not found with identifier: " + stripped));
     }
 
     private void broadcastPermissionRevocation(String permissionName) {
@@ -159,6 +151,19 @@ public class PermissionServiceImpl implements PermissionService {
                     cleanName, PermissionRevocationService.KEY, ttlSeconds, SecurityTopics.PERMISSION_REVOCATION);
         } catch (Exception e) {
             log.warn("Failed to update Redis for disabled permission '{}'. Other instances will sync on cache TTL expiry", cleanName, e);
+        }
+    }
+
+    private void publishRevocationAfterCommit(String permissionName) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    broadcastPermissionRevocation(permissionName);
+                }
+            });
+        } else {
+            broadcastPermissionRevocation(permissionName);
         }
     }
 }

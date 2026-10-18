@@ -8,7 +8,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
@@ -23,6 +22,7 @@ import com.vaultix.authorization.security.AuthSecurityExpressions;
 import com.vaultix.authorization.service.SigningKeyService;
 import com.vaultix.common.dto.ApiResponse;
 import com.vaultix.common.security.CommonSecurityExpressions;
+import com.vaultix.common.security.SecurityUtil;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -66,7 +66,7 @@ public class AdminSigningKeyController {
     public ResponseEntity<ApiResponse<SigningKeyResponse>> rotateSigningKey(
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID actorId = extractActorId(jwt);
+        UUID actorId = SecurityUtil.extractActorId(jwt);
         log.info("Admin request to manually rotate signing key by user ID: {}", actorId);
         SigningKeyResponse rotatedKey = signingKeyService.rotateKey(actorId);
         return ResponseEntity.ok(ApiResponse.success("Cryptographic signing key rotated successfully", rotatedKey));
@@ -81,20 +81,9 @@ public class AdminSigningKeyController {
             @AuthenticationPrincipal Jwt jwt) {
 
         String cleanKid = kid.strip();
-        UUID actorId = extractActorId(jwt);
+        UUID actorId = SecurityUtil.extractActorId(jwt);
         log.info("Admin request to revoke signing key with kid: {} by user ID: {}", cleanKid, actorId);
         SigningKeyResponse revokedKey = signingKeyService.revokeKey(cleanKid, actorId);
         return ResponseEntity.ok(ApiResponse.success("Cryptographic signing key revoked successfully", revokedKey));
-    }
-
-    private UUID extractActorId(Jwt jwt) {
-        if (jwt == null || jwt.getSubject() == null || jwt.getSubject().isBlank()) {
-            throw new BadCredentialsException("Invalid or missing authentication token");
-        }
-        try {
-            return UUID.fromString(jwt.getSubject().strip());
-        } catch (IllegalArgumentException e) {
-            throw new BadCredentialsException("Invalid actor ID in authentication token");
-        }
     }
 }

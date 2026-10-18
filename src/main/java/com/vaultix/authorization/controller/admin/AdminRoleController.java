@@ -1,6 +1,5 @@
 package com.vaultix.authorization.controller.admin;
 
-import java.util.Locale;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -10,7 +9,6 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
@@ -28,6 +26,7 @@ import com.vaultix.authorization.dto.admin.UpdateRoleRequest;
 import com.vaultix.authorization.security.AuthSecurityExpressions;
 import com.vaultix.authorization.service.RoleService;
 import com.vaultix.common.dto.ApiResponse;
+import com.vaultix.common.security.SecurityUtil;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -50,7 +49,7 @@ public class AdminRoleController {
             @Valid @RequestBody CreateRoleRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID actorId = extractActorId(jwt);
+        UUID actorId = SecurityUtil.extractActorId(jwt);
         log.info("Admin request to create role with name: '{}' by user ID: {}", request.name(), actorId);
         RoleResponse createdRole = roleService.createRole(request, actorId);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -74,7 +73,7 @@ public class AdminRoleController {
             @NotBlank(message = "Role identifier is required")
             @Size(max = 64, message = "Role identifier cannot exceed 64 characters") String identifier) {
 
-        String cleanIdentifier = identifier.strip().toUpperCase(Locale.ROOT);
+        String cleanIdentifier = identifier.strip();
         log.info("Admin request to retrieve role with identifier: {}", cleanIdentifier);
         RoleResponse role = roleService.getRoleByIdentifier(cleanIdentifier);
         return ResponseEntity.ok(ApiResponse.success("Role retrieved successfully", role));
@@ -89,8 +88,8 @@ public class AdminRoleController {
             @Valid @RequestBody UpdateRoleRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
-        String cleanIdentifier = identifier.strip().toUpperCase(Locale.ROOT);
-        UUID actorId = extractActorId(jwt);
+        String cleanIdentifier = identifier.strip();
+        UUID actorId = SecurityUtil.extractActorId(jwt);
         log.info("Admin request to update role with identifier: {} by user ID: {}", cleanIdentifier, actorId);
         RoleResponse updatedRole = roleService.updateRole(cleanIdentifier, request, actorId);
         return ResponseEntity.ok(ApiResponse.success("Role updated successfully", updatedRole));
@@ -104,8 +103,8 @@ public class AdminRoleController {
             @Size(max = 64, message = "Role identifier cannot exceed 64 characters") String identifier,
             @AuthenticationPrincipal Jwt jwt) {
 
-        String cleanIdentifier = identifier.strip().toUpperCase(Locale.ROOT);
-        UUID actorId = extractActorId(jwt);
+        String cleanIdentifier = identifier.strip();
+        UUID actorId = SecurityUtil.extractActorId(jwt);
         log.info("Admin request to disable role with identifier: {} by user ID: {}", cleanIdentifier, actorId);
         RoleResponse disabledRole = roleService.disableRole(cleanIdentifier, actorId);
         return ResponseEntity.ok(ApiResponse.success("Role disabled successfully", disabledRole));
@@ -119,21 +118,10 @@ public class AdminRoleController {
             @Size(max = 64, message = "Role identifier cannot exceed 64 characters") String identifier,
             @AuthenticationPrincipal Jwt jwt) {
 
-        String cleanIdentifier = identifier.strip().toUpperCase(Locale.ROOT);
-        UUID actorId = extractActorId(jwt);
+        String cleanIdentifier = identifier.strip();
+        UUID actorId = SecurityUtil.extractActorId(jwt);
         log.info("Admin request to enable role with identifier: {} by user ID: {}", cleanIdentifier, actorId);
         RoleResponse enabledRole = roleService.enableRole(cleanIdentifier, actorId);
         return ResponseEntity.ok(ApiResponse.success("Role enabled successfully", enabledRole));
-    }
-
-    private UUID extractActorId(Jwt jwt) {
-        if (jwt == null || jwt.getSubject() == null || jwt.getSubject().isBlank()) {
-            throw new BadCredentialsException("Invalid or missing authentication token");
-        }
-        try {
-            return UUID.fromString(jwt.getSubject().strip());
-        } catch (IllegalArgumentException e) {
-            throw new BadCredentialsException("Invalid actor ID in authentication token");
-        }
     }
 }
