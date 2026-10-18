@@ -23,6 +23,7 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import com.vaultix.authorization.config.properties.JwtProperties;
 import com.vaultix.authorization.dto.AuthResponse;
+import com.vaultix.authorization.dto.RefreshTokenRequest;
 import com.vaultix.authorization.entity.RefreshToken;
 import com.vaultix.authorization.entity.User;
 import com.vaultix.authorization.entity.enums.UserStatus;
@@ -51,6 +52,10 @@ public class TokenServiceImpl implements TokenService {
     @Override
     @Transactional
     public AuthResponse issueTokens(CustomUserDetails userDetails, ClientContext clientContext) {
+        if (userDetails == null || userDetails.getId() == null) {
+            throw new BadCredentialsException("User details and user ID are required");
+        }
+
         log.info("Issuing initial access and refresh tokens for user ID: {}", userDetails.getId());
 
         Instant now = Instant.now();
@@ -86,9 +91,14 @@ public class TokenServiceImpl implements TokenService {
             throw new BadCredentialsException("Refresh token is required");
         }
 
+        String token = rawRefreshToken.strip();
+        if (token.length() > RefreshTokenRequest.MAX_LENGTH) {
+            throw new BadCredentialsException("Refresh token cannot exceed " + RefreshTokenRequest.MAX_LENGTH + " characters");
+        }
+
         SignedJWT signedJWT;
         try {
-            signedJWT = SignedJWT.parse(rawRefreshToken);
+            signedJWT = SignedJWT.parse(token);
         } catch (ParseException e) {
             log.warn("Malformed refresh token received: {}", e.getMessage());
             throw new BadCredentialsException("Malformed refresh token", e);
@@ -317,9 +327,10 @@ public class TokenServiceImpl implements TokenService {
     }
 
     private String truncate(String value, int maxLength) {
-        if (value == null) {
+        if (value == null || value.isBlank()) {
             return ClientContext.EMPTY.deviceInfo();
         }
-        return value.length() > maxLength ? value.substring(0, maxLength) : value;
+        String stripped = value.strip();
+        return stripped.length() > maxLength ? stripped.substring(0, maxLength) : stripped;
     }
 }
