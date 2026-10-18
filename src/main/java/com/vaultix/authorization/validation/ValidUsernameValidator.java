@@ -1,5 +1,6 @@
 package com.vaultix.authorization.validation;
 
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 import jakarta.validation.ConstraintValidator;
@@ -15,9 +16,10 @@ public class ValidUsernameValidator implements ConstraintValidator<ValidUsername
 
     @Override
     public boolean isValid(String username, ConstraintValidatorContext context) {
-        if (username == null) {
+        if (username == null || username.isBlank()) {
             return false;
         }
-        return USERNAME_PATTERN.matcher(username).matches();
+        String normalized = username.strip().toLowerCase(Locale.ROOT);
+        return USERNAME_PATTERN.matcher(normalized).matches();
     }
 }
