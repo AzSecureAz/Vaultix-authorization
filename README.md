@@ -76,7 +76,7 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 | `POST` | `/login` | Authenticate user, issue access token & set refresh cookie | No | Yes (`X-Client-IP`, `X-Device-*`) |
 | `POST` | `/refresh` | Rotate refresh token and issue new access token | Cookie / Body | Yes |
 | `POST` | `/logout` | Revoke refresh token and wipe session cookie | Cookie / Body | No |
-| `GET` | `/me` | Retrieve authenticated user profile with roles & permissions | Bearer JWT | No |
+| `GET` | `/me`, `/profile` | Retrieve authenticated user profile with roles & permissions | Bearer JWT | No |
 | `GET` | `/.well-known/jwks.json` | Public JWK Set containing RSA-2048 verification keys | No | No |
 
 ### 2. Admin User Management (`/admin/users`)

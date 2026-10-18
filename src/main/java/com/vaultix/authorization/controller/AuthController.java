@@ -97,7 +97,7 @@ public class AuthController {
                 .body(ApiResponse.success("Logged out successfully"));
     }
 
-    @GetMapping("/me")
+    @GetMapping({"/me", "/profile"})
     public ResponseEntity<ApiResponse<UserProfileDto>> getMe(@AuthenticationPrincipal Jwt jwt) {
         UUID userId = SecurityUtil.extractActorId(jwt);
         UserProfileDto profile = authService.getProfile(userId);
