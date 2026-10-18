@@ -21,6 +21,10 @@ public class JwtDecoderConfig {
             JwtProperties jwtProperties) {
 
         JWKSource<SecurityContext> jwkSource = (selector, ctx) -> selector.select(signingKeyService.getJwkSet());
-        return CommonJwtDecoderFactory.create(jwkSource, jwtProperties.issuer(), jwtBlacklistValidator);
+        return CommonJwtDecoderFactory.withJwkSource()
+                .jwkSource(jwkSource)
+                .expectedIssuer(jwtProperties.issuer())
+                .blacklistValidator(jwtBlacklistValidator)
+                .build();
     }
 }
