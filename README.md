@@ -64,6 +64,11 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 - Roles maintain a numeric `level` (lower numeric value = higher privilege).
 - Administrators cannot create, modify, enable, or disable roles with a privilege level equal to or higher than their own active role level.
 
+### 6. Centralized Error Handling & Spring 6.1+ Method Validation
+- **`GlobalExceptionHandler`**: Inherits `BaseGlobalExceptionHandler` from `common`, returning standard `ApiResponse.error(...)` envelopes across all endpoints.
+- **Native Method Validation**: Utilizes Spring MVC 6.1+ native `HandlerMethodValidationException` for request parameter constraints (e.g. cookie length limits) without requiring class-level `@Validated` proxies on controllers.
+- **Security Leak Prevention**: Masks internal service exceptions (`InternalAuthenticationServiceException`) as generic `"Authentication failed"` to prevent leaking database or connection details to clients.
+
 ---
 
 ## API Endpoints (`/api/v1/auth`)
@@ -122,6 +127,7 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 authorization/
 ├── pom.xml
 ├── README.md
+├── .env.example
 └── src/main/
     ├── java/com/vaultix/authorization/
     │   ├── AuthorizationApplication.java
@@ -134,6 +140,7 @@ authorization/
     │   │   ├── SecurityBeansConfig.java
     │   │   ├── SecurityConfig.java
     │   │   └── properties/
+    │   │       ├── AdminBootstrapProperties.java
     │   │       ├── JwtProperties.java
     │   │       ├── KekProperties.java
     │   │       └── LockoutProperties.java
@@ -169,6 +176,8 @@ authorization/
     │   │       ├── PermissionStatus.java
     │   │       ├── RoleStatus.java
     │   │       └── UserStatus.java
+    │   ├── exception/
+    │   │   └── GlobalExceptionHandler.java
     │   ├── repository/
     │   │   ├── PermissionRepository.java
     │   │   ├── RefreshTokenRepository.java
@@ -176,6 +185,7 @@ authorization/
     │   │   ├── SigningKeyRepository.java
     │   │   └── UserRepository.java
     │   ├── scheduler/
+    │   │   ├── RefreshTokenScheduler.java
     │   │   └── SigningKeyScheduler.java
     │   ├── security/
     │   │   ├── AuthCookieHelper.java
@@ -198,11 +208,20 @@ authorization/
     │   │       └── UserServiceImpl.java
     │   └── validation/
     │       ├── StrongPassword.java
-    │       └── ValidUsername.java
+    │       ├── StrongPasswordValidator.java
+    │       ├── ValidFullName.java
+    │       ├── ValidFullNameValidator.java
+    │       ├── ValidPhoneNumber.java
+    │       ├── ValidPhoneNumberValidator.java
+    │       ├── ValidRoleName.java
+    │       ├── ValidRoleNameValidator.java
+    │       ├── ValidUsername.java
+    │       └── ValidUsernameValidator.java
     └── resources/
         ├── application.yaml
         └── db/migration/
-            └── V1__init_auth_schema.sql
+            ├── V1__init_auth_schema.sql
+            └── V2__create_signing_keys_schema.sql
 ```
 
 ---
