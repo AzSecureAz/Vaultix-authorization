@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JOSEObjectType;
@@ -35,11 +36,15 @@ import com.vaultix.authorization.service.TokenService;
 import com.vaultix.common.security.TokenBlacklistService;
 import com.vaultix.common.util.ClientContextUtil.ClientContext;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
+@Validated
 @RequiredArgsConstructor
 public class TokenServiceImpl implements TokenService {
 
@@ -51,8 +56,11 @@ public class TokenServiceImpl implements TokenService {
 
     @Override
     @Transactional
-    public AuthResponse issueTokens(CustomUserDetails userDetails, ClientContext clientContext) {
-        if (userDetails == null || userDetails.getId() == null) {
+    public AuthResponse issueTokens(
+            @NotNull(message = "User details cannot be null") CustomUserDetails userDetails,
+            ClientContext clientContext) {
+
+        if (userDetails.getId() == null) {
             throw new BadCredentialsException("User details and user ID are required");
         }
 
@@ -86,15 +94,12 @@ public class TokenServiceImpl implements TokenService {
 
     @Override
     @Transactional
-    public AuthResponse refreshTokens(String rawRefreshToken, ClientContext clientContext) {
-        if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
-            throw new BadCredentialsException("Refresh token is required");
-        }
+    public AuthResponse refreshTokens(
+            @NotBlank(message = "Refresh token is required")
+            @Size(max = RefreshTokenRequest.MAX_LENGTH, message = "Refresh token cannot exceed " + RefreshTokenRequest.MAX_LENGTH + " characters") String rawRefreshToken,
+            ClientContext clientContext) {
 
         String token = rawRefreshToken.strip();
-        if (token.length() > RefreshTokenRequest.MAX_LENGTH) {
-            throw new BadCredentialsException("Refresh token cannot exceed " + RefreshTokenRequest.MAX_LENGTH + " characters");
-        }
 
         SignedJWT signedJWT;
         try {
@@ -219,10 +224,9 @@ public class TokenServiceImpl implements TokenService {
 
     @Override
     @Transactional
-    public void logout(String accessTokenJti) {
-        if (accessTokenJti == null || accessTokenJti.isBlank()) {
-            return;
-        }
+    public void logout(
+            @NotBlank(message = "Access token JTI is required")
+            @Size(max = 64, message = "Access token JTI cannot exceed 64 characters") String accessTokenJti) {
 
         String cleanedJti = accessTokenJti.strip();
         log.info("Processing logout for access token JTI: {}", cleanedJti);
@@ -327,9 +331,6 @@ public class TokenServiceImpl implements TokenService {
     }
 
     private String truncate(String value, int maxLength) {
-        if (value == null || value.isBlank()) {
-            return ClientContext.EMPTY.deviceInfo();
-        }
         String stripped = value.strip();
         return stripped.length() > maxLength ? stripped.substring(0, maxLength) : stripped;
     }
