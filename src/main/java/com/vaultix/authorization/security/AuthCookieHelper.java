@@ -2,13 +2,19 @@ package com.vaultix.authorization.security;
 
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
+import org.springframework.validation.annotation.Validated;
 
 import com.vaultix.authorization.config.properties.JwtProperties;
+import com.vaultix.authorization.dto.RefreshTokenRequest;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 
 @Component
+@Validated
 @RequiredArgsConstructor
 public class AuthCookieHelper {
 
@@ -24,8 +30,12 @@ public class AuthCookieHelper {
      * @param request the HTTP servlet request used to check secure/TLS context
      * @return the configured ResponseCookie
      */
-    public ResponseCookie createRefreshTokenCookie(String refreshToken, HttpServletRequest request) {
-        return ResponseCookie.from(REFRESH_TOKEN_COOKIE_NAME, refreshToken)
+    public ResponseCookie createRefreshTokenCookie(
+            @NotBlank(message = "Refresh token is required")
+            @Size(max = RefreshTokenRequest.MAX_LENGTH, message = "Refresh token cannot exceed " + RefreshTokenRequest.MAX_LENGTH + " characters") String refreshToken,
+            @NotNull(message = "HTTP request cannot be null") HttpServletRequest request) {
+
+        return ResponseCookie.from(REFRESH_TOKEN_COOKIE_NAME, refreshToken.strip())
                 .httpOnly(true)
                 .secure(isSecure(request))
                 .sameSite("Strict")
@@ -40,7 +50,9 @@ public class AuthCookieHelper {
      * @param request the HTTP servlet request used to check secure/TLS context
      * @return the configured ResponseCookie with maxAge 0
      */
-    public ResponseCookie createCleanCookie(HttpServletRequest request) {
+    public ResponseCookie createCleanCookie(
+            @NotNull(message = "HTTP request cannot be null") HttpServletRequest request) {
+
         return ResponseCookie.from(REFRESH_TOKEN_COOKIE_NAME, "")
                 .httpOnly(true)
                 .secure(isSecure(request))

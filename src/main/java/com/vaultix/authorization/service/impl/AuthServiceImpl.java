@@ -27,6 +27,10 @@ import com.vaultix.authorization.service.AuthService;
 import com.vaultix.authorization.service.TokenService;
 import com.vaultix.common.util.ClientContextUtil.ClientContext;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -41,15 +45,10 @@ public class AuthServiceImpl implements AuthService {
     private final LockoutProperties lockoutProperties;
 
     @Override
-    public AuthResponse login(LoginRequest request, ClientContext clientContext) {
-        if (request == null || request.identifier() == null || request.identifier().isBlank()) {
-            throw new BadCredentialsException("Identifier cannot be null or blank");
-        }
-        if (request.password() == null || request.password().isBlank()) {
-            throw new BadCredentialsException("Password cannot be null or blank");
-        }
-
-        ClientContext context = ClientContext.ofNullable(clientContext);
+    public AuthResponse login(
+            @NotNull(message = "Login request cannot be null")
+            @Valid LoginRequest request,
+            ClientContext clientContext) {
 
         String identifier = request.identifier().strip().toLowerCase(Locale.ROOT);
         log.info("Attempting authentication for identifier: {}", identifier);
@@ -75,14 +74,10 @@ public class AuthServiceImpl implements AuthService {
 
         handleSuccessfulLogin(userDetails.getId());
 
-        return tokenService.issueTokens(userDetails, context);
+        return tokenService.issueTokens(userDetails, ClientContext.ofNullable(clientContext));
     }
 
     private void handleFailedLogin(String identifier) {
-        if (identifier == null || identifier.isBlank()) {
-            return;
-        }
-
         userRepository.findByUsernameOrEmail(identifier, identifier).ifPresent(user -> {
             Instant now = Instant.now();
 
@@ -115,10 +110,6 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private void handleSuccessfulLogin(UUID userId) {
-        if (userId == null) {
-            return;
-        }
-
         userRepository.findById(userId).ifPresent(user -> {
             Instant now = Instant.now();
 
@@ -136,25 +127,19 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public AuthResponse refreshToken(String rawRefreshToken, ClientContext clientContext) {
-        if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
-            throw new BadCredentialsException("Refresh token is required");
-        }
-
-        String token = rawRefreshToken.strip();
-        if (token.length() > RefreshTokenRequest.MAX_LENGTH) {
-            throw new BadCredentialsException("Refresh token cannot exceed " + RefreshTokenRequest.MAX_LENGTH + " characters");
-        }
+    public AuthResponse refreshToken(
+            @NotBlank(message = "Refresh token is required")
+            @Size(max = RefreshTokenRequest.MAX_LENGTH, message = "Refresh token cannot exceed " + RefreshTokenRequest.MAX_LENGTH + " characters") String rawRefreshToken,
+            ClientContext clientContext) {
 
         log.info("Processing token refresh request");
-        return tokenService.refreshTokens(token, ClientContext.ofNullable(clientContext));
+        return tokenService.refreshTokens(rawRefreshToken.strip(), ClientContext.ofNullable(clientContext));
     }
 
     @Override
-    public void logout(String accessTokenJti) {
-        if (accessTokenJti == null || accessTokenJti.isBlank()) {
-            return;
-        }
+    public void logout(
+            @NotBlank(message = "Access token JTI is required")
+            @Size(max = 64, message = "Access token JTI cannot exceed 64 characters") String accessTokenJti) {
 
         String cleanedJti = accessTokenJti.strip();
         log.info("Processing logout request for accessTokenJti: {}", cleanedJti);
@@ -163,11 +148,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional(readOnly = true)
-    public UserProfileDto getProfile(UUID userId) {
-        if (userId == null) {
-            throw new BadCredentialsException("User ID cannot be null");
-        }
-
+    public UserProfileDto getProfile(@NotNull(message = "User ID cannot be null") UUID userId) {
         log.info("Fetching profile for user ID: {}", userId);
         User user = userRepository.findWithRolesAndPermissionsById(userId)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with ID: " + userId));
