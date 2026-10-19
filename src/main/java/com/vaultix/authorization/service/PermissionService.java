@@ -4,16 +4,30 @@ import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.validation.annotation.Validated;
 
 import com.vaultix.authorization.dto.admin.PermissionResponse;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+@Validated
 public interface PermissionService {
 
     Page<PermissionResponse> getAllPermissions(Pageable pageable);
 
-    PermissionResponse getPermissionByIdentifier(String identifier);
+    PermissionResponse getPermissionByIdentifier(
+            @NotBlank(message = "Permission identifier is required")
+            @Size(max = 128, message = "Permission identifier cannot exceed 128 characters") String identifier);
 
-    PermissionResponse disablePermission(String identifier, UUID actorId);
+    PermissionResponse disablePermission(
+            @NotBlank(message = "Permission identifier is required")
+            @Size(max = 128, message = "Permission identifier cannot exceed 128 characters") String identifier,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId);
 
-    PermissionResponse enablePermission(String identifier, UUID actorId);
+    PermissionResponse enablePermission(
+            @NotBlank(message = "Permission identifier is required")
+            @Size(max = 128, message = "Permission identifier cannot exceed 128 characters") String identifier,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId);
 }

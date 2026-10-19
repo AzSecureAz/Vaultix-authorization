@@ -9,7 +9,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -25,6 +24,9 @@ import com.vaultix.common.constant.SecurityTopics;
 import com.vaultix.common.exception.ResourceNotFoundException;
 import com.vaultix.common.security.PermissionRevocationService;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,17 +51,20 @@ public class PermissionServiceImpl implements PermissionService {
 
     @Override
     @Transactional(readOnly = true)
-    public PermissionResponse getPermissionByIdentifier(String identifier) {
+    public PermissionResponse getPermissionByIdentifier(
+            @NotBlank(message = "Permission identifier is required")
+            @Size(max = 128, message = "Permission identifier cannot exceed 128 characters") String identifier) {
+
         Permission permission = findPermissionEntityByIdentifier(identifier);
         return PermissionResponse.fromEntity(permission);
     }
 
     @Override
     @Transactional
-    public PermissionResponse disablePermission(String identifier, UUID actorId) {
-        if (actorId == null) {
-            throw new AccessDeniedException("Actor ID is required to disable a permission");
-        }
+    public PermissionResponse disablePermission(
+            @NotBlank(message = "Permission identifier is required")
+            @Size(max = 128, message = "Permission identifier cannot exceed 128 characters") String identifier,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId) {
 
         Permission permission = findPermissionEntityByIdentifier(identifier);
         String permissionName = permission.getName();
@@ -81,10 +86,10 @@ public class PermissionServiceImpl implements PermissionService {
 
     @Override
     @Transactional
-    public PermissionResponse enablePermission(String identifier, UUID actorId) {
-        if (actorId == null) {
-            throw new AccessDeniedException("Actor ID is required to enable a permission");
-        }
+    public PermissionResponse enablePermission(
+            @NotBlank(message = "Permission identifier is required")
+            @Size(max = 128, message = "Permission identifier cannot exceed 128 characters") String identifier,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId) {
 
         Permission permission = findPermissionEntityByIdentifier(identifier);
         String permissionName = permission.getName();
@@ -103,14 +108,7 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     private Permission findPermissionEntityByIdentifier(String identifier) {
-        if (identifier == null || identifier.isBlank()) {
-            throw new ResourceNotFoundException("Permission identifier cannot be blank");
-        }
-
         String stripped = identifier.strip();
-        if (stripped.length() > 128) {
-            throw new ResourceNotFoundException("Permission not found with identifier: " + stripped);
-        }
 
         try {
             UUID id = UUID.fromString(stripped);
@@ -125,10 +123,6 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     private void broadcastPermissionRevocation(String permissionName) {
-        if (permissionName == null || permissionName.isBlank()) {
-            return;
-        }
-
         String cleanName = permissionName.strip().toLowerCase(Locale.ROOT);
 
         try {
