@@ -28,6 +28,8 @@ import com.vaultix.common.util.ClientContextUtil.ClientContext;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -54,7 +56,8 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<AuthResponse>> refresh(
-            @CookieValue(name = "refresh_token", required = false) String cookieRefreshToken,
+            @CookieValue(name = "refresh_token", required = false)
+            @Size(max = RefreshTokenRequest.MAX_LENGTH, message = "Refresh token cannot exceed " + RefreshTokenRequest.MAX_LENGTH + " characters") String cookieRefreshToken,
             @Valid @RequestBody(required = false) RefreshTokenRequest requestBody,
             HttpServletRequest httpRequest) {
 
@@ -66,14 +69,8 @@ public class AuthController {
             throw new BadCredentialsException("Refresh token is required");
         }
 
-        token = token.strip();
-
-        if (token.length() > RefreshTokenRequest.MAX_LENGTH) {
-            throw new BadCredentialsException("Refresh token cannot exceed " + RefreshTokenRequest.MAX_LENGTH + " characters");
-        }
-
         ClientContext clientContext = ClientContextUtil.extract(httpRequest);
-        AuthResponse authResponse = authService.refreshToken(token, clientContext);
+        AuthResponse authResponse = authService.refreshToken(token.strip(), clientContext);
         ResponseCookie refreshCookie = authCookieHelper.createRefreshTokenCookie(authResponse.refreshToken(), httpRequest);
 
         return ResponseEntity.ok()
@@ -83,10 +80,10 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(
-            @AuthenticationPrincipal Jwt jwt,
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
             HttpServletRequest httpRequest) {
 
-        if (jwt != null && jwt.getId() != null && !jwt.getId().isBlank()) {
+        if (jwt.getId() != null && !jwt.getId().isBlank()) {
             authService.logout(jwt.getId().strip());
         }
 
@@ -98,7 +95,9 @@ public class AuthController {
     }
 
     @GetMapping({"/me", "/profile"})
-    public ResponseEntity<ApiResponse<UserProfileDto>> getMe(@AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<ApiResponse<UserProfileDto>> getMe(
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
+
         UUID userId = SecurityUtil.extractActorId(jwt);
         UserProfileDto profile = authService.getProfile(userId);
         return ResponseEntity.ok(ApiResponse.success("Current user profile", profile));
