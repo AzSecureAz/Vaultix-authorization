@@ -48,7 +48,9 @@ public class PermissionServiceImpl implements PermissionService {
     @Transactional(readOnly = true)
     public Page<PermissionResponse> getAllPermissions(Pageable pageable) {
         Pageable page = (pageable != null && pageable.isPaged())
-                ? pageable
+                ? (pageable.getPageSize() > 50
+                ? PageRequest.of(pageable.getPageNumber(), 50, pageable.getSort())
+                : pageable)
                 : PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
         log.debug("Retrieving all permissions with pageable: {}", page);
         return permissionRepository.findAll(page)

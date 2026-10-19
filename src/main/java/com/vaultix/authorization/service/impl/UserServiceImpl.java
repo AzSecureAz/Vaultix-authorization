@@ -34,7 +34,9 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly = true)
     public Page<UserResponse> getAllUsers(Pageable pageable) {
         Pageable page = (pageable != null && pageable.isPaged())
-                ? pageable
+                ? (pageable.getPageSize() > 50
+                ? PageRequest.of(pageable.getPageNumber(), 50, pageable.getSort())
+                : pageable)
                 : PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
         log.debug("Retrieving all users with pageable: {}", page);
         return userRepository.findAllWithRolesBy(page)
