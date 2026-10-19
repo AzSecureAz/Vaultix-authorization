@@ -175,8 +175,8 @@ public class TokenServiceImpl implements TokenService {
         }
 
         User user = existingSession.getUser();
-        if (user.getStatus() == UserStatus.DISABLED || user.getStatus() == UserStatus.DELETED || user.getStatus() == UserStatus.EXPIRED) {
-            log.warn("Attempt to refresh token for disabled/deleted/expired user: {}", user.getUsername());
+        if (user.getStatus() == UserStatus.DISABLED || user.getStatus() == UserStatus.DELETED) {
+            log.warn("Attempt to refresh token for disabled/deleted user: {}", user.getUsername());
             existingSession.setRevoked(true);
             existingSession.setRevokedAt(Instant.now());
             refreshTokenRepository.save(existingSession);

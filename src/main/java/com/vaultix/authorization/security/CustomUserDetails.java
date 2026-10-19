@@ -81,7 +81,7 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isAccountNonExpired() {
-        return status != UserStatus.EXPIRED && status != UserStatus.DELETED;
+        return true;
     }
 
     @Override
@@ -89,7 +89,7 @@ public class CustomUserDetails implements UserDetails {
         if (status == UserStatus.LOCKED) {
             return lockedUntil != null && lockedUntil.isBefore(Instant.now());
         }
-        return status != UserStatus.DELETED;
+        return true;
     }
 
     @Override

@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(256),
     full_name VARCHAR(256),
     phone_number VARCHAR(32),
-    status VARCHAR(16) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'DISABLED', 'LOCKED', 'DELETED', 'EXPIRED')),
+    status VARCHAR(16) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'DISABLED', 'LOCKED', 'DELETED')),
     email_verified BOOLEAN NOT NULL DEFAULT FALSE,
     mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     passkey_enabled BOOLEAN NOT NULL DEFAULT FALSE,
