@@ -9,7 +9,9 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.access.AccessDeniedException;
@@ -61,7 +63,9 @@ public class RoleServiceImpl implements RoleService {
     @Override
     @Transactional(readOnly = true)
     public Page<RoleResponse> getAllRoles(Pageable pageable) {
-        Pageable page = (pageable != null) ? pageable : Pageable.unpaged();
+        Pageable page = (pageable != null && pageable.isPaged())
+                ? pageable
+                : PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
         log.debug("Retrieving all roles with pageable: {}", page);
         return roleRepository.findAllWithPermissionsBy(page)
                 .map(RoleResponse::fromEntity);

@@ -19,7 +19,9 @@ import java.util.concurrent.TimeUnit;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -201,7 +203,9 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
     @Override
     @Transactional(readOnly = true)
     public Page<SigningKeyResponse> getAllSigningKeys(Pageable pageable) {
-        Pageable page = (pageable != null) ? pageable : Pageable.unpaged();
+        Pageable page = (pageable != null && pageable.isPaged())
+                ? pageable
+                : PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
         return signingKeyRepository.findAll(page)
                 .map(SigningKeyResponse::fromEntity);
     }

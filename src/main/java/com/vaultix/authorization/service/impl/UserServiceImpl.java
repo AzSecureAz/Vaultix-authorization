@@ -4,7 +4,9 @@ import java.util.Locale;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -31,7 +33,9 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public Page<UserResponse> getAllUsers(Pageable pageable) {
-        Pageable page = (pageable != null) ? pageable : Pageable.unpaged();
+        Pageable page = (pageable != null && pageable.isPaged())
+                ? pageable
+                : PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
         log.debug("Retrieving all users with pageable: {}", page);
         return userRepository.findAllWithRolesBy(page)
                 .map(UserResponse::fromEntity);

@@ -6,7 +6,9 @@ import java.util.Locale;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -45,7 +47,9 @@ public class PermissionServiceImpl implements PermissionService {
     @Override
     @Transactional(readOnly = true)
     public Page<PermissionResponse> getAllPermissions(Pageable pageable) {
-        Pageable page = (pageable != null) ? pageable : Pageable.unpaged();
+        Pageable page = (pageable != null && pageable.isPaged())
+                ? pageable
+                : PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
         log.debug("Retrieving all permissions with pageable: {}", page);
         return permissionRepository.findAll(page)
                 .map(PermissionResponse::fromEntity);
