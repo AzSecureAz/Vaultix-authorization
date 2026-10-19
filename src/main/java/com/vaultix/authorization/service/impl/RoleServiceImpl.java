@@ -36,6 +36,11 @@ import com.vaultix.common.exception.ResourceConflictException;
 import com.vaultix.common.exception.ResourceNotFoundException;
 import com.vaultix.common.security.RoleRevocationService;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -62,17 +67,20 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     @Transactional(readOnly = true)
-    public RoleResponse getRoleByIdentifier(String identifier) {
+    public RoleResponse getRoleByIdentifier(
+            @NotBlank(message = "Role identifier is required")
+            @Size(max = 64, message = "Role identifier cannot exceed 64 characters") String identifier) {
+
         Role role = findRoleEntityByIdentifier(identifier);
         return RoleResponse.fromEntity(role);
     }
 
     @Override
     @Transactional
-    public RoleResponse createRole(CreateRoleRequest request, UUID actorId) {
-        if (request == null) {
-            throw new IllegalArgumentException("Create role request cannot be null");
-        }
+    public RoleResponse createRole(
+            @NotNull(message = "Create role request cannot be null")
+            @Valid CreateRoleRequest request,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId) {
 
         ActorContext actor = resolveActorContext(actorId, "create");
 
@@ -118,10 +126,12 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     @Transactional
-    public RoleResponse updateRole(String identifier, UpdateRoleRequest request, UUID actorId) {
-        if (request == null) {
-            throw new IllegalArgumentException("Update role request cannot be null");
-        }
+    public RoleResponse updateRole(
+            @NotBlank(message = "Role identifier is required")
+            @Size(max = 64, message = "Role identifier cannot exceed 64 characters") String identifier,
+            @NotNull(message = "Update role request cannot be null")
+            @Valid UpdateRoleRequest request,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId) {
 
         ActorContext actor = resolveActorContext(actorId, "update");
         Role role = findRoleEntityByIdentifier(identifier);
@@ -183,10 +193,10 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     @Transactional
-    public RoleResponse disableRole(String identifier, UUID actorId) {
-        if (actorId == null) {
-            throw new AccessDeniedException("Actor ID is required to disable a role");
-        }
+    public RoleResponse disableRole(
+            @NotBlank(message = "Role identifier is required")
+            @Size(max = 64, message = "Role identifier cannot exceed 64 characters") String identifier,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId) {
 
         Role role = findRoleEntityByIdentifier(identifier);
         String roleName = role.getName();
@@ -210,10 +220,10 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     @Transactional
-    public RoleResponse enableRole(String identifier, UUID actorId) {
-        if (actorId == null) {
-            throw new AccessDeniedException("Actor ID is required to enable a role");
-        }
+    public RoleResponse enableRole(
+            @NotBlank(message = "Role identifier is required")
+            @Size(max = 64, message = "Role identifier cannot exceed 64 characters") String identifier,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId) {
 
         Role role = findRoleEntityByIdentifier(identifier);
         String roleName = role.getName();
@@ -244,10 +254,6 @@ public class RoleServiceImpl implements RoleService {
     }
 
     private ActorContext resolveActorContext(UUID actorId, String action) {
-        if (actorId == null) {
-            throw new AccessDeniedException("Actor ID is required to " + action + " a role");
-        }
-
         User actor = userRepository.findWithRolesAndPermissionsById(actorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Actor user not found with ID: " + actorId));
 
@@ -275,11 +281,14 @@ public class RoleServiceImpl implements RoleService {
             throw new AccessDeniedException("Actor has no active roles and cannot " + action + " roles");
         }
 
-        return new ActorContext(highestLevel, permissions);
+        return ActorContext.builder()
+                .highestLevel(highestLevel)
+                .permissions(permissions)
+                .build();
     }
 
     private Set<Permission> resolvePermissions(Set<String> requestedNames, Set<String> actorPermissions, UUID actorId) {
-        if (requestedNames == null || requestedNames.isEmpty()) {
+        if (requestedNames.isEmpty()) {
             return new HashSet<>();
         }
 
@@ -324,19 +333,13 @@ public class RoleServiceImpl implements RoleService {
         }
     }
 
+    @Builder
     private record ActorContext(int highestLevel, Set<String> permissions) {
 
     }
 
     private Role findRoleEntityByIdentifier(String identifier) {
-        if (identifier == null || identifier.isBlank()) {
-            throw new ResourceNotFoundException("Role identifier cannot be blank");
-        }
-
         String stripped = identifier.strip();
-        if (stripped.length() > 64) {
-            throw new ResourceNotFoundException("Role not found with identifier: " + stripped);
-        }
 
         try {
             UUID id = UUID.fromString(stripped);
@@ -353,10 +356,6 @@ public class RoleServiceImpl implements RoleService {
     }
 
     private void broadcastRoleRevocation(String roleName) {
-        if (roleName == null || roleName.isBlank()) {
-            return;
-        }
-
         String cleanName = roleName.strip().toUpperCase(Locale.ROOT);
 
         try {
