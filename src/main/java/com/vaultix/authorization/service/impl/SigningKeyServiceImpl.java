@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.validation.annotation.Validated;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -52,6 +53,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
+@Validated
 @RequiredArgsConstructor
 public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunner {
 

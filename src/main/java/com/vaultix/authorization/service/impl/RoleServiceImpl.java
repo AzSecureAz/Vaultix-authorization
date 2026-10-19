@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.validation.annotation.Validated;
 
 import com.vaultix.authorization.config.properties.JwtProperties;
 import com.vaultix.authorization.dto.admin.CreateRoleRequest;
@@ -46,6 +47,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
+@Validated
 @RequiredArgsConstructor
 public class RoleServiceImpl implements RoleService {
 

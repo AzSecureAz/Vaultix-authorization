@@ -13,6 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
 
 import com.vaultix.authorization.config.properties.LockoutProperties;
 import com.vaultix.authorization.dto.AuthResponse;
@@ -36,6 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
+@Validated
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
