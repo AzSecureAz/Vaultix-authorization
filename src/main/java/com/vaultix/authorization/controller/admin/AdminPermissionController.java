@@ -24,6 +24,7 @@ import com.vaultix.common.security.CommonSecurityExpressions;
 import com.vaultix.common.security.SecurityUtil;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -65,7 +66,7 @@ public class AdminPermissionController {
             @PathVariable("identifier")
             @NotBlank(message = "Permission identifier is required")
             @Size(max = 128, message = "Permission identifier cannot exceed 128 characters") String identifier,
-            @AuthenticationPrincipal Jwt jwt) {
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
 
         String cleanIdentifier = identifier.strip();
         UUID actorId = SecurityUtil.extractActorId(jwt);
@@ -80,7 +81,7 @@ public class AdminPermissionController {
             @PathVariable("identifier")
             @NotBlank(message = "Permission identifier is required")
             @Size(max = 128, message = "Permission identifier cannot exceed 128 characters") String identifier,
-            @AuthenticationPrincipal Jwt jwt) {
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
 
         String cleanIdentifier = identifier.strip();
         UUID actorId = SecurityUtil.extractActorId(jwt);

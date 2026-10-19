@@ -29,6 +29,7 @@ import com.vaultix.common.security.SecurityUtil;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,7 +46,7 @@ public class AdminRoleController {
     @PreAuthorize(AuthSecurityExpressions.CAN_CREATE_ROLES)
     public ResponseEntity<ApiResponse<RoleResponse>> createRole(
             @Valid @RequestBody CreateRoleRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
 
         UUID actorId = SecurityUtil.extractActorId(jwt);
         log.info("Admin request to create role with name: '{}' by user ID: {}", request.name(), actorId);
@@ -84,7 +85,7 @@ public class AdminRoleController {
             @NotBlank(message = "Role identifier is required")
             @Size(max = 64, message = "Role identifier cannot exceed 64 characters") String identifier,
             @Valid @RequestBody UpdateRoleRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
 
         String cleanIdentifier = identifier.strip();
         UUID actorId = SecurityUtil.extractActorId(jwt);
@@ -99,7 +100,7 @@ public class AdminRoleController {
             @PathVariable("identifier")
             @NotBlank(message = "Role identifier is required")
             @Size(max = 64, message = "Role identifier cannot exceed 64 characters") String identifier,
-            @AuthenticationPrincipal Jwt jwt) {
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
 
         String cleanIdentifier = identifier.strip();
         UUID actorId = SecurityUtil.extractActorId(jwt);
@@ -114,7 +115,7 @@ public class AdminRoleController {
             @PathVariable("identifier")
             @NotBlank(message = "Role identifier is required")
             @Size(max = 64, message = "Role identifier cannot exceed 64 characters") String identifier,
-            @AuthenticationPrincipal Jwt jwt) {
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
 
         String cleanIdentifier = identifier.strip();
         UUID actorId = SecurityUtil.extractActorId(jwt);

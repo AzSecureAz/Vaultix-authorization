@@ -24,6 +24,7 @@ import com.vaultix.common.security.CommonSecurityExpressions;
 import com.vaultix.common.security.SecurityUtil;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -62,7 +63,7 @@ public class AdminSigningKeyController {
     @PostMapping("/rotate")
     @PreAuthorize(AuthSecurityExpressions.CAN_ROTATE_KEYS)
     public ResponseEntity<ApiResponse<SigningKeyResponse>> rotateSigningKey(
-            @AuthenticationPrincipal Jwt jwt) {
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
 
         UUID actorId = SecurityUtil.extractActorId(jwt);
         log.info("Admin request to manually rotate signing key by user ID: {}", actorId);
@@ -76,7 +77,7 @@ public class AdminSigningKeyController {
             @PathVariable("kid")
             @NotBlank(message = "Key ID is required")
             @Size(max = 64, message = "Key ID cannot exceed 64 characters") String kid,
-            @AuthenticationPrincipal Jwt jwt) {
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
 
         String cleanKid = kid.strip();
         UUID actorId = SecurityUtil.extractActorId(jwt);
