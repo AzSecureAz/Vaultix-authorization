@@ -21,7 +21,6 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -45,6 +44,9 @@ import com.vaultix.common.crypto.AesGcmCryptoUtil;
 import com.vaultix.common.exception.ResourceConflictException;
 import com.vaultix.common.exception.ResourceNotFoundException;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -204,15 +206,11 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
 
     @Override
     @Transactional(readOnly = true)
-    public SigningKeyResponse getKeyByKid(String kid) {
-        if (kid == null || kid.isBlank()) {
-            throw new ResourceNotFoundException("Key ID cannot be blank");
-        }
+    public SigningKeyResponse getKeyByKid(
+            @NotBlank(message = "Key ID is required")
+            @Size(max = 64, message = "Key ID cannot exceed 64 characters") String kid) {
 
         String strippedKid = kid.strip();
-        if (strippedKid.length() > 64) {
-            throw new ResourceNotFoundException("Signing key not found with kid: " + strippedKid);
-        }
         return signingKeyRepository.findByKid(strippedKid)
                 .map(SigningKeyResponse::fromEntity)
                 .orElseThrow(() -> new ResourceNotFoundException("Signing key not found with kid: " + strippedKid));
@@ -220,19 +218,12 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
 
     @Override
     @Transactional
-    public SigningKeyResponse revokeKey(String kid, UUID actorId) {
-        if (actorId == null) {
-            throw new AccessDeniedException("Actor ID is required to revoke a signing key");
-        }
-
-        if (kid == null || kid.isBlank()) {
-            throw new ResourceNotFoundException("Key ID cannot be blank");
-        }
+    public SigningKeyResponse revokeKey(
+            @NotBlank(message = "Key ID is required")
+            @Size(max = 64, message = "Key ID cannot exceed 64 characters") String kid,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId) {
 
         String strippedKid = kid.strip();
-        if (strippedKid.length() > 64) {
-            throw new ResourceNotFoundException("Signing key not found with kid: " + strippedKid);
-        }
         log.info("Initiating revocation of signing key with kid: {} by actor: {}...", strippedKid, actorId);
 
         SigningKey key = signingKeyRepository.findByKid(strippedKid)
