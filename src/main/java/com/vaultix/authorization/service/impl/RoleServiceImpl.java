@@ -107,7 +107,7 @@ public class RoleServiceImpl implements RoleService {
                     .map(perm -> perm.strip().toLowerCase(Locale.ROOT))
                     .collect(Collectors.toSet());
 
-            permissionsToAssign = resolvePermissions(requestedPermNames, actor.permissions(), actorId);
+            permissionsToAssign = resolvePermissions(requestedPermNames, Set.of(), actor.permissions(), actorId);
         }
 
         String stripped = request.name().strip();
@@ -170,10 +170,7 @@ public class RoleServiceImpl implements RoleService {
                 throw new AccessDeniedException("Insufficient privilege: Cannot set role level to " + request.level()
                         + " (must be strictly greater than your highest active role level " + actor.highestLevel() + ")");
             }
-            if (!request.level().equals(role.getLevel())) {
-                role.setLevel(request.level());
-                needsRevocation = true;
-            }
+            role.setLevel(request.level());
         }
 
         if (request.permissions() != null) {
@@ -187,7 +184,7 @@ public class RoleServiceImpl implements RoleService {
                     .collect(Collectors.toSet());
 
             if (!currentPermNames.equals(requestedPermNames)) {
-                Set<Permission> permissionsToAssign = resolvePermissions(requestedPermNames, actor.permissions(), actorId);
+                Set<Permission> permissionsToAssign = resolvePermissions(requestedPermNames, currentPermNames, actor.permissions(), actorId);
                 role.setPermissions(permissionsToAssign);
                 needsRevocation = true;
             }
@@ -359,12 +356,21 @@ public class RoleServiceImpl implements RoleService {
                 .build();
     }
 
-    private Set<Permission> resolvePermissions(Set<String> requestedNames, Set<String> actorPermissions, UUID actorId) {
+    private Set<Permission> resolvePermissions(
+            Set<String> requestedNames,
+            Set<String> currentRolePermNames,
+            Set<String> actorPermissions,
+            UUID actorId) {
+
         if (requestedNames.isEmpty()) {
             return new HashSet<>();
         }
 
-        Set<String> unheldPermissions = requestedNames.stream()
+        Set<String> newlyAddedPermissions = requestedNames.stream()
+                .filter(perm -> !currentRolePermNames.contains(perm))
+                .collect(Collectors.toSet());
+
+        Set<String> unheldPermissions = newlyAddedPermissions.stream()
                 .filter(perm -> !actorPermissions.contains(perm))
                 .collect(Collectors.toSet());
 
