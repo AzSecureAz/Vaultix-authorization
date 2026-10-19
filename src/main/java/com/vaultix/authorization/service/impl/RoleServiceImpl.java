@@ -35,6 +35,7 @@ import com.vaultix.authorization.repository.RoleRepository;
 import com.vaultix.authorization.repository.UserRepository;
 import com.vaultix.authorization.service.RoleService;
 import com.vaultix.common.constant.SecurityTopics;
+import com.vaultix.common.exception.BadRequestException;
 import com.vaultix.common.exception.ResourceConflictException;
 import com.vaultix.common.exception.ResourceNotFoundException;
 import com.vaultix.common.security.RoleRevocationService;
@@ -144,6 +145,10 @@ public class RoleServiceImpl implements RoleService {
         ActorContext actor = resolveActorContext(actorId, "update");
         Role role = findRoleEntityByIdentifier(identifier);
 
+        if (role.getStatus() == RoleStatus.DELETED) {
+            throw new BadRequestException("Role '" + role.getName() + "' is deleted and cannot be updated");
+        }
+
         if (role.getLevel() <= actor.highestLevel()) {
             log.warn("Actor {} with highest level {} attempted to update role '{}' with level {}",
                     actorId, actor.highestLevel(), role.getName(), role.getLevel());
@@ -209,6 +214,10 @@ public class RoleServiceImpl implements RoleService {
         Role role = findRoleEntityByIdentifier(identifier);
         String roleName = role.getName();
 
+        if (role.getStatus() == RoleStatus.DELETED) {
+            throw new BadRequestException("Role '" + roleName + "' is deleted and cannot be disabled");
+        }
+
         if (role.getStatus() == RoleStatus.DISABLED) {
             log.info("Role '{}' is already disabled", roleName);
             return RoleResponse.fromEntity(role);
@@ -236,6 +245,10 @@ public class RoleServiceImpl implements RoleService {
         Role role = findRoleEntityByIdentifier(identifier);
         String roleName = role.getName();
 
+        if (role.getStatus() == RoleStatus.DELETED) {
+            throw new BadRequestException("Role '" + roleName + "' is deleted and cannot be enabled");
+        }
+
         if (role.getStatus() == RoleStatus.ENABLED) {
             log.info("Role '{}' is already enabled", roleName);
             return RoleResponse.fromEntity(role);
@@ -247,6 +260,57 @@ public class RoleServiceImpl implements RoleService {
         role.setUpdatedBy(actorId);
         roleRepository.save(role);
         log.info("Marked role '{}' as ENABLED by actor: {}", roleName, actorId);
+
+        return RoleResponse.fromEntity(role);
+    }
+
+    @Override
+    @Transactional
+    public RoleResponse deleteRole(
+            @NotBlank(message = "Role identifier is required")
+            @Size(max = 64, message = "Role identifier cannot exceed 64 characters") String identifier,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId) {
+
+        Role role = findRoleEntityByIdentifier(identifier);
+        String roleName = role.getName();
+
+        if (role.getStatus() == RoleStatus.DELETED) {
+            log.info("Role '{}' is already deleted", roleName);
+            return RoleResponse.fromEntity(role);
+        }
+
+        validateActorPrivilege(role, actorId, "delete");
+
+        role.setStatus(RoleStatus.DELETED);
+        role.setUpdatedBy(actorId);
+        roleRepository.save(role);
+        log.info("Marked role '{}' as DELETED by actor: {}", roleName, actorId);
+
+        publishRevocationAfterCommit(roleName);
+
+        return RoleResponse.fromEntity(role);
+    }
+
+    @Override
+    @Transactional
+    public RoleResponse restoreRole(
+            @NotBlank(message = "Role identifier is required")
+            @Size(max = 64, message = "Role identifier cannot exceed 64 characters") String identifier,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId) {
+
+        Role role = findRoleEntityByIdentifier(identifier);
+        String roleName = role.getName();
+
+        if (role.getStatus() != RoleStatus.DELETED) {
+            throw new BadRequestException("Role '" + roleName + "' is not deleted and cannot be restored");
+        }
+
+        validateActorPrivilege(role, actorId, "restore");
+
+        role.setStatus(RoleStatus.DISABLED);
+        role.setUpdatedBy(actorId);
+        roleRepository.save(role);
+        log.info("Marked role '{}' as RESTORED (DISABLED) by actor: {}", roleName, actorId);
 
         return RoleResponse.fromEntity(role);
     }

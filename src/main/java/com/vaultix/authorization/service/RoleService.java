@@ -45,4 +45,14 @@ public interface RoleService {
             @NotBlank(message = "Role identifier is required")
             @Size(max = 64, message = "Role identifier cannot exceed 64 characters") String identifier,
             @NotNull(message = "Actor ID cannot be null") UUID actorId);
+
+    RoleResponse deleteRole(
+            @NotBlank(message = "Role identifier is required")
+            @Size(max = 64, message = "Role identifier cannot exceed 64 characters") String identifier,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId);
+
+    RoleResponse restoreRole(
+            @NotBlank(message = "Role identifier is required")
+            @Size(max = 64, message = "Role identifier cannot exceed 64 characters") String identifier,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId);
 }

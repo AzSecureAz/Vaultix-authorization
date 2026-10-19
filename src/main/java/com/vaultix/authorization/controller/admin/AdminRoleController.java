@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,6 +26,7 @@ import com.vaultix.authorization.dto.admin.UpdateRoleRequest;
 import com.vaultix.authorization.security.AuthSecurityExpressions;
 import com.vaultix.authorization.service.RoleService;
 import com.vaultix.common.dto.ApiResponse;
+import com.vaultix.common.security.CommonSecurityExpressions;
 import com.vaultix.common.security.SecurityUtil;
 
 import jakarta.validation.Valid;
@@ -122,5 +124,35 @@ public class AdminRoleController {
         log.info("Admin request to enable role with identifier: {} by user ID: {}", cleanIdentifier, actorId);
         RoleResponse enabledRole = roleService.enableRole(cleanIdentifier, actorId);
         return ResponseEntity.ok(ApiResponse.success("Role enabled successfully", enabledRole));
+    }
+
+    @DeleteMapping("/{identifier}")
+    @PreAuthorize(CommonSecurityExpressions.IS_ADMIN)
+    public ResponseEntity<ApiResponse<RoleResponse>> deleteRole(
+            @PathVariable("identifier")
+            @NotBlank(message = "Role identifier is required")
+            @Size(max = 64, message = "Role identifier cannot exceed 64 characters") String identifier,
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
+
+        String cleanIdentifier = identifier.strip();
+        UUID actorId = SecurityUtil.extractActorId(jwt);
+        log.info("Admin request to delete role with identifier: {} by user ID: {}", cleanIdentifier, actorId);
+        RoleResponse deletedRole = roleService.deleteRole(cleanIdentifier, actorId);
+        return ResponseEntity.ok(ApiResponse.success("Role deleted successfully", deletedRole));
+    }
+
+    @PostMapping("/{identifier}/restore")
+    @PreAuthorize(CommonSecurityExpressions.IS_ADMIN)
+    public ResponseEntity<ApiResponse<RoleResponse>> restoreRole(
+            @PathVariable("identifier")
+            @NotBlank(message = "Role identifier is required")
+            @Size(max = 64, message = "Role identifier cannot exceed 64 characters") String identifier,
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
+
+        String cleanIdentifier = identifier.strip();
+        UUID actorId = SecurityUtil.extractActorId(jwt);
+        log.info("Admin request to restore role with identifier: {} by user ID: {}", cleanIdentifier, actorId);
+        RoleResponse restoredRole = roleService.restoreRole(cleanIdentifier, actorId);
+        return ResponseEntity.ok(ApiResponse.success("Role restored successfully", restoredRole));
     }
 }

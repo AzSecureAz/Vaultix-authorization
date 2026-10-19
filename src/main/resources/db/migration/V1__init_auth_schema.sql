@@ -107,7 +107,7 @@ CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expir
 -- 7. Seed Default Roles and Permissions
 -- -----------------------------------------------------------------------------
 INSERT INTO roles (name, description, level) VALUES
-    ('ROLE_ADMIN', 'Platform super administrator with highest privileges', 0)
+    ('ROLE_ADMIN', 'Platform administrator with administrative privileges', 1000)
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO permissions (name, description) VALUES
@@ -121,7 +121,6 @@ INSERT INTO permissions (name, description) VALUES
     ('role:create', 'Allowed to create new roles'),
     ('role:read', 'Allowed to view existing roles and hierarchies'),
     ('role:update', 'Allowed to edit role details, levels, and status'),
-    ('role:delete', 'Allowed to delete roles'),
 
     -- Permission Management
     ('permission:read', 'Allowed to view system permissions')
