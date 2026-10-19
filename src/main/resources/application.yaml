@@ -51,6 +51,8 @@ spring:
       password: ${SPRING_DATA_REDIS_PASSWORD:auth_password}
     web:
       pageable:
+        default-page-size: 10
+        max-page-size: 50
         serialization-mode: via-dto
 
 eureka:
