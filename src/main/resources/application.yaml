@@ -87,3 +87,7 @@ vaultix:
       refresh-token-cleanup-cron: ${VAULTIX_REFRESH_TOKEN_CLEANUP_CRON:0 20 2 * * ?}
       refresh-token-cleanup-grace-period: ${VAULTIX_REFRESH_TOKEN_CLEANUP_GRACE_PERIOD:7d}
       refresh-token-cleanup-batch-size: ${VAULTIX_REFRESH_TOKEN_CLEANUP_BATCH_SIZE:500}
+    role:
+      cleanup-cron: ${VAULTIX_ROLE_CLEANUP_CRON:0 30 2 * * ?}
+      cleanup-grace-period: ${VAULTIX_ROLE_CLEANUP_GRACE_PERIOD:30d}
+      cleanup-batch-size: ${VAULTIX_ROLE_CLEANUP_BATCH_SIZE:100}

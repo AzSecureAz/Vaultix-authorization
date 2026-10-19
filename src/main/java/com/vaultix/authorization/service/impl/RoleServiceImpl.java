@@ -22,6 +22,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.validation.annotation.Validated;
 
 import com.vaultix.authorization.config.properties.JwtProperties;
+import com.vaultix.authorization.config.properties.RoleProperties;
 import com.vaultix.authorization.dto.admin.CreateRoleRequest;
 import com.vaultix.authorization.dto.admin.RoleResponse;
 import com.vaultix.authorization.dto.admin.UpdateRoleRequest;
@@ -60,6 +61,7 @@ public class RoleServiceImpl implements RoleService {
     private final StringRedisTemplate stringRedisTemplate;
     private final RoleRevocationService roleRevocationService;
     private final JwtProperties jwtProperties;
+    private final RoleProperties roleProperties;
 
     @Override
     @Transactional(readOnly = true)
@@ -457,5 +459,26 @@ public class RoleServiceImpl implements RoleService {
         } catch (Exception e) {
             log.warn("Failed to update Redis for disabled role '{}'. Other instances will sync on cache TTL expiry", cleanName, e);
         }
+    }
+
+    @Override
+    @Transactional
+    public int cleanSoftDeletedRoles() {
+        Instant threshold = Instant.now().minus(roleProperties.cleanupGracePeriod());
+
+        int totalDeleted = 0;
+        int deleted;
+        do {
+            deleted = roleRepository.deleteSoftDeletedRolesBatch(
+                    threshold,
+                    roleProperties.cleanupBatchSize()
+            );
+            totalDeleted += deleted;
+        } while (deleted == roleProperties.cleanupBatchSize());
+
+        if (totalDeleted > 0) {
+            log.info("Cleaned up {} soft-deleted roles from database (older than {})", totalDeleted, threshold);
+        }
+        return totalDeleted;
     }
 }
