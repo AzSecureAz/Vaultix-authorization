@@ -55,6 +55,13 @@ spring:
         max-page-size: 50
         serialization-mode: via-dto
 
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:auth_user}
+    password: ${SPRING_RABBITMQ_PASSWORD:auth_password}
+    virtual-host: ${SPRING_RABBITMQ_VIRTUAL_HOST:/}
+
 eureka:
   client:
     service-url:
@@ -91,3 +98,7 @@ vaultix:
       cleanup-cron: ${VAULTIX_ROLE_CLEANUP_CRON:0 30 2 * * ?}
       cleanup-grace-period: ${VAULTIX_ROLE_CLEANUP_GRACE_PERIOD:30d}
       cleanup-batch-size: ${VAULTIX_ROLE_CLEANUP_BATCH_SIZE:100}
+    otp:
+      length: ${VAULTIX_OTP_LENGTH:6}
+      default-ttl: ${VAULTIX_OTP_DEFAULT_TTL:10m}
+      max-attempts: ${VAULTIX_OTP_MAX_ATTEMPTS:5}
