@@ -69,6 +69,14 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 - **Native Method Validation**: Utilizes Spring MVC 6.1+ native `HandlerMethodValidationException` for request parameter constraints (e.g. cookie length limits) without requiring class-level `@Validated` proxies on controllers.
 - **Security Leak Prevention**: Masks internal service exceptions (`InternalAuthenticationServiceException`) as generic `"Authentication failed"` to prevent leaking database or connection details to clients.
 
+### 7. Event-Driven Notifications (RabbitMQ)
+- Declares **`auth.exchange`** (`TopicExchange`) for cross-service asynchronous event dispatch.
+- When a user requests a password reset, `AuthServiceImpl` generates a cryptographically secure 6-digit OTP via `OtpService` and dispatches a validated `NotificationEvent` to `auth.exchange` with routing key `auth.notification.password-reset`.
+- Downstream notification services subscribe using wildcards (`auth.notification.*`) without coupling to auth internal logic.
+
+### 8. Platform-Wide Snake Case JSON (`SNAKE_CASE`)
+- Enforces `spring.jackson.property-naming-strategy: SNAKE_CASE` across all DTOs and endpoints, eliminating manual `@JsonProperty` boilerplate while providing clean REST conventions for clients.
+
 ---
 
 ## API Endpoints (`/api/v1/auth`)
@@ -80,9 +88,13 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 | `POST` | `/register` | Register a new user account | No | No |
 | `POST` | `/login` | Authenticate user, issue access token & set refresh cookie | No | Yes (`X-Client-IP`, `X-Device-*`) |
 | `POST` | `/refresh` | Rotate refresh token and issue new access token | Cookie / Body | Yes |
-| `POST` | `/logout` | Revoke refresh token and wipe session cookie | Cookie / Body | No |
+| `POST` | `/logout` | Revoke current session refresh token and clear cookie | Cookie / Body | No |
+| `POST` | `/logout-all` | Revoke ALL active refresh tokens and blacklist current JWT | Bearer JWT | No |
+| `POST` | `/password-reset/request` | Initiate password reset, generate OTP & publish RabbitMQ event | No | No |
+| `POST` | `/password-reset/confirm` | Validate OTP, update password & invalidate active sessions | No | No |
 | `GET` | `/me`, `/profile` | Retrieve authenticated user profile with roles & permissions | Bearer JWT | No |
 | `GET` | `/.well-known/jwks.json` | Public JWK Set containing RSA-2048 verification keys | No | No |
+
 
 ### 2. Admin User Management (`/admin/users`)
 
@@ -135,15 +147,19 @@ authorization/
     │   │   └── AdminUserInitializer.java
     │   ├── config/
     │   │   ├── JwtDecoderConfig.java
+    │   │   ├── RabbitConfig.java
     │   │   ├── RedisPubSubConfig.java
     │   │   ├── SchedulerConfig.java
     │   │   ├── SecurityBeansConfig.java
     │   │   ├── SecurityConfig.java
     │   │   └── properties/
     │   │       ├── AdminBootstrapProperties.java
+    │   │       ├── AuthMessagingProperties.java
     │   │       ├── JwtProperties.java
     │   │       ├── KekProperties.java
-    │   │       └── LockoutProperties.java
+    │   │       ├── LockoutProperties.java
+    │   │       ├── OtpProperties.java
+    │   │       └── RoleProperties.java
     │   ├── controller/
     │   │   ├── AuthController.java
     │   │   ├── JwksController.java
@@ -155,6 +171,8 @@ authorization/
     │   ├── dto/
     │   │   ├── AuthResponse.java
     │   │   ├── LoginRequest.java
+    │   │   ├── PasswordResetConfirmRequest.java
+    │   │   ├── PasswordResetRequest.java
     │   │   ├── RefreshTokenRequest.java
     │   │   ├── RegisterRequest.java
     │   │   ├── UserProfileDto.java
@@ -194,6 +212,7 @@ authorization/
     │   │   └── CustomUserDetailsService.java
     │   ├── service/
     │   │   ├── AuthService.java
+    │   │   ├── OtpService.java
     │   │   ├── PermissionService.java
     │   │   ├── RoleService.java
     │   │   ├── SigningKeyService.java
@@ -201,6 +220,7 @@ authorization/
     │   │   ├── UserService.java
     │   │   └── impl/
     │   │       ├── AuthServiceImpl.java
+    │   │       ├── OtpServiceImpl.java
     │   │       ├── PermissionServiceImpl.java
     │   │       ├── RoleServiceImpl.java
     │   │       ├── SigningKeyServiceImpl.java
