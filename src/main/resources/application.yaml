@@ -75,7 +75,6 @@ vaultix:
     enabled: ${VAULTIX_ADMIN_ENABLED:true}
     username: ${VAULTIX_ADMIN_USERNAME:admin}
     email: ${VAULTIX_ADMIN_EMAIL:admin@vaultix.com}
-    password: ${VAULTIX_ADMIN_PASSWORD:Admin@Vaultix2026!}
     full-name: ${VAULTIX_ADMIN_FULL_NAME:Vaultix Administrator}
   security:
     lockout:

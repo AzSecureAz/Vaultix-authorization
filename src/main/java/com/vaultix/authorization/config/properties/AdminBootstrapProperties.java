@@ -4,7 +4,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
 
-import com.vaultix.authorization.validation.StrongPassword;
 import com.vaultix.authorization.validation.ValidFullName;
 import com.vaultix.authorization.validation.ValidUsername;
 
@@ -26,10 +25,6 @@ public record AdminBootstrapProperties(
         @Size(max = 256, message = "Admin email cannot exceed 256 characters")
         @DefaultValue("admin@vaultix.com")
         String email,
-        @NotBlank(message = "Admin password must not be blank")
-        @StrongPassword
-        @DefaultValue("Admin@Vaultix2026!")
-        String password,
         @NotBlank(message = "Admin full name must not be blank")
         @ValidFullName
         @DefaultValue("Vaultix Administrator")

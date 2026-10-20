@@ -5,7 +5,6 @@ import java.util.Set;
 
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,7 +25,6 @@ public class AdminUserInitializer implements ApplicationRunner {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
-    private final PasswordEncoder passwordEncoder;
     private final AdminBootstrapProperties adminProps;
 
     @Override
@@ -53,7 +51,7 @@ public class AdminUserInitializer implements ApplicationRunner {
         User admin = User.builder()
                 .username(adminProps.username())
                 .email(adminProps.email())
-                .passwordHash(passwordEncoder.encode(adminProps.password()))
+                .passwordHash(null)
                 .fullName(adminProps.fullName())
                 .status(UserStatus.ACTIVE)
                 .emailVerified(true)
@@ -61,7 +59,8 @@ public class AdminUserInitializer implements ApplicationRunner {
                 .build();
 
         userRepository.save(admin);
-        log.info("Initial admin user '{}' ({}) successfully bootstrapped with ROLE_ADMIN.",
+
+        log.info("Initial admin user '{}' ({}) successfully bootstrapped without password. Initial password must be set via password reset.",
                 adminProps.username(), adminProps.email());
     }
 }
