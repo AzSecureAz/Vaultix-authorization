@@ -7,7 +7,6 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.vaultix.authorization.entity.Permission;
 import com.vaultix.authorization.entity.Role;
 import com.vaultix.authorization.entity.User;
@@ -23,22 +22,14 @@ public record UserProfileDto(
         UUID id,
         String username,
         String email,
-        @JsonProperty("full_name")
         String fullName,
-        @JsonProperty("phone_number")
         String phoneNumber,
         UserStatus status,
-        @JsonProperty("email_verified")
         boolean emailVerified,
-        @JsonProperty("mfa_enabled")
         boolean mfaEnabled,
-        @JsonProperty("passkey_enabled")
         boolean passkeyEnabled,
-        @JsonProperty("has_social_accounts")
         boolean hasSocialAccounts,
-        @JsonProperty("last_login_at")
         Instant lastLoginAt,
-        @JsonProperty("created_at")
         Instant createdAt,
         Set<String> roles,
         Set<String> permissions) {

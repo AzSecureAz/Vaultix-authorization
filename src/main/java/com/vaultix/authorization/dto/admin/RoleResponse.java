@@ -6,7 +6,6 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.vaultix.authorization.entity.Permission;
 import com.vaultix.authorization.entity.Role;
 import com.vaultix.authorization.entity.enums.RoleStatus;
@@ -22,13 +21,9 @@ public record RoleResponse(
         Integer level,
         RoleStatus status,
         Set<String> permissions,
-        @JsonProperty("created_at")
         Instant createdAt,
-        @JsonProperty("created_by")
         UUID createdBy,
-        @JsonProperty("updated_at")
         Instant updatedAt,
-        @JsonProperty("updated_by")
         UUID updatedBy) {
 
     public static RoleResponse fromEntity(Role entity) {

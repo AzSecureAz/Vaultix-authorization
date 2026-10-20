@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.vaultix.authorization.entity.Permission;
 import com.vaultix.authorization.entity.enums.PermissionStatus;
 
@@ -17,13 +16,9 @@ public record PermissionResponse(
         String name,
         String description,
         PermissionStatus status,
-        @JsonProperty("created_at")
         Instant createdAt,
-        @JsonProperty("created_by")
         UUID createdBy,
-        @JsonProperty("updated_at")
         Instant updatedAt,
-        @JsonProperty("updated_by")
         UUID updatedBy) {
 
     public static PermissionResponse fromEntity(Permission entity) {

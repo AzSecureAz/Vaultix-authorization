@@ -1,6 +1,5 @@
 package com.vaultix.authorization.dto;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.vaultix.authorization.validation.StrongPassword;
 import com.vaultix.authorization.validation.ValidFullName;
 import com.vaultix.authorization.validation.ValidPhoneNumber;
@@ -22,10 +21,8 @@ public record RegisterRequest(
         @StrongPassword
         String password,
         @ValidFullName
-        @JsonProperty("full_name")
         String fullName,
         @ValidPhoneNumber
-        @JsonProperty("phone_number")
         String phoneNumber) {
 
 }

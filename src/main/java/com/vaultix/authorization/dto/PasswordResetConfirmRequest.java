@@ -1,6 +1,5 @@
 package com.vaultix.authorization.dto;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.vaultix.authorization.validation.StrongPassword;
 
 import jakarta.validation.constraints.NotBlank;
@@ -15,7 +14,6 @@ public record PasswordResetConfirmRequest(
         String otp,
         @NotBlank(message = "New password is required")
         @StrongPassword
-        @JsonProperty("new_password")
         String newPassword) {
 
 }

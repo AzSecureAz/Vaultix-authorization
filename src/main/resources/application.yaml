@@ -16,6 +16,8 @@ spring:
   threads:
     virtual:
       enabled: true
+  jackson:
+    property-naming-strategy: SNAKE_CASE
 
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/vaultix_auth_db}
