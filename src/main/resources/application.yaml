@@ -102,3 +102,7 @@ vaultix:
       length: ${VAULTIX_OTP_LENGTH:6}
       default-ttl: ${VAULTIX_OTP_DEFAULT_TTL:10m}
       max-attempts: ${VAULTIX_OTP_MAX_ATTEMPTS:5}
+  rabbitmq:
+    exchange: ${VAULTIX_RABBITMQ_AUTH_EXCHANGE:auth.exchange}
+    password-reset-routing-key: ${VAULTIX_RABBITMQ_AUTH_PASSWORD_RESET_ROUTING_KEY:auth.notification.password-reset}
+

@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.vaultix.authorization.dto.AuthResponse;
 import com.vaultix.authorization.dto.LoginRequest;
+import com.vaultix.authorization.dto.PasswordResetConfirmRequest;
+import com.vaultix.authorization.dto.PasswordResetRequest;
 import com.vaultix.authorization.dto.RefreshTokenRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
 import com.vaultix.authorization.security.AuthCookieHelper;
@@ -101,5 +103,23 @@ public class AuthController {
         UUID userId = SecurityUtil.extractActorId(jwt);
         UserProfileDto profile = authService.getProfile(userId);
         return ResponseEntity.ok(ApiResponse.success("Current user profile", profile));
+    }
+
+    @PostMapping("/password-reset/request")
+    public ResponseEntity<ApiResponse<Void>> requestPasswordReset(
+            @Valid @RequestBody PasswordResetRequest request) {
+
+        authService.requestPasswordReset(request);
+        return ResponseEntity.ok(ApiResponse.success(
+                "If an account exists with the provided identifier, a password reset code has been sent."));
+    }
+
+    @PostMapping("/password-reset/confirm")
+    public ResponseEntity<ApiResponse<Void>> confirmPasswordReset(
+            @Valid @RequestBody PasswordResetConfirmRequest request) {
+
+        authService.confirmPasswordReset(request);
+        return ResponseEntity.ok(ApiResponse.success(
+                "Password reset successfully. You can now log in with your new password."));
     }
 }

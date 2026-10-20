@@ -1,5 +1,7 @@
 package com.vaultix.authorization.service;
 
+import java.util.UUID;
+
 import org.springframework.validation.annotation.Validated;
 
 import com.vaultix.authorization.dto.AuthResponse;
@@ -26,6 +28,8 @@ public interface TokenService {
     void logout(
             @NotBlank(message = "Access token JTI is required")
             @Size(max = 64, message = "Access token JTI cannot exceed 64 characters") String accessTokenJti);
+
+    int revokeAllUserTokens(@NotNull(message = "User ID cannot be null") UUID userId);
 
     int cleanExpiredTokens();
 }

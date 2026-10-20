@@ -3,11 +3,14 @@ package com.vaultix.authorization.service.impl;
 import java.text.ParseException;
 import java.time.Instant;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.validation.annotation.Validated;
 
 import com.nimbusds.jose.JOSEException;
@@ -243,6 +246,44 @@ public class TokenServiceImpl implements TokenService {
             });
         } catch (IllegalArgumentException e) {
             log.warn("Invalid UUID format for access token JTI during logout: {}", cleanedJti);
+        }
+    }
+
+    @Override
+    @Transactional
+    public int revokeAllUserTokens(@NotNull(message = "User ID cannot be null") UUID userId) {
+        log.info("Revoking all active tokens and sessions for user ID: {}", userId);
+
+        Instant now = Instant.now();
+        List<UUID> activeAccessTokenJtis = refreshTokenRepository.findActiveAccessTokenJtisByUserId(userId, now);
+
+        int revokedCount = 0;
+        if (!activeAccessTokenJtis.isEmpty()) {
+            blacklistTokensAfterCommit(activeAccessTokenJtis);
+            revokedCount = refreshTokenRepository.revokeByAccessTokenJtis(activeAccessTokenJtis, now);
+        }
+
+        log.info("Revoked {} refresh token sessions and scheduled blacklist for {} access tokens for user ID: {}",
+                revokedCount, activeAccessTokenJtis.size(), userId);
+        return revokedCount;
+    }
+
+    private void blacklistTokensAfterCommit(List<UUID> activeAccessTokenJtis) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    for (UUID jti : activeAccessTokenJtis) {
+                        tokenBlacklistService.blacklist(jti.toString(), jwtProperties.accessTokenExpiration());
+                    }
+                    log.debug("Successfully blacklisted {} access token JTIs in Redis after transaction commit", activeAccessTokenJtis.size());
+                }
+            });
+        } else {
+            for (UUID jti : activeAccessTokenJtis) {
+                tokenBlacklistService.blacklist(jti.toString(), jwtProperties.accessTokenExpiration());
+            }
+            log.debug("Successfully blacklisted {} access token JTIs in Redis immediately", activeAccessTokenJtis.size());
         }
     }
 

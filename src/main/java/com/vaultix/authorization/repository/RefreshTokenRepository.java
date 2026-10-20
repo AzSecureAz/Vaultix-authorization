@@ -1,6 +1,7 @@
 package com.vaultix.authorization.repository;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -21,6 +22,9 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
 
     Optional<RefreshToken> findByAccessTokenJti(UUID accessTokenJti);
 
+    @Query("SELECT r.accessTokenJti FROM RefreshToken r WHERE r.user.id = :userId AND r.revoked = false AND r.expiresAt > :now")
+    List<UUID> findActiveAccessTokenJtisByUserId(@Param("userId") UUID userId, @Param("now") Instant now);
+
     @Modifying
     @Query(value = """
             DELETE FROM refresh_tokens
@@ -35,4 +39,8 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
             @Param("revokedThreshold") Instant revokedThreshold,
             @Param("expiredThreshold") Instant expiredThreshold,
             @Param("limit") int limit);
+
+    @Modifying
+    @Query("UPDATE RefreshToken r SET r.revoked = true, r.revokedAt = :now WHERE r.accessTokenJti IN :jtis")
+    int revokeByAccessTokenJtis(@Param("jtis") List<UUID> jtis, @Param("now") Instant now);
 }
