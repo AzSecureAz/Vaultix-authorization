@@ -8,8 +8,8 @@ import jakarta.validation.ConstraintValidatorContext;
 public class StrongPasswordValidator implements ConstraintValidator<StrongPassword, String> {
 
     private static final Pattern PASSWORD_PATTERN = Pattern.compile(
-            "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?])(?=\\S+$).{"
-            + StrongPassword.MIN_LENGTH + "," + StrongPassword.MAX_LENGTH + "}$"
+            "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?])\\S.{"
+            + (StrongPassword.MIN_LENGTH - 2) + "," + (StrongPassword.MAX_LENGTH - 2) + "}\\S$"
     );
 
     @Override

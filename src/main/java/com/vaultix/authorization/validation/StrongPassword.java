@@ -18,7 +18,7 @@ public @interface StrongPassword {
     int MIN_LENGTH = 8;
     int MAX_LENGTH = 128;
 
-    String message() default "Password must be between 8 and 128 characters and include uppercase, lowercase, digit, and special character without spaces";
+    String message() default "Password must be between 8 and 128 characters, include uppercase, lowercase, digit, and special character, and cannot start or end with a space";
 
     Class<?>[] groups() default {};
 
