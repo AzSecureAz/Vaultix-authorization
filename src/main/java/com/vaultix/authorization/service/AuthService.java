@@ -34,6 +34,8 @@ public interface AuthService {
             @NotBlank(message = "Access token JTI is required")
             @Size(max = 64, message = "Access token JTI cannot exceed 64 characters") String accessTokenJti);
 
+    int logoutAll(@NotNull(message = "User ID cannot be null") UUID userId);
+
     UserProfileDto getProfile(@NotNull(message = "User ID cannot be null") UUID userId);
 
     void requestPasswordReset(

@@ -96,6 +96,21 @@ public class AuthController {
                 .body(ApiResponse.success("Logged out successfully"));
     }
 
+    @PostMapping("/logout-all")
+    public ResponseEntity<ApiResponse<Void>> logoutAll(
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
+            HttpServletRequest httpRequest) {
+
+        UUID userId = SecurityUtil.extractActorId(jwt);
+        authService.logoutAll(userId);
+
+        ResponseCookie cleanCookie = authCookieHelper.createCleanCookie(httpRequest);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cleanCookie.toString())
+                .body(ApiResponse.success("Logged out from all devices successfully"));
+    }
+
     @GetMapping({"/me", "/profile"})
     public ResponseEntity<ApiResponse<UserProfileDto>> getMe(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {

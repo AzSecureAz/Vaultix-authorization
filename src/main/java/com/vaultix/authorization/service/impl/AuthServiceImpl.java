@@ -165,6 +165,13 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
+    public int logoutAll(@NotNull(message = "User ID cannot be null") UUID userId) {
+        log.info("Processing logout all sessions for user ID: {}", userId);
+        return tokenService.revokeAllUserTokens(userId);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public UserProfileDto getProfile(@NotNull(message = "User ID cannot be null") UUID userId) {
         log.info("Fetching profile for user ID: {}", userId);
