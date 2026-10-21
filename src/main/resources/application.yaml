@@ -106,3 +106,4 @@ vaultix:
   rabbitmq:
     exchange: ${VAULTIX_RABBITMQ_AUTH_EXCHANGE:auth.exchange}
     password-reset-routing-key: ${VAULTIX_RABBITMQ_AUTH_PASSWORD_RESET_ROUTING_KEY:auth.notification.password-reset}
+    email-verification-routing-key: ${VAULTIX_RABBITMQ_AUTH_EMAIL_VERIFICATION_ROUTING_KEY:auth.notification.email-verification}

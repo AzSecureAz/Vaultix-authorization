@@ -10,6 +10,7 @@ import com.vaultix.authorization.dto.PasswordResetConfirmRequest;
 import com.vaultix.authorization.dto.PasswordResetRequest;
 import com.vaultix.authorization.dto.RefreshTokenRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
+import com.vaultix.authorization.dto.VerifyEmailRequest;
 import com.vaultix.common.util.ClientContextUtil.ClientContext;
 
 import jakarta.validation.Valid;
@@ -45,4 +46,11 @@ public interface AuthService {
     void confirmPasswordReset(
             @NotNull(message = "Password reset confirmation request cannot be null")
             @Valid PasswordResetConfirmRequest request);
+
+    void sendEmailVerification(@NotNull(message = "User ID cannot be null") UUID userId);
+
+    void verifyEmail(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            @NotNull(message = "Verification request cannot be null")
+            @Valid VerifyEmailRequest request);
 }

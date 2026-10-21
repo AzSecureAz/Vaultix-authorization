@@ -21,6 +21,7 @@ import com.vaultix.authorization.dto.PasswordResetConfirmRequest;
 import com.vaultix.authorization.dto.PasswordResetRequest;
 import com.vaultix.authorization.dto.RefreshTokenRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
+import com.vaultix.authorization.dto.VerifyEmailRequest;
 import com.vaultix.authorization.security.AuthCookieHelper;
 import com.vaultix.authorization.service.AuthService;
 import com.vaultix.common.dto.ApiResponse;
@@ -136,5 +137,24 @@ public class AuthController {
         authService.confirmPasswordReset(request);
         return ResponseEntity.ok(ApiResponse.success(
                 "Password reset successfully. You can now log in with your new password."));
+    }
+
+    @PostMapping("/email/send-verification")
+    public ResponseEntity<ApiResponse<Void>> sendEmailVerification(
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
+
+        UUID userId = SecurityUtil.extractActorId(jwt);
+        authService.sendEmailVerification(userId);
+        return ResponseEntity.ok(ApiResponse.success("Verification code sent to your email address"));
+    }
+
+    @PostMapping("/email/verify")
+    public ResponseEntity<ApiResponse<Void>> verifyEmail(
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
+            @Valid @RequestBody VerifyEmailRequest request) {
+
+        UUID userId = SecurityUtil.extractActorId(jwt);
+        authService.verifyEmail(userId, request);
+        return ResponseEntity.ok(ApiResponse.success("Email verified successfully"));
     }
 }

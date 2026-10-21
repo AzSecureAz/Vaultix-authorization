@@ -96,6 +96,8 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 | `POST` | `/logout-all` | Revoke ALL active refresh tokens and blacklist current JWT | Bearer JWT | No |
 | `POST` | `/password-reset/request` | Initiate password reset, generate OTP & publish RabbitMQ event | No | No |
 | `POST` | `/password-reset/confirm` | Validate OTP, update password & invalidate active sessions | No | No |
+| `POST` | `/email/send-verification` | Send OTP verification code to authenticated user's email (with 60s cooldown) | Bearer JWT | No |
+| `POST` | `/email/verify` | Validate OTP code and mark account email as verified (`email_verified = true`) | Bearer JWT | No |
 | `GET` | `/me`, `/profile` | Retrieve authenticated user profile with roles & permissions | Bearer JWT | No |
 | `GET` | `/.well-known/jwks.json` | Public JWK Set containing RSA-2048 verification keys | No | No |
 
@@ -188,6 +190,7 @@ authorization/
     │   │   ├── RefreshTokenRequest.java
     │   │   ├── RegisterRequest.java
     │   │   ├── UserProfileDto.java
+    │   │   ├── VerifyEmailRequest.java
     │   │   └── admin/
     │   │       ├── CreateRoleRequest.java
     │   │       ├── CreateUserRequest.java

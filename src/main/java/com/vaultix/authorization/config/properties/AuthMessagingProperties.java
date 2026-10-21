@@ -17,6 +17,10 @@ public record AuthMessagingProperties(
         @NotBlank(message = "Password reset routing key is required")
         @Size(max = 256, message = "Password reset routing key cannot exceed 256 characters")
         @DefaultValue("auth.notification.password-reset")
-        String passwordResetRoutingKey) {
+        String passwordResetRoutingKey,
+        @NotBlank(message = "Email verification routing key is required")
+        @Size(max = 256, message = "Email verification routing key cannot exceed 256 characters")
+        @DefaultValue("auth.notification.email-verification")
+        String emailVerificationRoutingKey) {
 
 }
