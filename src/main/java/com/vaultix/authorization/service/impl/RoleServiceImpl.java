@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -102,7 +103,7 @@ public class RoleServiceImpl implements RoleService {
                     + " (must be strictly greater than your highest active role level " + actor.highestLevel() + ")");
         }
 
-        Set<Permission> permissionsToAssign = new HashSet<>();
+        Set<Permission> permissionsToAssign = Set.of();
         if (request.permissions() != null && !request.permissions().isEmpty()) {
             Set<String> requestedPermNames = request.permissions().stream()
                     .filter(perm -> perm != null && !perm.isBlank())
@@ -158,14 +159,19 @@ public class RoleServiceImpl implements RoleService {
                     + "' with level " + role.getLevel() + " (your highest active role level is " + actor.highestLevel() + ")");
         }
 
+        boolean isChanged = false;
         boolean needsRevocation = false;
 
         if (request.description() != null) {
             String strippedDesc = request.description().strip();
-            role.setDescription(strippedDesc.isBlank() ? null : strippedDesc);
+            String newDesc = strippedDesc.isBlank() ? null : strippedDesc;
+            if (!Objects.equals(role.getDescription(), newDesc)) {
+                role.setDescription(newDesc);
+                isChanged = true;
+            }
         }
 
-        if (request.level() != null) {
+        if (request.level() != null && !request.level().equals(role.getLevel())) {
             if (request.level() <= actor.highestLevel()) {
                 log.warn("Actor {} with highest level {} attempted to set level to {} on role '{}'",
                         actorId, actor.highestLevel(), request.level(), role.getName());
@@ -173,6 +179,7 @@ public class RoleServiceImpl implements RoleService {
                         + " (must be strictly greater than your highest active role level " + actor.highestLevel() + ")");
             }
             role.setLevel(request.level());
+            isChanged = true;
         }
 
         if (request.permissions() != null) {
@@ -189,7 +196,13 @@ public class RoleServiceImpl implements RoleService {
                 Set<Permission> permissionsToAssign = resolvePermissions(requestedPermNames, currentPermNames, actor.permissions(), actorId);
                 role.setPermissions(permissionsToAssign);
                 needsRevocation = true;
+                isChanged = true;
             }
+        }
+
+        if (!isChanged) {
+            log.debug("No changes detected for role '{}'. Skipping update.", role.getName());
+            return RoleResponse.fromEntity(role);
         }
 
         role.setUpdatedBy(actorId);
@@ -365,7 +378,7 @@ public class RoleServiceImpl implements RoleService {
             UUID actorId) {
 
         if (requestedNames.isEmpty()) {
-            return new HashSet<>();
+            return Set.of();
         }
 
         Set<String> newlyAddedPermissions = requestedNames.stream()

@@ -2,6 +2,7 @@ package com.vaultix.authorization.repository;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -28,6 +29,8 @@ public interface RoleRepository extends JpaRepository<Role, UUID> {
     Optional<Role> findWithPermissionsByName(String name);
 
     Optional<Role> findByName(String name);
+
+    Set<Role> findAllByNameIn(Set<String> names);
 
     @Modifying
     @Query(value = """

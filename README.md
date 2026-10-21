@@ -61,8 +61,12 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 - **Token Blacklisting**: JTI blacklist in Redis (`auth:blacklist:<jti>`) rejects revoked tokens instantly before expiration.
 
 ### 5. Hierarchical RBAC & Privilege Protection
-- Roles maintain a numeric `level` (lower numeric value = higher privilege).
-- Administrators cannot create, modify, enable, or disable roles with a privilege level equal to or higher than their own active role level.
+- **Role Hierarchy**: Roles maintain a numeric `level` (lower numeric value = higher privilege).
+- **Role Governance**: Administrators cannot create, modify, enable, or disable roles with a privilege level equal to or higher than their own active role level (`level <= actorHighestLevel`). Permissions assigned to a role must already be possessed by the actor.
+- **User Governance**: Administrators cannot provision or assign roles with a privilege level equal to or higher than their own (`level <= actorHighestLevel`). Administrators cannot edit or modify users whose highest role (active or disabled) is equal to or more privileged than the actor (`targetUserHighestLevel <= actorHighestLevel`).
+- **Batch Error Aggregation**: Missing, disabled, and level-violating roles or permissions are collected and reported as complete sets at once rather than failing one by one.
+- **Session Revocation on Privilege Change**: Modifying a user's roles automatically revokes all refresh token sessions in PostgreSQL and schedules JTI blacklisting in Redis after transaction commit via `TokenService.revokeAllUserTokens`.
+- **Change Detection**: Role and user updates evaluate whether any attributes or roles actually changed. If identical, database updates, audit timestamp updates (`updated_at`, `updated_by`), and token revocations are skipped.
 
 ### 6. Centralized Error Handling & Spring 6.1+ Method Validation
 - **`GlobalExceptionHandler`**: Inherits `BaseGlobalExceptionHandler` from `common`, returning standard `ApiResponse.error(...)` envelopes across all endpoints.
@@ -100,8 +104,10 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 
 | Method | Endpoint | Description | PreAuthorize Expression |
 | :--- | :--- | :--- | :--- |
+| `POST` | `/admin/users` | Create user with assigned roles (password set via reset flow) | `hasAuthority('user:create')` |
 | `GET` | `/admin/users` | Retrieve paginated list of users with roles | `hasAuthority('user:read')` |
 | `GET` | `/admin/users/{identifier}` | Retrieve user by UUID, username, or email | `hasAuthority('user:read')` |
+| `PUT` | `/admin/users/{identifier}` | Update user roles (revokes active sessions on change) | `hasAuthority('user:update')` |
 
 ### 3. Admin Role Management (`/admin/roles`)
 
@@ -178,10 +184,12 @@ authorization/
     │   │   ├── UserProfileDto.java
     │   │   └── admin/
     │   │       ├── CreateRoleRequest.java
+    │   │       ├── CreateUserRequest.java
     │   │       ├── PermissionResponse.java
     │   │       ├── RoleResponse.java
     │   │       ├── SigningKeyResponse.java
     │   │       ├── UpdateRoleRequest.java
+    │   │       ├── UpdateUserRequest.java
     │   │       └── UserResponse.java
     │   ├── entity/
     │   │   ├── Permission.java
