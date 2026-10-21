@@ -75,8 +75,10 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 
 ### 7. Event-Driven Notifications (RabbitMQ)
 - Declares **`auth.exchange`** (`TopicExchange`) for cross-service asynchronous event dispatch.
-- When a user requests a password reset, `AuthServiceImpl` generates a cryptographically secure 6-digit OTP via `OtpService` and dispatches a validated `NotificationEvent` to `auth.exchange` with routing key `auth.notification.password-reset`.
-- Downstream notification services subscribe using wildcards (`auth.notification.*`) without coupling to auth internal logic.
+- **Welcome Notification**: Dispatched upon user registration (`/register`) with routing key `auth.notification.welcome`.
+- **Password Reset**: Dispatched when requesting password reset (`/password-reset/request`) with a cryptographically secure 6-digit OTP to routing key `auth.notification.password-reset`.
+- **Email Verification**: Dispatched when an authenticated user requests verification (`/email/send-verification`) with a 6-digit OTP and 60-second Redis rate-limit cooldown to routing key `auth.notification.email-verification`.
+- Downstream notification services subscribe using the wildcard pattern **`auth.notification.*`** without coupling to internal authorization logic.
 
 ### 8. Platform-Wide Snake Case JSON (`SNAKE_CASE`)
 - Enforces `spring.jackson.property-naming-strategy: SNAKE_CASE` across all DTOs and endpoints, eliminating manual `@JsonProperty` boilerplate while providing clean REST conventions for clients.
@@ -89,7 +91,7 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 
 | Method | Endpoint | Description | Auth Required | Client Context Tracked |
 | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/register` | Register a new user account | No | No |
+| `POST` | `/register` | Register a new user account & dispatch welcome email | No | No |
 | `POST` | `/login` | Authenticate user, issue access token & set refresh cookie | No | Yes (`X-Client-IP`, `X-Device-*`) |
 | `POST` | `/refresh` | Rotate refresh token and issue new access token | Cookie / Body | Yes |
 | `POST` | `/logout` | Revoke current session refresh token and clear cookie | Cookie / Body | No |

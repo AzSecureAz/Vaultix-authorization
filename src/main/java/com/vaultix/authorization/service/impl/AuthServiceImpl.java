@@ -2,6 +2,7 @@ package com.vaultix.authorization.service.impl;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -19,6 +20,8 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.validation.annotation.Validated;
 
 import com.vaultix.authorization.config.properties.AuthMessagingProperties;
@@ -29,6 +32,7 @@ import com.vaultix.authorization.dto.LoginRequest;
 import com.vaultix.authorization.dto.PasswordResetConfirmRequest;
 import com.vaultix.authorization.dto.PasswordResetRequest;
 import com.vaultix.authorization.dto.RefreshTokenRequest;
+import com.vaultix.authorization.dto.RegisterRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
 import com.vaultix.authorization.dto.VerifyEmailRequest;
 import com.vaultix.authorization.entity.User;
@@ -41,6 +45,7 @@ import com.vaultix.authorization.service.TokenService;
 import com.vaultix.common.dto.notification.NotificationChannel;
 import com.vaultix.common.dto.notification.NotificationEvent;
 import com.vaultix.common.exception.BadRequestException;
+import com.vaultix.common.exception.ResourceConflictException;
 import com.vaultix.common.exception.ResourceNotFoundException;
 import com.vaultix.common.util.ClientContextUtil.ClientContext;
 
@@ -70,6 +75,80 @@ public class AuthServiceImpl implements AuthService {
     private final RabbitTemplate rabbitTemplate;
     private final AuthMessagingProperties messagingProperties;
     private final StringRedisTemplate stringRedisTemplate;
+
+    @Override
+    @Transactional
+    public UserProfileDto register(
+            @NotNull(message = "Register request cannot be null")
+            @Valid RegisterRequest request) {
+
+        String cleanUsername = request.username().strip().toLowerCase(Locale.ROOT);
+        String cleanEmail = request.email().strip().toLowerCase(Locale.ROOT);
+        String cleanFullName = (request.fullName() != null && !request.fullName().isBlank())
+                ? request.fullName().strip()
+                : null;
+        String cleanPhoneNumber = (request.phoneNumber() != null && !request.phoneNumber().isBlank())
+                ? request.phoneNumber().strip()
+                : null;
+
+        log.info("Processing user registration for username: '{}', email: '{}'", cleanUsername, cleanEmail);
+
+        if (userRepository.existsByUsername(cleanUsername)) {
+            throw new ResourceConflictException("User already exists with username: " + cleanUsername);
+        }
+
+        if (userRepository.existsByEmail(cleanEmail)) {
+            throw new ResourceConflictException("User already exists with email: " + cleanEmail);
+        }
+
+        User newUser = User.builder()
+                .username(cleanUsername)
+                .email(cleanEmail)
+                .passwordHash(passwordEncoder.encode(request.password()))
+                .fullName(cleanFullName)
+                .phoneNumber(cleanPhoneNumber)
+                .status(UserStatus.ACTIVE)
+                .emailVerified(false)
+                .roles(new HashSet<>())
+                .build();
+
+        User savedUser = userRepository.save(newUser);
+        log.info("User '{}' ({}) registered successfully with ID: {}", cleanUsername, cleanEmail, savedUser.getId());
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    NotificationEvent welcomeEvent = NotificationEvent.builder()
+                            .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
+                            .templateCode("auth.welcome")
+                            .channel(NotificationChannel.EMAIL)
+                            .recipient(savedUser.getEmail())
+                            .recipientName(savedUser.getFullName() != null && !savedUser.getFullName().isBlank()
+                                    ? savedUser.getFullName()
+                                    : savedUser.getUsername())
+                            .subject("Welcome to Vaultix!")
+                            .params(Map.of(
+                                    "username", savedUser.getUsername(),
+                                    "email", savedUser.getEmail()
+                            ))
+                            .createdAt(Instant.now())
+                            .build();
+
+                    rabbitTemplate.convertAndSend(
+                            messagingProperties.exchange(),
+                            messagingProperties.welcomeRoutingKey(),
+                            welcomeEvent);
+                    log.info("Dispatched welcome notification event to exchange '{}' with routing key '{}' for user: {}",
+                            messagingProperties.exchange(), messagingProperties.welcomeRoutingKey(), savedUser.getUsername());
+                } catch (Exception ex) {
+                    log.warn("Failed to dispatch welcome notification event to '{}': {}", cleanEmail, ex.getMessage());
+                }
+            }
+        });
+
+        return UserProfileDto.fromEntity(savedUser);
+    }
 
     @Override
     public AuthResponse login(

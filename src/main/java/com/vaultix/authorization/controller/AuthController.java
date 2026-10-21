@@ -3,6 +3,7 @@ package com.vaultix.authorization.controller;
 import java.util.UUID;
 
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -20,6 +21,7 @@ import com.vaultix.authorization.dto.LoginRequest;
 import com.vaultix.authorization.dto.PasswordResetConfirmRequest;
 import com.vaultix.authorization.dto.PasswordResetRequest;
 import com.vaultix.authorization.dto.RefreshTokenRequest;
+import com.vaultix.authorization.dto.RegisterRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
 import com.vaultix.authorization.dto.VerifyEmailRequest;
 import com.vaultix.authorization.security.AuthCookieHelper;
@@ -42,6 +44,15 @@ public class AuthController {
 
     private final AuthService authService;
     private final AuthCookieHelper authCookieHelper;
+
+    @PostMapping("/register")
+    public ResponseEntity<ApiResponse<UserProfileDto>> register(
+            @Valid @RequestBody RegisterRequest request) {
+
+        UserProfileDto profile = authService.register(request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("User registered successfully", profile));
+    }
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(

@@ -9,6 +9,7 @@ import com.vaultix.authorization.dto.LoginRequest;
 import com.vaultix.authorization.dto.PasswordResetConfirmRequest;
 import com.vaultix.authorization.dto.PasswordResetRequest;
 import com.vaultix.authorization.dto.RefreshTokenRequest;
+import com.vaultix.authorization.dto.RegisterRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
 import com.vaultix.authorization.dto.VerifyEmailRequest;
 import com.vaultix.common.util.ClientContextUtil.ClientContext;
@@ -20,6 +21,10 @@ import jakarta.validation.constraints.Size;
 
 @Validated
 public interface AuthService {
+
+    UserProfileDto register(
+            @NotNull(message = "Register request cannot be null")
+            @Valid RegisterRequest request);
 
     AuthResponse login(
             @NotNull(message = "Login request cannot be null")
