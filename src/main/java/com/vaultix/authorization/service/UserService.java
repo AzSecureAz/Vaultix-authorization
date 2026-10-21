@@ -35,4 +35,24 @@ public interface UserService {
             @NotNull(message = "Update user request cannot be null")
             @Valid UpdateUserRequest request,
             @NotNull(message = "Actor ID cannot be null") UUID actorId);
+
+    UserResponse disableUser(
+            @NotBlank(message = "User identifier is required")
+            @Size(max = 256, message = "User identifier cannot exceed 256 characters") String identifier,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId);
+
+    UserResponse enableUser(
+            @NotBlank(message = "User identifier is required")
+            @Size(max = 256, message = "User identifier cannot exceed 256 characters") String identifier,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId);
+
+    UserResponse deleteUser(
+            @NotBlank(message = "User identifier is required")
+            @Size(max = 256, message = "User identifier cannot exceed 256 characters") String identifier,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId);
+
+    UserResponse restoreUser(
+            @NotBlank(message = "User identifier is required")
+            @Size(max = 256, message = "User identifier cannot exceed 256 characters") String identifier,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId);
 }

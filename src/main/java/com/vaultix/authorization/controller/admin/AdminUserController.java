@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -92,5 +93,65 @@ public class AdminUserController {
         log.info("Admin request to update user '{}' by actor ID: {}", cleanIdentifier, actorId);
         UserResponse updatedUser = userService.updateUser(cleanIdentifier, request, actorId);
         return ResponseEntity.ok(ApiResponse.success("User updated successfully", updatedUser));
+    }
+
+    @PostMapping("/{identifier}/disable")
+    @PreAuthorize(AuthSecurityExpressions.CAN_UPDATE_USERS)
+    public ResponseEntity<ApiResponse<UserResponse>> disableUser(
+            @PathVariable("identifier")
+            @NotBlank(message = "User identifier is required")
+            @Size(max = 256, message = "User identifier cannot exceed 256 characters") String identifier,
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
+
+        UUID actorId = SecurityUtil.extractActorId(jwt);
+        String cleanIdentifier = identifier.strip();
+        log.info("Admin request to disable user '{}' by actor ID: {}", cleanIdentifier, actorId);
+        UserResponse disabledUser = userService.disableUser(cleanIdentifier, actorId);
+        return ResponseEntity.ok(ApiResponse.success("User disabled successfully", disabledUser));
+    }
+
+    @PostMapping("/{identifier}/enable")
+    @PreAuthorize(AuthSecurityExpressions.CAN_UPDATE_USERS)
+    public ResponseEntity<ApiResponse<UserResponse>> enableUser(
+            @PathVariable("identifier")
+            @NotBlank(message = "User identifier is required")
+            @Size(max = 256, message = "User identifier cannot exceed 256 characters") String identifier,
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
+
+        UUID actorId = SecurityUtil.extractActorId(jwt);
+        String cleanIdentifier = identifier.strip();
+        log.info("Admin request to enable user '{}' by actor ID: {}", cleanIdentifier, actorId);
+        UserResponse enabledUser = userService.enableUser(cleanIdentifier, actorId);
+        return ResponseEntity.ok(ApiResponse.success("User enabled successfully", enabledUser));
+    }
+
+    @DeleteMapping("/{identifier}")
+    @PreAuthorize(AuthSecurityExpressions.CAN_DELETE_USERS)
+    public ResponseEntity<ApiResponse<UserResponse>> deleteUser(
+            @PathVariable("identifier")
+            @NotBlank(message = "User identifier is required")
+            @Size(max = 256, message = "User identifier cannot exceed 256 characters") String identifier,
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
+
+        UUID actorId = SecurityUtil.extractActorId(jwt);
+        String cleanIdentifier = identifier.strip();
+        log.info("Admin request to delete user '{}' by actor ID: {}", cleanIdentifier, actorId);
+        UserResponse deletedUser = userService.deleteUser(cleanIdentifier, actorId);
+        return ResponseEntity.ok(ApiResponse.success("User deleted successfully", deletedUser));
+    }
+
+    @PostMapping("/{identifier}/restore")
+    @PreAuthorize(AuthSecurityExpressions.CAN_DELETE_USERS)
+    public ResponseEntity<ApiResponse<UserResponse>> restoreUser(
+            @PathVariable("identifier")
+            @NotBlank(message = "User identifier is required")
+            @Size(max = 256, message = "User identifier cannot exceed 256 characters") String identifier,
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
+
+        UUID actorId = SecurityUtil.extractActorId(jwt);
+        String cleanIdentifier = identifier.strip();
+        log.info("Admin request to restore user '{}' by actor ID: {}", cleanIdentifier, actorId);
+        UserResponse restoredUser = userService.restoreUser(cleanIdentifier, actorId);
+        return ResponseEntity.ok(ApiResponse.success("User restored successfully", restoredUser));
     }
 }

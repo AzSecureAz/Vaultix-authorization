@@ -142,21 +142,7 @@ public class UserServiceImpl implements UserService {
             throw new BadRequestException("User '" + user.getUsername() + "' is deleted and cannot be updated");
         }
 
-        int targetUserHighestLevel = Integer.MAX_VALUE;
-        if (user.getRoles() != null) {
-            for (Role role : user.getRoles()) {
-                if (role.getLevel() != null && role.getLevel() < targetUserHighestLevel) {
-                    targetUserHighestLevel = role.getLevel();
-                }
-            }
-        }
-
-        if (targetUserHighestLevel <= actorHighestLevel) {
-            log.warn("Actor {} with highest level {} attempted to update user '{}' with highest level {}",
-                    actorId, actorHighestLevel, user.getUsername(), targetUserHighestLevel);
-            throw new AccessDeniedException("Insufficient privilege to update user '" + user.getUsername()
-                    + "' with role level " + targetUserHighestLevel + " (your highest active role level is " + actorHighestLevel + ")");
-        }
+        validateActorPrivilege(user, actorHighestLevel, actorId, "update");
 
         boolean isChanged = false;
 
@@ -190,6 +176,125 @@ public class UserServiceImpl implements UserService {
         log.info("User '{}' updated successfully by actor {}", savedUser.getUsername(), actorId);
 
         tokenService.revokeAllUserTokens(savedUser.getId());
+
+        return UserResponse.fromEntity(savedUser);
+    }
+
+    @Override
+    @Transactional
+    public UserResponse disableUser(
+            @NotBlank(message = "User identifier is required")
+            @Size(max = 256, message = "User identifier cannot exceed 256 characters") String identifier,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId) {
+
+        User user = findUserEntityByIdentifier(identifier);
+        String username = user.getUsername();
+
+        if (user.getStatus() == UserStatus.DELETED) {
+            throw new BadRequestException("User '" + username + "' is deleted and cannot be disabled");
+        }
+
+        if (user.getStatus() == UserStatus.DISABLED) {
+            log.info("User '{}' is already disabled", username);
+            return UserResponse.fromEntity(user);
+        }
+
+        int actorHighestLevel = resolveActorHighestLevel(actorId, "disable");
+        validateActorPrivilege(user, actorHighestLevel, actorId, "disable");
+
+        user.setStatus(UserStatus.DISABLED);
+        user.setUpdatedBy(actorId);
+        User savedUser = userRepository.save(user);
+        log.info("Marked user '{}' as DISABLED by actor: {}", username, actorId);
+
+        tokenService.revokeAllUserTokens(savedUser.getId());
+
+        return UserResponse.fromEntity(savedUser);
+    }
+
+    @Override
+    @Transactional
+    public UserResponse enableUser(
+            @NotBlank(message = "User identifier is required")
+            @Size(max = 256, message = "User identifier cannot exceed 256 characters") String identifier,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId) {
+
+        User user = findUserEntityByIdentifier(identifier);
+        String username = user.getUsername();
+
+        if (user.getStatus() == UserStatus.DELETED) {
+            throw new BadRequestException("User '" + username + "' is deleted and cannot be enabled");
+        }
+
+        if (user.getStatus() == UserStatus.ACTIVE) {
+            log.info("User '{}' is already enabled", username);
+            return UserResponse.fromEntity(user);
+        }
+
+        int actorHighestLevel = resolveActorHighestLevel(actorId, "enable");
+        validateActorPrivilege(user, actorHighestLevel, actorId, "enable");
+
+        user.setStatus(UserStatus.ACTIVE);
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+        user.setUpdatedBy(actorId);
+        User savedUser = userRepository.save(user);
+        log.info("Marked user '{}' as ACTIVE by actor: {}", username, actorId);
+
+        return UserResponse.fromEntity(savedUser);
+    }
+
+    @Override
+    @Transactional
+    public UserResponse deleteUser(
+            @NotBlank(message = "User identifier is required")
+            @Size(max = 256, message = "User identifier cannot exceed 256 characters") String identifier,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId) {
+
+        User user = findUserEntityByIdentifier(identifier);
+        String username = user.getUsername();
+
+        if (user.getStatus() == UserStatus.DELETED) {
+            log.info("User '{}' is already deleted", username);
+            return UserResponse.fromEntity(user);
+        }
+
+        int actorHighestLevel = resolveActorHighestLevel(actorId, "delete");
+        validateActorPrivilege(user, actorHighestLevel, actorId, "delete");
+
+        user.setStatus(UserStatus.DELETED);
+        user.setUpdatedBy(actorId);
+        User savedUser = userRepository.save(user);
+        log.info("Marked user '{}' as DELETED by actor: {}", username, actorId);
+
+        tokenService.revokeAllUserTokens(savedUser.getId());
+
+        return UserResponse.fromEntity(savedUser);
+    }
+
+    @Override
+    @Transactional
+    public UserResponse restoreUser(
+            @NotBlank(message = "User identifier is required")
+            @Size(max = 256, message = "User identifier cannot exceed 256 characters") String identifier,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId) {
+
+        User user = findUserEntityByIdentifier(identifier);
+        String username = user.getUsername();
+
+        if (user.getStatus() != UserStatus.DELETED) {
+            throw new BadRequestException("User '" + username + "' is not deleted and cannot be restored");
+        }
+
+        int actorHighestLevel = resolveActorHighestLevel(actorId, "restore");
+        validateActorPrivilege(user, actorHighestLevel, actorId, "restore");
+
+        user.setStatus(UserStatus.DISABLED);
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+        user.setUpdatedBy(actorId);
+        User savedUser = userRepository.save(user);
+        log.info("Marked user '{}' as RESTORED (DISABLED) by actor: {}", username, actorId);
 
         return UserResponse.fromEntity(savedUser);
     }
@@ -258,5 +363,28 @@ public class UserServiceImpl implements UserService {
         }
 
         return foundRoles;
+    }
+
+    private void validateActorPrivilege(User targetUser, int actorHighestLevel, UUID actorId, String action) {
+        if (targetUser.getId() != null && targetUser.getId().equals(actorId)) {
+            log.warn("Actor {} attempted to {} their own account", actorId, action);
+            throw new AccessDeniedException("Cannot " + action + " your own account");
+        }
+
+        int targetUserHighestLevel = Integer.MAX_VALUE;
+        if (targetUser.getRoles() != null) {
+            for (Role role : targetUser.getRoles()) {
+                if (role.getLevel() != null && role.getLevel() < targetUserHighestLevel) {
+                    targetUserHighestLevel = role.getLevel();
+                }
+            }
+        }
+
+        if (targetUserHighestLevel <= actorHighestLevel) {
+            log.warn("Actor {} with highest level {} attempted to {} user '{}' with highest level {}",
+                    actorId, actorHighestLevel, targetUser.getUsername(), targetUserHighestLevel);
+            throw new AccessDeniedException("Insufficient privilege to " + action + " user '" + targetUser.getUsername()
+                    + "' with role level " + targetUserHighestLevel + " (your highest active role level is " + actorHighestLevel + ")");
+        }
     }
 }

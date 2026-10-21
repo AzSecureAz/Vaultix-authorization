@@ -108,6 +108,10 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 | `GET` | `/admin/users` | Retrieve paginated list of users with roles | `hasAuthority('user:read')` |
 | `GET` | `/admin/users/{identifier}` | Retrieve user by UUID, username, or email | `hasAuthority('user:read')` |
 | `PUT` | `/admin/users/{identifier}` | Update user roles (revokes active sessions on change) | `hasAuthority('user:update')` |
+| `POST` | `/admin/users/{identifier}/disable` | Disable user and revoke all active sessions | `hasAuthority('user:update')` |
+| `POST` | `/admin/users/{identifier}/enable` | Re-enable user and clear lockout state | `hasAuthority('user:update')` |
+| `DELETE` | `/admin/users/{identifier}` | Soft-delete user and revoke active sessions | `hasAuthority('user:delete')` |
+| `POST` | `/admin/users/{identifier}/restore` | Restore soft-deleted user (placed in DISABLED state) | `hasAuthority('user:delete')` |
 
 ### 3. Admin Role Management (`/admin/roles`)
 
