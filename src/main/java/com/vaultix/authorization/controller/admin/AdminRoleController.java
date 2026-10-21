@@ -26,7 +26,6 @@ import com.vaultix.authorization.dto.admin.UpdateRoleRequest;
 import com.vaultix.authorization.security.AuthSecurityExpressions;
 import com.vaultix.authorization.service.RoleService;
 import com.vaultix.common.dto.ApiResponse;
-import com.vaultix.common.security.CommonSecurityExpressions;
 import com.vaultix.common.security.SecurityUtil;
 
 import jakarta.validation.Valid;
@@ -127,7 +126,7 @@ public class AdminRoleController {
     }
 
     @DeleteMapping("/{identifier}")
-    @PreAuthorize(CommonSecurityExpressions.IS_ADMIN)
+    @PreAuthorize(AuthSecurityExpressions.CAN_DELETE_ROLES)
     public ResponseEntity<ApiResponse<RoleResponse>> deleteRole(
             @PathVariable("identifier")
             @NotBlank(message = "Role identifier is required")
@@ -142,7 +141,7 @@ public class AdminRoleController {
     }
 
     @PostMapping("/{identifier}/restore")
-    @PreAuthorize(CommonSecurityExpressions.IS_ADMIN)
+    @PreAuthorize(AuthSecurityExpressions.CAN_RESTORE_ROLES)
     public ResponseEntity<ApiResponse<RoleResponse>> restoreRole(
             @PathVariable("identifier")
             @NotBlank(message = "Role identifier is required")

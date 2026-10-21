@@ -116,11 +116,14 @@ INSERT INTO permissions (name, description) VALUES
     ('user:read', 'Allowed to view user profiles and listings'),
     ('user:update', 'Allowed to update user details and account status'),
     ('user:delete', 'Allowed to delete or deactivate user accounts'),
+    ('user:restore', 'Allowed to restore soft-deleted user accounts'),
 
     -- Role Management
     ('role:create', 'Allowed to create new roles'),
     ('role:read', 'Allowed to view existing roles and hierarchies'),
     ('role:update', 'Allowed to edit role details, levels, and status'),
+    ('role:delete', 'Allowed to delete or deactivate roles'),
+    ('role:restore', 'Allowed to restore soft-deleted roles'),
 
     -- Permission Management
     ('permission:read', 'Allowed to view system permissions')

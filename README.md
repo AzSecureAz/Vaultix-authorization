@@ -111,7 +111,7 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 | `POST` | `/admin/users/{identifier}/disable` | Disable user and revoke all active sessions | `hasAuthority('user:update')` |
 | `POST` | `/admin/users/{identifier}/enable` | Re-enable user and clear lockout state | `hasAuthority('user:update')` |
 | `DELETE` | `/admin/users/{identifier}` | Soft-delete user and revoke active sessions | `hasAuthority('user:delete')` |
-| `POST` | `/admin/users/{identifier}/restore` | Restore soft-deleted user (placed in DISABLED state) | `hasAuthority('user:delete')` |
+| `POST` | `/admin/users/{identifier}/restore` | Restore soft-deleted user (placed in DISABLED state) | `hasAuthority('user:restore')` |
 
 ### 3. Admin Role Management (`/admin/roles`)
 
@@ -123,6 +123,8 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 | `PUT` | `/admin/roles/{identifier}` | Update role description and assigned permissions | `hasAuthority('role:update')` |
 | `POST` | `/admin/roles/{identifier}/disable` | Disable role and broadcast revocation event | `hasAuthority('role:update')` |
 | `POST` | `/admin/roles/{identifier}/enable` | Re-enable previously disabled role | `hasAuthority('role:update')` |
+| `DELETE` | `/admin/roles/{identifier}` | Soft-delete role and broadcast revocation event | `hasAuthority('role:delete')` |
+| `POST` | `/admin/roles/{identifier}/restore` | Restore soft-deleted role (placed in DISABLED state) | `hasAuthority('role:restore')` |
 
 ### 4. Admin Permission Management (`/admin/permissions`)
 

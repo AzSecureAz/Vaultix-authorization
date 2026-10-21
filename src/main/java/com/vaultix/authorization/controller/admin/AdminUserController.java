@@ -141,7 +141,7 @@ public class AdminUserController {
     }
 
     @PostMapping("/{identifier}/restore")
-    @PreAuthorize(AuthSecurityExpressions.CAN_DELETE_USERS)
+    @PreAuthorize(AuthSecurityExpressions.CAN_RESTORE_USERS)
     public ResponseEntity<ApiResponse<UserResponse>> restoreUser(
             @PathVariable("identifier")
             @NotBlank(message = "User identifier is required")
