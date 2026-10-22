@@ -100,6 +100,8 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 | `POST` | `/password-reset/request` | Initiate password reset, generate OTP & publish RabbitMQ event | No | No |
 | `POST` | `/password-reset/confirm` | Validate OTP, update password & invalidate active sessions | No | No |
 | `POST` | `/password/change` | Change authenticated user password, revoke active sessions & alert email | Bearer JWT | No |
+| `PUT` | `/username` | Update authenticated user's unique username | Bearer JWT | No |
+| `POST` | `/username/change` | Alternate endpoint to update authenticated user's unique username | Bearer JWT | No |
 | `POST` | `/email/send-verification` | Send OTP verification code to authenticated user's email (with 60s cooldown) | Bearer JWT | No |
 | `POST` | `/email/verify` | Validate OTP code and mark account email as verified (`email_verified = true`) | Bearer JWT | No |
 | `GET` | `/me`, `/profile` | Retrieve authenticated user profile with roles & permissions | Bearer JWT | No |
@@ -189,6 +191,7 @@ authorization/
     │   ├── dto/
     │   │   ├── AuthResponse.java
     │   │   ├── ChangePasswordRequest.java
+    │   │   ├── ChangeUsernameRequest.java
     │   │   ├── LoginRequest.java
     │   │   ├── PasswordResetConfirmRequest.java
     │   │   ├── PasswordResetRequest.java
@@ -233,6 +236,7 @@ authorization/
     │   │   ├── CustomUserDetails.java
     │   │   └── CustomUserDetailsService.java
     │   ├── service/
+    │   │   ├── AccountService.java
     │   │   ├── AuthService.java
     │   │   ├── OtpService.java
     │   │   ├── PermissionService.java
@@ -241,6 +245,7 @@ authorization/
     │   │   ├── TokenService.java
     │   │   ├── UserService.java
     │   │   └── impl/
+    │   │       ├── AccountServiceImpl.java
     │   │       ├── AuthServiceImpl.java
     │   │       ├── OtpServiceImpl.java
     │   │       ├── PermissionServiceImpl.java

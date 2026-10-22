@@ -12,12 +12,14 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.vaultix.authorization.dto.AuthResponse;
 import com.vaultix.authorization.dto.ChangePasswordRequest;
+import com.vaultix.authorization.dto.ChangeUsernameRequest;
 import com.vaultix.authorization.dto.LoginRequest;
 import com.vaultix.authorization.dto.PasswordResetConfirmRequest;
 import com.vaultix.authorization.dto.PasswordResetRequest;
@@ -26,6 +28,7 @@ import com.vaultix.authorization.dto.RegisterRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
 import com.vaultix.authorization.dto.VerifyEmailRequest;
 import com.vaultix.authorization.security.AuthCookieHelper;
+import com.vaultix.authorization.service.AccountService;
 import com.vaultix.authorization.service.AuthService;
 import com.vaultix.common.dto.ApiResponse;
 import com.vaultix.common.security.SecurityUtil;
@@ -44,6 +47,7 @@ import lombok.RequiredArgsConstructor;
 public class AuthController {
 
     private final AuthService authService;
+    private final AccountService accountService;
     private final AuthCookieHelper authCookieHelper;
 
     @PostMapping("/register")
@@ -184,5 +188,23 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cleanCookie.toString())
                 .body(ApiResponse.success("Password changed successfully. Please log in with your new password."));
+    }
+
+    @PutMapping({"/username", "/username/change"})
+    public ResponseEntity<ApiResponse<UserProfileDto>> changeUsername(
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
+            @Valid @RequestBody ChangeUsernameRequest request) {
+
+        UUID userId = SecurityUtil.extractActorId(jwt);
+        UserProfileDto updatedProfile = accountService.changeUsername(userId, request);
+        return ResponseEntity.ok(ApiResponse.success("Username changed successfully", updatedProfile));
+    }
+
+    @PostMapping({"/username/change", "/username-change"})
+    public ResponseEntity<ApiResponse<UserProfileDto>> changeUsernamePost(
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
+            @Valid @RequestBody ChangeUsernameRequest request) {
+
+        return changeUsername(jwt, request);
     }
 }
