@@ -8,7 +8,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import com.vaultix.authorization.dto.ChangeUsernameRequest;
-import com.vaultix.authorization.dto.UserProfileDto;
 import com.vaultix.authorization.entity.User;
 import com.vaultix.authorization.entity.enums.UserStatus;
 import com.vaultix.authorization.repository.UserRepository;
@@ -32,14 +31,14 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     @Transactional
-    public UserProfileDto changeUsername(
+    public void changeUsername(
             @NotNull(message = "User ID cannot be null") UUID userId,
             @NotNull(message = "Change username request cannot be null")
             @Valid ChangeUsernameRequest request) {
 
         log.info("Processing username change request for user ID: {}", userId);
 
-        User user = userRepository.findWithRolesAndPermissionsById(userId)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
         if (user.getStatus() == UserStatus.DISABLED || user.getStatus() == UserStatus.DELETED) {
@@ -62,11 +61,9 @@ public class AccountServiceImpl implements AccountService {
         String oldUsername = user.getUsername();
         user.setUsername(cleanNewUsername);
         user.setUpdatedBy(userId);
-        User savedUser = userRepository.save(user);
+        userRepository.save(user);
 
         log.info("Username successfully changed from '{}' to '{}' for user ID: {}",
                 oldUsername, cleanNewUsername, userId);
-
-        return UserProfileDto.fromEntity(savedUser);
     }
 }

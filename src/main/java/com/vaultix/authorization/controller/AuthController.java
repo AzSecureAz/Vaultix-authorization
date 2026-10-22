@@ -191,17 +191,17 @@ public class AuthController {
     }
 
     @PutMapping({"/username", "/username/change"})
-    public ResponseEntity<ApiResponse<UserProfileDto>> changeUsername(
+    public ResponseEntity<ApiResponse<Void>> changeUsername(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
             @Valid @RequestBody ChangeUsernameRequest request) {
 
         UUID userId = SecurityUtil.extractActorId(jwt);
-        UserProfileDto updatedProfile = accountService.changeUsername(userId, request);
-        return ResponseEntity.ok(ApiResponse.success("Username changed successfully", updatedProfile));
+        accountService.changeUsername(userId, request);
+        return ResponseEntity.ok(ApiResponse.success("Username changed successfully"));
     }
 
     @PostMapping({"/username/change", "/username-change"})
-    public ResponseEntity<ApiResponse<UserProfileDto>> changeUsernamePost(
+    public ResponseEntity<ApiResponse<Void>> changeUsernamePost(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
             @Valid @RequestBody ChangeUsernameRequest request) {
 
