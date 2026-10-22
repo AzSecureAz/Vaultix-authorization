@@ -186,14 +186,17 @@ authorization/
     │   │       ├── OtpProperties.java
     │   │       └── RoleProperties.java
     │   ├── controller/
+    │   │   ├── AccountController.java
     │   │   ├── AuthController.java
     │   │   ├── JwksController.java
-    │   │   ├── PublicAuthController.java
-    │   │   └── admin/
-    │   │       ├── AdminPermissionController.java
-    │   │       ├── AdminRoleController.java
-    │   │       ├── AdminSigningKeyController.java
-    │   │       └── AdminUserController.java
+    │   │   ├── admin/
+    │   │   │   ├── AdminPermissionController.java
+    │   │   │   ├── AdminRoleController.java
+    │   │   │   ├── AdminSigningKeyController.java
+    │   │   │   └── AdminUserController.java
+    │   │   └── pub/
+    │   │       ├── PasswordResetController.java
+    │   │       └── PublicAuthController.java
     │   ├── dto/
     │   │   ├── AuthResponse.java
     │   │   ├── ChangePasswordRequest.java
@@ -245,6 +248,7 @@ authorization/
     │   │   ├── AccountService.java
     │   │   ├── AuthService.java
     │   │   ├── OtpService.java
+    │   │   ├── PasswordResetService.java
     │   │   ├── PermissionService.java
     │   │   ├── RoleService.java
     │   │   ├── SigningKeyService.java
@@ -254,6 +258,7 @@ authorization/
     │   │       ├── AccountServiceImpl.java
     │   │       ├── AuthServiceImpl.java
     │   │       ├── OtpServiceImpl.java
+    │   │       ├── PasswordResetServiceImpl.java
     │   │       ├── PermissionServiceImpl.java
     │   │       ├── RoleServiceImpl.java
     │   │       ├── SigningKeyServiceImpl.java

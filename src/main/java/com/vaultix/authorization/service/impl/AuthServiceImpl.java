@@ -1,22 +1,18 @@
 package com.vaultix.authorization.service.impl;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,28 +22,20 @@ import org.springframework.validation.annotation.Validated;
 
 import com.vaultix.authorization.config.properties.AuthMessagingProperties;
 import com.vaultix.authorization.config.properties.LockoutProperties;
-import com.vaultix.authorization.config.properties.OtpProperties;
 import com.vaultix.authorization.dto.AuthResponse;
-import com.vaultix.authorization.dto.ChangePasswordRequest;
 import com.vaultix.authorization.dto.LoginRequest;
-import com.vaultix.authorization.dto.PasswordResetConfirmRequest;
-import com.vaultix.authorization.dto.PasswordResetRequest;
 import com.vaultix.authorization.dto.RefreshTokenRequest;
 import com.vaultix.authorization.dto.RegisterRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
-import com.vaultix.authorization.dto.VerifyEmailRequest;
 import com.vaultix.authorization.entity.User;
 import com.vaultix.authorization.entity.enums.UserStatus;
 import com.vaultix.authorization.repository.UserRepository;
 import com.vaultix.authorization.security.CustomUserDetails;
 import com.vaultix.authorization.service.AuthService;
-import com.vaultix.authorization.service.OtpService;
 import com.vaultix.authorization.service.TokenService;
 import com.vaultix.common.dto.notification.NotificationChannel;
 import com.vaultix.common.dto.notification.NotificationEvent;
-import com.vaultix.common.exception.BadRequestException;
 import com.vaultix.common.exception.ResourceConflictException;
-import com.vaultix.common.exception.ResourceNotFoundException;
 import com.vaultix.common.util.ClientContextUtil.ClientContext;
 
 import jakarta.validation.Valid;
@@ -63,19 +51,13 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
-    private static final String REDIS_COOLDOWN_EMAIL_VERIFICATION_PREFIX = "auth:cooldown:email-verification:";
-    private static final Duration EMAIL_VERIFICATION_COOLDOWN_DURATION = Duration.ofSeconds(60);
-
     private final AuthenticationManager authenticationManager;
     private final TokenService tokenService;
     private final UserRepository userRepository;
     private final LockoutProperties lockoutProperties;
     private final PasswordEncoder passwordEncoder;
-    private final OtpService otpService;
-    private final OtpProperties otpProperties;
     private final RabbitTemplate rabbitTemplate;
     private final AuthMessagingProperties messagingProperties;
-    private final StringRedisTemplate stringRedisTemplate;
 
     @Override
     @Transactional
@@ -258,259 +240,5 @@ public class AuthServiceImpl implements AuthService {
     public int logoutAll(@NotNull(message = "User ID cannot be null") UUID userId) {
         log.info("Processing logout all sessions for user ID: {}", userId);
         return tokenService.revokeAllUserTokens(userId);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public UserProfileDto getProfile(@NotNull(message = "User ID cannot be null") UUID userId) {
-        log.info("Fetching profile for user ID: {}", userId);
-        User user = userRepository.findWithRolesAndPermissionsById(userId)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with ID: " + userId));
-
-        return UserProfileDto.fromEntity(user);
-    }
-
-    @Override
-    public void requestPasswordReset(
-            @NotNull(message = "Password reset request cannot be null")
-            @Valid PasswordResetRequest request) {
-
-        String identifier = request.identifier().strip().toLowerCase(Locale.ROOT);
-        log.info("Processing password reset request for identifier: {}", identifier);
-
-        userRepository.findByUsernameOrEmail(identifier, identifier).ifPresentOrElse(user -> {
-            if (user.getStatus() == UserStatus.DISABLED || user.getStatus() == UserStatus.DELETED) {
-                log.warn("Password reset ignored for {} user: {}", user.getStatus(), user.getUsername());
-                return;
-            }
-
-            String otp = otpService.generateOtp("password-reset", user.getId().toString());
-            log.info("Generated password reset OTP for user: {}", user.getUsername());
-
-            NotificationEvent event = NotificationEvent.builder()
-                    .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
-                    .templateCode("auth.password-reset")
-                    .channel(NotificationChannel.EMAIL)
-                    .recipient(user.getEmail())
-                    .recipientName(user.getFullName() != null && !user.getFullName().isBlank() ? user.getFullName() : user.getUsername())
-                    .subject("Vaultix - Password Reset Code")
-                    .params(Map.of(
-                            "otp", otp,
-                            "expiresInMinutes", otpProperties.defaultTtl().toMinutes()
-                    ))
-                    .createdAt(Instant.now())
-                    .build();
-
-            rabbitTemplate.convertAndSend(
-                    messagingProperties.exchange(),
-                    messagingProperties.passwordResetRoutingKey(),
-                    event);
-            log.info("Dispatched password reset notification event to exchange '{}' with routing key '{}' for user: {}",
-                    messagingProperties.exchange(), messagingProperties.passwordResetRoutingKey(), user.getUsername());
-        }, () -> {
-            log.warn("Password reset requested for nonexistent identifier: {}", identifier);
-        });
-    }
-
-    @Override
-    @Transactional
-    public void confirmPasswordReset(
-            @NotNull(message = "Password reset confirmation request cannot be null")
-            @Valid PasswordResetConfirmRequest request) {
-
-        String identifier = request.identifier().strip().toLowerCase(Locale.ROOT);
-        log.info("Processing password reset confirmation for identifier: {}", identifier);
-
-        User user = userRepository.findByUsernameOrEmail(identifier, identifier)
-                .orElseThrow(() -> new BadRequestException("Invalid or expired OTP code"));
-
-        if (user.getStatus() == UserStatus.DISABLED || user.getStatus() == UserStatus.DELETED) {
-            log.warn("Password reset rejected for {} user: {}", user.getStatus(), user.getUsername());
-            throw new BadRequestException("Account is disabled or deleted. Please contact support.");
-        }
-
-        boolean isValid = otpService.verifyOtp("password-reset", user.getId().toString(), request.otp().strip());
-        if (!isValid) {
-            log.warn("Invalid or expired OTP supplied for user: {}", user.getUsername());
-            throw new BadRequestException("Invalid or expired OTP code");
-        }
-
-        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
-        user.setFailedLoginAttempts(0);
-        if (user.getStatus() == UserStatus.LOCKED) {
-            user.setStatus(UserStatus.ACTIVE);
-            user.setLockedUntil(null);
-        }
-        userRepository.save(user);
-
-        int revokedCount = tokenService.revokeAllUserTokens(user.getId());
-        log.info("Password successfully reset for user: {}. Revoked {} active sessions.",
-                user.getUsername(), revokedCount);
-    }
-
-    @Override
-    public void sendEmailVerification(@NotNull(message = "User ID cannot be null") UUID userId) {
-        log.info("Processing email verification request for user id: {}", userId);
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
-
-        if (user.getStatus() == UserStatus.DISABLED || user.getStatus() == UserStatus.DELETED) {
-            log.warn("Email verification request rejected for {} user: {}", user.getStatus(), user.getUsername());
-            throw new BadRequestException("Account is " + user.getStatus().name().toLowerCase(Locale.ROOT) + ". Please contact support.");
-        }
-
-        if (user.isEmailVerified()) {
-            log.info("Email verification requested for already verified user: {}", user.getUsername());
-            throw new BadRequestException("Email is already verified");
-        }
-
-        String cooldownKey = REDIS_COOLDOWN_EMAIL_VERIFICATION_PREFIX + user.getId();
-        Boolean hasCooldown = stringRedisTemplate.hasKey(cooldownKey);
-        if (Boolean.TRUE.equals(hasCooldown)) {
-            Long remainingTtl = stringRedisTemplate.getExpire(cooldownKey, TimeUnit.SECONDS);
-            long waitSeconds = (remainingTtl != null && remainingTtl > 0) ? remainingTtl : EMAIL_VERIFICATION_COOLDOWN_DURATION.toSeconds();
-            log.warn("Email verification rate-limited for user: {}. Wait time: {}s", user.getUsername(), waitSeconds);
-            throw new BadRequestException("Please wait " + waitSeconds + " seconds before requesting another verification code");
-        }
-
-        String otp = otpService.generateOtp("email-verification", user.getId().toString());
-        stringRedisTemplate.opsForValue().set(cooldownKey, "1", EMAIL_VERIFICATION_COOLDOWN_DURATION);
-        log.info("Generated email verification OTP for user: {}", user.getUsername());
-
-        NotificationEvent event = NotificationEvent.builder()
-                .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
-                .templateCode("auth.email-verification")
-                .channel(NotificationChannel.EMAIL)
-                .recipient(user.getEmail())
-                .recipientName(user.getFullName() != null && !user.getFullName().isBlank() ? user.getFullName() : user.getUsername())
-                .subject("Vaultix - Verify Your Email Address")
-                .params(Map.of(
-                        "otp", otp,
-                        "expiresInMinutes", otpProperties.defaultTtl().toMinutes()
-                ))
-                .createdAt(Instant.now())
-                .build();
-
-        rabbitTemplate.convertAndSend(
-                messagingProperties.exchange(),
-                messagingProperties.emailVerificationRoutingKey(),
-                event);
-        log.info("Dispatched email verification notification event to exchange '{}' with routing key '{}' for user: {}",
-                messagingProperties.exchange(), messagingProperties.emailVerificationRoutingKey(), user.getUsername());
-    }
-
-    @Override
-    @Transactional
-    public void verifyEmail(
-            @NotNull(message = "User ID cannot be null") UUID userId,
-            @NotNull(message = "Verification request cannot be null")
-            @Valid VerifyEmailRequest request) {
-
-        log.info("Processing email verification for user id: {}", userId);
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
-
-        if (user.getStatus() == UserStatus.DISABLED || user.getStatus() == UserStatus.DELETED) {
-            log.warn("Email verification rejected for {} user: {}", user.getStatus(), user.getUsername());
-            throw new BadRequestException("Account is " + user.getStatus().name().toLowerCase(Locale.ROOT) + ". Please contact support.");
-        }
-
-        if (user.isEmailVerified()) {
-            log.info("User {} is already verified, returning success", user.getUsername());
-            return;
-        }
-
-        boolean isValid = otpService.verifyOtp("email-verification", user.getId().toString(), request.otp().strip());
-        if (!isValid) {
-            log.warn("Invalid or expired email verification OTP supplied for user: {}", user.getUsername());
-            throw new BadRequestException("Invalid or expired verification code");
-        }
-
-        user.setEmailVerified(true);
-        user.setUpdatedBy(userId);
-        userRepository.save(user);
-
-        String cooldownKey = REDIS_COOLDOWN_EMAIL_VERIFICATION_PREFIX + user.getId();
-        stringRedisTemplate.delete(cooldownKey);
-
-        log.info("Email successfully verified for user: {}", user.getUsername());
-    }
-
-    @Override
-    @Transactional
-    public void changePassword(
-            @NotNull(message = "User ID cannot be null") UUID userId,
-            @NotNull(message = "Change password request cannot be null")
-            @Valid ChangePasswordRequest request) {
-
-        log.info("Processing password change for user ID: {}", userId);
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
-
-        if (user.getStatus() == UserStatus.DISABLED || user.getStatus() == UserStatus.DELETED) {
-            log.warn("Password change rejected for {} user: {}", user.getStatus(), user.getUsername());
-            throw new BadRequestException("Account is " + user.getStatus().name().toLowerCase(Locale.ROOT) + ". Please contact support.");
-        }
-
-        if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
-            log.warn("Password change attempted on account without password: {}", user.getUsername());
-            throw new BadRequestException("No password is set for this account. Please use password reset to establish a password.");
-        }
-
-        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
-            log.warn("Password change failed: incorrect current password supplied for user: {}", user.getUsername());
-            throw new BadRequestException("Current password is incorrect");
-        }
-
-        if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
-            log.warn("Password change failed: new password identical to current password for user: {}", user.getUsername());
-            throw new BadRequestException("New password cannot be the same as your current password");
-        }
-
-        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
-        user.setFailedLoginAttempts(0);
-        if (user.getStatus() == UserStatus.LOCKED) {
-            user.setStatus(UserStatus.ACTIVE);
-            user.setLockedUntil(null);
-        }
-        user.setUpdatedBy(userId);
-        userRepository.save(user);
-
-        int revokedCount = tokenService.revokeAllUserTokens(user.getId());
-        log.info("Password successfully changed for user: {}. Revoked {} active sessions.",
-                user.getUsername(), revokedCount);
-
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                try {
-                    NotificationEvent event = NotificationEvent.builder()
-                            .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
-                            .templateCode("auth.password-changed")
-                            .channel(NotificationChannel.EMAIL)
-                            .recipient(user.getEmail())
-                            .recipientName(user.getFullName() != null && !user.getFullName().isBlank() ? user.getFullName() : user.getUsername())
-                            .subject("Vaultix - Security Alert: Password Changed")
-                            .params(Map.of(
-                                    "username", user.getUsername(),
-                                    "email", user.getEmail()
-                            ))
-                            .createdAt(Instant.now())
-                            .build();
-
-                    rabbitTemplate.convertAndSend(
-                            messagingProperties.exchange(),
-                            messagingProperties.passwordChangedRoutingKey(),
-                            event);
-                    log.info("Dispatched password changed security notification to exchange '{}' with routing key '{}' for user: {}",
-                            messagingProperties.exchange(), messagingProperties.passwordChangedRoutingKey(), user.getUsername());
-                } catch (Exception ex) {
-                    log.warn("Failed to dispatch password changed notification for user '{}': {}", user.getUsername(), ex.getMessage());
-                }
-            }
-        });
     }
 }

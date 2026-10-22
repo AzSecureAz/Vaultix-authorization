@@ -1,4 +1,4 @@
-package com.vaultix.authorization.controller;
+package com.vaultix.authorization.controller.pub;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -13,8 +13,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.vaultix.authorization.dto.AuthResponse;
 import com.vaultix.authorization.dto.LoginRequest;
-import com.vaultix.authorization.dto.PasswordResetConfirmRequest;
-import com.vaultix.authorization.dto.PasswordResetRequest;
 import com.vaultix.authorization.dto.RefreshTokenRequest;
 import com.vaultix.authorization.dto.RegisterRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
@@ -84,23 +82,5 @@ public class PublicAuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
                 .body(ApiResponse.success("Token refreshed successfully", authResponse));
-    }
-
-    @PostMapping({"/password-reset/request", "/password/reset/request", "/password-reset-request"})
-    public ResponseEntity<ApiResponse<Void>> requestPasswordReset(
-            @Valid @RequestBody PasswordResetRequest request) {
-
-        authService.requestPasswordReset(request);
-        return ResponseEntity.ok(ApiResponse.success(
-                "If an account exists with the provided identifier, a password reset code has been sent."));
-    }
-
-    @PostMapping({"/password-reset/confirm", "/password/reset/confirm", "/password-reset-confirm"})
-    public ResponseEntity<ApiResponse<Void>> confirmPasswordReset(
-            @Valid @RequestBody PasswordResetConfirmRequest request) {
-
-        authService.confirmPasswordReset(request);
-        return ResponseEntity.ok(ApiResponse.success(
-                "Password reset successfully. You can now log in with your new password."));
     }
 }
