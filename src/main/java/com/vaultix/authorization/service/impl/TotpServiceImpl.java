@@ -1,6 +1,11 @@
 package com.vaultix.authorization.service.impl;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.HexFormat;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -16,15 +21,19 @@ import org.springframework.validation.annotation.Validated;
 
 import com.vaultix.authorization.config.properties.AuthMessagingProperties;
 import com.vaultix.authorization.config.properties.KekProperties;
+import com.vaultix.authorization.dto.mfa.TotpActivationResponse;
 import com.vaultix.authorization.dto.mfa.TotpSetupResponse;
 import com.vaultix.authorization.dto.mfa.VerifyTotpRequest;
 import com.vaultix.authorization.entity.User;
+import com.vaultix.authorization.entity.UserRecoveryCode;
 import com.vaultix.authorization.entity.UserTotp;
 import com.vaultix.authorization.entity.enums.UserStatus;
 import com.vaultix.authorization.repository.UserRepository;
+import com.vaultix.authorization.repository.UserRecoveryCodeRepository;
 import com.vaultix.authorization.repository.UserTotpRepository;
 import com.vaultix.authorization.service.TotpService;
 import com.vaultix.common.crypto.AesGcmCryptoUtil;
+import com.vaultix.common.crypto.RecoveryCodeUtil;
 import com.vaultix.common.crypto.TotpUtil;
 import com.vaultix.common.dto.notification.NotificationChannel;
 import com.vaultix.common.dto.notification.NotificationEvent;
@@ -47,6 +56,7 @@ public class TotpServiceImpl implements TotpService {
 
     private final UserRepository userRepository;
     private final UserTotpRepository userTotpRepository;
+    private final UserRecoveryCodeRepository userRecoveryCodeRepository;
     private final KekProperties kekProperties;
     private final RabbitTemplate rabbitTemplate;
     private final AuthMessagingProperties messagingProperties;
@@ -92,7 +102,7 @@ public class TotpServiceImpl implements TotpService {
 
     @Override
     @Transactional
-    public void activateTotp(
+    public TotpActivationResponse activateTotp(
             @NotNull(message = "User ID cannot be null") UUID userId,
             @Valid @NotNull(message = "Verification request cannot be null") VerifyTotpRequest request) {
 
@@ -147,6 +157,18 @@ public class TotpServiceImpl implements TotpService {
         user.setUpdatedBy(userId);
         userRepository.save(user);
 
+        List<String> recoveryCodes = RecoveryCodeUtil.generateCodes();
+        userRecoveryCodeRepository.deleteByUserId(userId);
+
+        List<UserRecoveryCode> recoveryCodeEntities = recoveryCodes.stream()
+                .map(code -> UserRecoveryCode.builder()
+                        .user(user)
+                        .codeHash(hashRecoveryCode(code))
+                        .used(false)
+                        .build())
+                .toList();
+        userRecoveryCodeRepository.saveAll(recoveryCodeEntities);
+
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
@@ -177,6 +199,19 @@ public class TotpServiceImpl implements TotpService {
             }
         });
 
-        log.info("Successfully activated TOTP two-factor authentication for user ID: {}", userId);
+        log.info("Successfully activated TOTP two-factor authentication and generated {} recovery codes for user ID: {}",
+                recoveryCodes.size(), userId);
+        return new TotpActivationResponse(recoveryCodes);
+    }
+
+    private String hashRecoveryCode(String rawCode) {
+        String normalized = RecoveryCodeUtil.normalizeCode(rawCode);
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(normalized.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 message digest algorithm not available", e);
+        }
     }
 }

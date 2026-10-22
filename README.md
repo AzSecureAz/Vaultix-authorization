@@ -244,6 +244,7 @@ authorization/
     │   │   │   ├── UpdateUserRequest.java
     │   │   │   └── UserResponse.java
     │   │   └── mfa/
+    │   │       ├── TotpActivationResponse.java
     │   │       ├── TotpSetupResponse.java
     │   │       └── VerifyTotpRequest.java
     │   ├── entity/
@@ -252,6 +253,7 @@ authorization/
     │   │   ├── Role.java
     │   │   ├── SigningKey.java
     │   │   ├── User.java
+    │   │   ├── UserRecoveryCode.java
     │   │   ├── UserTotp.java
     │   │   └── enums/
     │   │       ├── KeyStatus.java
@@ -266,6 +268,7 @@ authorization/
     │   │   ├── RoleRepository.java
     │   │   ├── SigningKeyRepository.java
     │   │   ├── UserRepository.java
+    │   │   ├── UserRecoveryCodeRepository.java
     │   │   └── UserTotpRepository.java
     │   ├── scheduler/
     │   │   ├── RefreshTokenScheduler.java

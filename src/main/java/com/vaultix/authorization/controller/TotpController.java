@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.vaultix.authorization.dto.mfa.TotpActivationResponse;
 import com.vaultix.authorization.dto.mfa.TotpSetupResponse;
 import com.vaultix.authorization.dto.mfa.VerifyTotpRequest;
 import com.vaultix.authorization.service.TotpService;
@@ -41,12 +42,14 @@ public class TotpController {
     }
 
     @PostMapping({"/activate", "/verify"})
-    public ResponseEntity<ApiResponse<Void>> activateTotp(
+    public ResponseEntity<ApiResponse<TotpActivationResponse>> activateTotp(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
             @Valid @RequestBody VerifyTotpRequest request) {
 
         UUID userId = SecurityUtil.extractActorId(jwt);
-        totpService.activateTotp(userId, request);
-        return ResponseEntity.ok(ApiResponse.success("TOTP two-factor authentication activated successfully."));
+        TotpActivationResponse response = totpService.activateTotp(userId, request);
+        return ResponseEntity.ok(ApiResponse.success(
+                "TOTP two-factor authentication activated successfully. Please store your emergency recovery codes safely.",
+                response));
     }
 }
