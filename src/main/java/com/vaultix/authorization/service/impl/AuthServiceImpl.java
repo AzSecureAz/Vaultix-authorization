@@ -85,7 +85,7 @@ public class AuthServiceImpl implements AuthService {
             throw new ResourceConflictException("User already exists with email: " + cleanEmail);
         }
 
-        String reservedKey = "auth:reserved-email:" + cleanEmail;
+        String reservedKey = AccountServiceImpl.REDIS_RESERVED_EMAIL_PREFIX + cleanEmail;
         if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(reservedKey))) {
             log.warn("Registration rejected: email '{}' is in a cooling-off reservation period", cleanEmail);
             throw new ResourceConflictException("Email '" + cleanEmail + "' is currently in a cooling-off reservation period and cannot be registered");

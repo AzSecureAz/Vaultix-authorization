@@ -55,7 +55,7 @@ public class AccountServiceImpl implements AccountService {
     private static final String REDIS_PENDING_EMAIL_CHANGE_PREFIX = "auth:pending:email-change:";
     private static final Duration EMAIL_CHANGE_COOLDOWN_DURATION = Duration.ofSeconds(60);
     private static final String REDIS_REVERT_EMAIL_PREFIX = "auth:revert-email:";
-    private static final String REDIS_RESERVED_EMAIL_PREFIX = "auth:reserved-email:";
+    public static final String REDIS_RESERVED_EMAIL_PREFIX = "auth:reserved-email:";
     private static final Duration EMAIL_REVERT_WINDOW = Duration.ofDays(7);
 
     private final UserRepository userRepository;
@@ -518,6 +518,7 @@ public class AccountServiceImpl implements AccountService {
         String currentEmail = user.getEmail();
         user.setEmail(oldEmail);
         user.setEmailVerified(true);
+        user.setPasswordHash(null);
         user.setUpdatedBy(targetUserId);
         userRepository.save(user);
 
@@ -525,7 +526,63 @@ public class AccountServiceImpl implements AccountService {
         stringRedisTemplate.delete(REDIS_RESERVED_EMAIL_PREFIX + oldEmail);
 
         int revokedCount = tokenService.revokeAllUserTokens(user.getId());
-        log.info("Email successfully reverted from '{}' back to '{}' for user: {}. Revoked {} active sessions.",
+        log.info("Email successfully reverted from '{}' back to '{}' for user: {}. Cleared password hash and revoked {} active sessions.",
                 currentEmail, oldEmail, user.getUsername(), revokedCount);
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    String recipientName = user.getFullName() != null && !user.getFullName().isBlank()
+                            ? user.getFullName()
+                            : user.getUsername();
+
+                    String passwordResetUrl = "http://localhost:8082/api/v1/auth/public/password-reset";
+
+                    NotificationEvent restoredEmailAlert = NotificationEvent.builder()
+                            .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
+                            .templateCode("auth.email-reverted")
+                            .channel(NotificationChannel.EMAIL)
+                            .recipient(oldEmail)
+                            .recipientName(recipientName)
+                            .subject("Vaultix - Security Alert: Your Email Address Has Been Restored")
+                            .params(Map.of(
+                                    "username", user.getUsername(),
+                                    "restoredEmail", oldEmail,
+                                    "passwordResetUrl", passwordResetUrl
+                            ))
+                            .createdAt(Instant.now())
+                            .build();
+
+                    rabbitTemplate.convertAndSend(
+                            messagingProperties.exchange(),
+                            messagingProperties.emailRevertedRoutingKey(),
+                            restoredEmailAlert);
+                    log.info("Dispatched email reverted alert to restored email '{}' for user: {}", oldEmail, user.getUsername());
+
+                    NotificationEvent removedEmailNotice = NotificationEvent.builder()
+                            .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
+                            .templateCode("auth.email-revert-notice")
+                            .channel(NotificationChannel.EMAIL)
+                            .recipient(currentEmail)
+                            .recipientName(recipientName)
+                            .subject("Vaultix - Notice: Email Association Removed")
+                            .params(Map.of(
+                                    "username", user.getUsername(),
+                                    "removedEmail", currentEmail
+                            ))
+                            .createdAt(Instant.now())
+                            .build();
+
+                    rabbitTemplate.convertAndSend(
+                            messagingProperties.exchange(),
+                            messagingProperties.emailRevertedRoutingKey(),
+                            removedEmailNotice);
+                    log.info("Dispatched email revert notice to removed email '{}' for user: {}", currentEmail, user.getUsername());
+                } catch (Exception ex) {
+                    log.warn("Failed to dispatch email reverted notifications for user '{}': {}", user.getUsername(), ex.getMessage());
+                }
+            }
+        });
     }
 }

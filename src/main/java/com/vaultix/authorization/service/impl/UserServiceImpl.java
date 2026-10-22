@@ -1,5 +1,6 @@
 package com.vaultix.authorization.service.impl;
 
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -9,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +47,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final TokenService tokenService;
+    private final StringRedisTemplate stringRedisTemplate;
 
     @Override
     @Transactional(readOnly = true)
@@ -105,6 +108,12 @@ public class UserServiceImpl implements UserService {
 
         if (userRepository.existsByEmail(cleanEmail)) {
             throw new ResourceConflictException("User already exists with email: " + cleanEmail);
+        }
+
+        String reservedKey = AccountServiceImpl.REDIS_RESERVED_EMAIL_PREFIX + cleanEmail;
+        if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(reservedKey))) {
+            log.warn("Admin user creation rejected: email '{}' is in a cooling-off reservation period", cleanEmail);
+            throw new ResourceConflictException("Email '" + cleanEmail + "' is currently in a cooling-off reservation period and cannot be registered");
         }
 
         Set<Role> rolesToAssign = resolveAndValidateRoles(request.roles(), actorHighestLevel, actorId);
@@ -321,7 +330,7 @@ public class UserServiceImpl implements UserService {
 
     private Set<Role> resolveAndValidateRoles(Set<String> requestedRoleNames, int actorHighestLevel, UUID actorId) {
         if (requestedRoleNames == null || requestedRoleNames.isEmpty()) {
-            return Set.of();
+            return new HashSet<>();
         }
 
         Set<String> canonicalNames = requestedRoleNames.stream()
@@ -333,7 +342,7 @@ public class UserServiceImpl implements UserService {
                 .collect(Collectors.toSet());
 
         if (canonicalNames.isEmpty()) {
-            return Set.of();
+            return new HashSet<>();
         }
 
         Set<Role> foundRoles = roleRepository.findAllByNameIn(canonicalNames);
@@ -362,7 +371,7 @@ public class UserServiceImpl implements UserService {
                     + actorHighestLevel + ": " + unauthorizedRoles);
         }
 
-        return foundRoles;
+        return new HashSet<>(foundRoles);
     }
 
     private void validateActorPrivilege(User targetUser, int actorHighestLevel, UUID actorId, String action) {

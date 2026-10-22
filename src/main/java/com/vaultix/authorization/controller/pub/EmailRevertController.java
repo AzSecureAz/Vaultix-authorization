@@ -33,7 +33,7 @@ public class EmailRevertController {
         log.info("Received public email revert POST request");
         accountService.revertEmail(request);
         return ResponseEntity.ok(ApiResponse.success(
-                "Email successfully reverted to your previous address. All active sessions have been terminated. Please log in or reset your password if your credentials were compromised."));
+                "Email successfully reverted to your previous address. All active sessions have been terminated and your password has been cleared for security. Please use password reset to set a new password."));
     }
 
     @GetMapping
@@ -45,6 +45,6 @@ public class EmailRevertController {
         log.info("Received public email revert GET request via link");
         accountService.revertEmail(new RevertEmailRequest(token.strip()));
         return ResponseEntity.ok(ApiResponse.success(
-                "Email successfully reverted to your previous address. All active sessions have been terminated. Please log in or reset your password if your credentials were compromised."));
+                "Email successfully reverted to your previous address. All active sessions have been terminated and your password has been cleared for security. Please use password reset to set a new password."));
     }
 }
