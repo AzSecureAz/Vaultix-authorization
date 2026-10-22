@@ -12,4 +12,6 @@ import com.vaultix.authorization.entity.UserTotp;
 public interface UserTotpRepository extends JpaRepository<UserTotp, UUID> {
 
     Optional<UserTotp> findByUserId(UUID userId);
+
+    void deleteByUserId(UUID userId);
 }

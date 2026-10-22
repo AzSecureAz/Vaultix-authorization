@@ -13,6 +13,7 @@ import java.util.OptionalLong;
 import java.util.UUID;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -21,6 +22,7 @@ import org.springframework.validation.annotation.Validated;
 
 import com.vaultix.authorization.config.properties.AuthMessagingProperties;
 import com.vaultix.authorization.config.properties.KekProperties;
+import com.vaultix.authorization.dto.mfa.DisableTotpRequest;
 import com.vaultix.authorization.dto.mfa.TotpActivationResponse;
 import com.vaultix.authorization.dto.mfa.TotpSetupResponse;
 import com.vaultix.authorization.dto.mfa.VerifyTotpRequest;
@@ -57,6 +59,7 @@ public class TotpServiceImpl implements TotpService {
     private final UserRepository userRepository;
     private final UserTotpRepository userTotpRepository;
     private final UserRecoveryCodeRepository userRecoveryCodeRepository;
+    private final PasswordEncoder passwordEncoder;
     private final KekProperties kekProperties;
     private final RabbitTemplate rabbitTemplate;
     private final AuthMessagingProperties messagingProperties;
@@ -202,6 +205,72 @@ public class TotpServiceImpl implements TotpService {
         log.info("Successfully activated TOTP two-factor authentication and generated {} recovery codes for user ID: {}",
                 recoveryCodes.size(), userId);
         return new TotpActivationResponse(recoveryCodes);
+    }
+
+    @Override
+    @Transactional
+    public void disableTotp(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            @Valid @NotNull(message = "Disable request cannot be null") DisableTotpRequest request) {
+
+        log.info("Attempting to disable TOTP 2FA for user ID: {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        if (user.getStatus() == UserStatus.DISABLED || user.getStatus() == UserStatus.DELETED) {
+            log.warn("TOTP disable rejected for {} user: {}", user.getStatus(), user.getUsername());
+            throw new BadRequestException("Account is " + user.getStatus().name().toLowerCase(Locale.ROOT) + ". Please contact support.");
+        }
+
+        if (!user.isMfaEnabled()) {
+            log.warn("TOTP disable rejected: User ID {} does not have MFA enabled", userId);
+            throw new BadRequestException("Two-factor authentication is not currently enabled on this account");
+        }
+
+        if (user.getPasswordHash() == null || !passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            log.warn("TOTP disable rejected: Invalid password for user ID: {}", userId);
+            throw new BadRequestException("Invalid account password");
+        }
+
+        userTotpRepository.deleteByUserId(userId);
+        userRecoveryCodeRepository.deleteByUserId(userId);
+
+        user.setMfaEnabled(false);
+        user.setUpdatedBy(userId);
+        userRepository.save(user);
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    NotificationEvent event = NotificationEvent.builder()
+                            .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
+                            .templateCode("auth.mfa-disabled")
+                            .channel(NotificationChannel.EMAIL)
+                            .recipient(user.getEmail())
+                            .recipientName(user.getFullName() != null && !user.getFullName().isBlank() ? user.getFullName() : user.getUsername())
+                            .subject("Vaultix - Security Alert: Two-Factor Authentication Disabled")
+                            .params(Map.of(
+                                    "username", user.getUsername(),
+                                    "email", user.getEmail()
+                            ))
+                            .createdAt(Instant.now())
+                            .build();
+
+                    rabbitTemplate.convertAndSend(
+                            messagingProperties.exchange(),
+                            messagingProperties.mfaDisabledRoutingKey(),
+                            event);
+                    log.info("Dispatched MFA disabled notification to exchange '{}' with routing key '{}' for user: {}",
+                            messagingProperties.exchange(), messagingProperties.mfaDisabledRoutingKey(), user.getUsername());
+                } catch (Exception ex) {
+                    log.warn("Failed to dispatch MFA disabled notification for user '{}': {}", user.getUsername(), ex.getMessage());
+                }
+            }
+        });
+
+        log.info("Successfully disabled TOTP two-factor authentication for user ID: {}", userId);
     }
 
     private String hashRecoveryCode(String rawCode) {

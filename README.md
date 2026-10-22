@@ -130,6 +130,7 @@ Automated background tasks run on distributed staggered schedules using Spring `
 | `POST` | `/email/change/confirm`, `/email/confirm-change` | Validate OTP sent to new email, commit new email (`email_verified = true`) & revoke active sessions | Bearer JWT | No |
 | `POST` | `/mfa/totp/setup`, `/totp/setup`, `/totp/initiate` | Initiate TOTP 2FA setup, encrypt secret with KEK & return Base32 key with QR URI | Bearer JWT | No |
 | `POST` | `/mfa/totp/activate`, `/totp/activate`, `/totp/verify` | Verify 6-digit TOTP code, enable MFA on user account & send security alert email | Bearer JWT | No |
+| `POST` | `/mfa/totp/disable`, `/totp/disable` | Verify current password, disable MFA, purge TOTP & recovery codes & send security alert email | Bearer JWT | No |
 | `GET` | `/me`, `/profile` | Retrieve authenticated user profile with roles & permissions | Bearer JWT | No |
 
 
@@ -244,6 +245,7 @@ authorization/
     │   │   │   ├── UpdateUserRequest.java
     │   │   │   └── UserResponse.java
     │   │   └── mfa/
+    │   │       ├── DisableTotpRequest.java
     │   │       ├── TotpActivationResponse.java
     │   │       ├── TotpSetupResponse.java
     │   │       └── VerifyTotpRequest.java
@@ -318,7 +320,8 @@ authorization/
         └── db/migration/
             ├── V1__init_auth_schema.sql
             ├── V2__create_signing_keys_schema.sql
-            └── V3__create_totp_schema.sql
+            ├── V3__create_totp_schema.sql
+            └── V4__create_recovery_codes_schema.sql
 ```
 
 ---
