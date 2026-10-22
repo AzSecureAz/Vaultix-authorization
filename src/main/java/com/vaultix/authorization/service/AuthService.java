@@ -5,6 +5,7 @@ import java.util.UUID;
 import org.springframework.validation.annotation.Validated;
 
 import com.vaultix.authorization.dto.AuthResponse;
+import com.vaultix.authorization.dto.ChangePasswordRequest;
 import com.vaultix.authorization.dto.LoginRequest;
 import com.vaultix.authorization.dto.PasswordResetConfirmRequest;
 import com.vaultix.authorization.dto.PasswordResetRequest;
@@ -58,4 +59,9 @@ public interface AuthService {
             @NotNull(message = "User ID cannot be null") UUID userId,
             @NotNull(message = "Verification request cannot be null")
             @Valid VerifyEmailRequest request);
+
+    void changePassword(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            @NotNull(message = "Change password request cannot be null")
+            @Valid ChangePasswordRequest request);
 }

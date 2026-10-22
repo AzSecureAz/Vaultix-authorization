@@ -108,3 +108,4 @@ vaultix:
     password-reset-routing-key: ${VAULTIX_RABBITMQ_AUTH_PASSWORD_RESET_ROUTING_KEY:auth.notification.password-reset}
     email-verification-routing-key: ${VAULTIX_RABBITMQ_AUTH_EMAIL_VERIFICATION_ROUTING_KEY:auth.notification.email-verification}
     welcome-routing-key: ${VAULTIX_RABBITMQ_AUTH_WELCOME_ROUTING_KEY:auth.notification.welcome}
+    password-changed-routing-key: ${VAULTIX_RABBITMQ_AUTH_PASSWORD_CHANGED_ROUTING_KEY:auth.notification.password-changed}

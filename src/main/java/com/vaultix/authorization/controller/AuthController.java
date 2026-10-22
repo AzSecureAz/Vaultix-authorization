@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.vaultix.authorization.dto.AuthResponse;
+import com.vaultix.authorization.dto.ChangePasswordRequest;
 import com.vaultix.authorization.dto.LoginRequest;
 import com.vaultix.authorization.dto.PasswordResetConfirmRequest;
 import com.vaultix.authorization.dto.PasswordResetRequest;
@@ -167,5 +168,21 @@ public class AuthController {
         UUID userId = SecurityUtil.extractActorId(jwt);
         authService.verifyEmail(userId, request);
         return ResponseEntity.ok(ApiResponse.success("Email verified successfully"));
+    }
+
+    @PostMapping({"/password/change", "/password-change"})
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
+            @Valid @RequestBody ChangePasswordRequest request,
+            HttpServletRequest httpRequest) {
+
+        UUID userId = SecurityUtil.extractActorId(jwt);
+        authService.changePassword(userId, request);
+
+        ResponseCookie cleanCookie = authCookieHelper.createCleanCookie(httpRequest);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cleanCookie.toString())
+                .body(ApiResponse.success("Password changed successfully. Please log in with your new password."));
     }
 }

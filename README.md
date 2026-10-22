@@ -77,6 +77,7 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 - Declares **`auth.exchange`** (`TopicExchange`) for cross-service asynchronous event dispatch.
 - **Welcome Notification**: Dispatched upon user registration (`/register`) with routing key `auth.notification.welcome`.
 - **Password Reset**: Dispatched when requesting password reset (`/password-reset/request`) with a cryptographically secure 6-digit OTP to routing key `auth.notification.password-reset`.
+- **Password Changed**: Dispatched when an authenticated user updates their password (`/password/change`) with security alert details to routing key `auth.notification.password-changed`.
 - **Email Verification**: Dispatched when an authenticated user requests verification (`/email/send-verification`) with a 6-digit OTP and 60-second Redis rate-limit cooldown to routing key `auth.notification.email-verification`.
 - Downstream notification services subscribe using the wildcard pattern **`auth.notification.*`** without coupling to internal authorization logic.
 
@@ -98,6 +99,7 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 | `POST` | `/logout-all` | Revoke ALL active refresh tokens and blacklist current JWT | Bearer JWT | No |
 | `POST` | `/password-reset/request` | Initiate password reset, generate OTP & publish RabbitMQ event | No | No |
 | `POST` | `/password-reset/confirm` | Validate OTP, update password & invalidate active sessions | No | No |
+| `POST` | `/password/change` | Change authenticated user password, revoke active sessions & alert email | Bearer JWT | No |
 | `POST` | `/email/send-verification` | Send OTP verification code to authenticated user's email (with 60s cooldown) | Bearer JWT | No |
 | `POST` | `/email/verify` | Validate OTP code and mark account email as verified (`email_verified = true`) | Bearer JWT | No |
 | `GET` | `/me`, `/profile` | Retrieve authenticated user profile with roles & permissions | Bearer JWT | No |
@@ -186,6 +188,7 @@ authorization/
     │   │       └── AdminUserController.java
     │   ├── dto/
     │   │   ├── AuthResponse.java
+    │   │   ├── ChangePasswordRequest.java
     │   │   ├── LoginRequest.java
     │   │   ├── PasswordResetConfirmRequest.java
     │   │   ├── PasswordResetRequest.java

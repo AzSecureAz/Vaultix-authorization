@@ -25,6 +25,10 @@ public record AuthMessagingProperties(
         @NotBlank(message = "Welcome routing key is required")
         @Size(max = 256, message = "Welcome routing key cannot exceed 256 characters")
         @DefaultValue("auth.notification.welcome")
-        String welcomeRoutingKey) {
+        String welcomeRoutingKey,
+        @NotBlank(message = "Password changed routing key is required")
+        @Size(max = 256, message = "Password changed routing key cannot exceed 256 characters")
+        @DefaultValue("auth.notification.password-changed")
+        String passwordChangedRoutingKey) {
 
 }

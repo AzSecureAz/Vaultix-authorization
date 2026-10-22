@@ -28,6 +28,7 @@ import com.vaultix.authorization.config.properties.AuthMessagingProperties;
 import com.vaultix.authorization.config.properties.LockoutProperties;
 import com.vaultix.authorization.config.properties.OtpProperties;
 import com.vaultix.authorization.dto.AuthResponse;
+import com.vaultix.authorization.dto.ChangePasswordRequest;
 import com.vaultix.authorization.dto.LoginRequest;
 import com.vaultix.authorization.dto.PasswordResetConfirmRequest;
 import com.vaultix.authorization.dto.PasswordResetRequest;
@@ -435,5 +436,81 @@ public class AuthServiceImpl implements AuthService {
         stringRedisTemplate.delete(cooldownKey);
 
         log.info("Email successfully verified for user: {}", user.getUsername());
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            @NotNull(message = "Change password request cannot be null")
+            @Valid ChangePasswordRequest request) {
+
+        log.info("Processing password change for user ID: {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        if (user.getStatus() == UserStatus.DISABLED || user.getStatus() == UserStatus.DELETED) {
+            log.warn("Password change rejected for {} user: {}", user.getStatus(), user.getUsername());
+            throw new BadRequestException("Account is " + user.getStatus().name().toLowerCase(Locale.ROOT) + ". Please contact support.");
+        }
+
+        if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
+            log.warn("Password change attempted on account without password: {}", user.getUsername());
+            throw new BadRequestException("No password is set for this account. Please use password reset to establish a password.");
+        }
+
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            log.warn("Password change failed: incorrect current password supplied for user: {}", user.getUsername());
+            throw new BadRequestException("Current password is incorrect");
+        }
+
+        if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
+            log.warn("Password change failed: new password identical to current password for user: {}", user.getUsername());
+            throw new BadRequestException("New password cannot be the same as your current password");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.setFailedLoginAttempts(0);
+        if (user.getStatus() == UserStatus.LOCKED) {
+            user.setStatus(UserStatus.ACTIVE);
+            user.setLockedUntil(null);
+        }
+        user.setUpdatedBy(userId);
+        userRepository.save(user);
+
+        int revokedCount = tokenService.revokeAllUserTokens(user.getId());
+        log.info("Password successfully changed for user: {}. Revoked {} active sessions.",
+                user.getUsername(), revokedCount);
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    NotificationEvent event = NotificationEvent.builder()
+                            .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
+                            .templateCode("auth.password-changed")
+                            .channel(NotificationChannel.EMAIL)
+                            .recipient(user.getEmail())
+                            .recipientName(user.getFullName() != null && !user.getFullName().isBlank() ? user.getFullName() : user.getUsername())
+                            .subject("Vaultix - Security Alert: Password Changed")
+                            .params(Map.of(
+                                    "username", user.getUsername(),
+                                    "email", user.getEmail()
+                            ))
+                            .createdAt(Instant.now())
+                            .build();
+
+                    rabbitTemplate.convertAndSend(
+                            messagingProperties.exchange(),
+                            messagingProperties.passwordChangedRoutingKey(),
+                            event);
+                    log.info("Dispatched password changed security notification to exchange '{}' with routing key '{}' for user: {}",
+                            messagingProperties.exchange(), messagingProperties.passwordChangedRoutingKey(), user.getUsername());
+                } catch (Exception ex) {
+                    log.warn("Failed to dispatch password changed notification for user '{}': {}", user.getUsername(), ex.getMessage());
+                }
+            }
+        });
     }
 }
