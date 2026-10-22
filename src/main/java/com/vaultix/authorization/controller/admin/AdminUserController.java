@@ -15,9 +15,9 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.vaultix.authorization.dto.admin.CreateUserRequest;
@@ -79,7 +79,7 @@ public class AdminUserController {
         return ResponseEntity.ok(ApiResponse.success("User retrieved successfully", user));
     }
 
-    @PutMapping("/{identifier}")
+    @RequestMapping(value = "/{identifier}", method = {RequestMethod.PUT, RequestMethod.PATCH})
     @PreAuthorize(AuthSecurityExpressions.CAN_UPDATE_USERS)
     public ResponseEntity<ApiResponse<UserResponse>> updateUser(
             @PathVariable("identifier")

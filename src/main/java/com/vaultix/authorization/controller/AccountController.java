@@ -9,9 +9,9 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.vaultix.authorization.dto.ChangePasswordRequest;
@@ -47,7 +47,7 @@ public class AccountController {
         return ResponseEntity.ok(ApiResponse.success("Current user profile", profile));
     }
 
-    @PutMapping({"/username", "/username/change"})
+    @RequestMapping(value = {"/username", "/username/change", "/username-change"}, method = {RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.POST})
     public ResponseEntity<ApiResponse<Void>> changeUsername(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
             @Valid @RequestBody ChangeUsernameRequest request) {
@@ -57,15 +57,7 @@ public class AccountController {
         return ResponseEntity.ok(ApiResponse.success("Username changed successfully"));
     }
 
-    @PostMapping({"/username/change", "/username-change"})
-    public ResponseEntity<ApiResponse<Void>> changeUsernamePost(
-            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
-            @Valid @RequestBody ChangeUsernameRequest request) {
-
-        return changeUsername(jwt, request);
-    }
-
-    @PostMapping({"/password/change", "/password-change"})
+    @RequestMapping(value = {"/password", "/password/change", "/password-change"}, method = {RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.POST})
     public ResponseEntity<ApiResponse<Void>> changePassword(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
             @Valid @RequestBody ChangePasswordRequest request,

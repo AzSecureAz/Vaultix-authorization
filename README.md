@@ -105,9 +105,8 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 | :--- | :--- | :--- | :--- | :--- |
 | `POST` | `/logout` | Revoke current session refresh token and clear cookie | Cookie / Body | No |
 | `POST` | `/logout-all`, `/logout/all` | Revoke ALL active refresh tokens and blacklist current JWT | Bearer JWT | No |
-| `POST` | `/password/change`, `/password-change` | Change authenticated user password, revoke active sessions & alert email | Bearer JWT | No |
-| `PUT` | `/username` | Update authenticated user's unique username | Bearer JWT | No |
-| `POST` | `/username/change` | Alternate endpoint to update authenticated user's unique username | Bearer JWT | No |
+| `PUT`, `PATCH`, `POST` | `/password`, `/password/change`, `/password-change` | Change authenticated user password, revoke active sessions & alert email | Bearer JWT | No |
+| `PUT`, `PATCH`, `POST` | `/username`, `/username/change`, `/username-change` | Update authenticated user's unique username | Bearer JWT | No |
 | `POST` | `/email/send-verification`, `/email/send/verification` | Send OTP verification code to authenticated user's email (with 60s cooldown) | Bearer JWT | No |
 | `POST` | `/email/verify`, `/email-verify` | Validate OTP code and mark account email as verified (`email_verified = true`) | Bearer JWT | No |
 | `GET` | `/me`, `/profile` | Retrieve authenticated user profile with roles & permissions | Bearer JWT | No |
@@ -120,7 +119,7 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 | `POST` | `/admin/users` | Create user with assigned roles (password set via reset flow) | `hasAuthority('user:create')` |
 | `GET` | `/admin/users` | Retrieve paginated list of users with roles | `hasAuthority('user:read')` |
 | `GET` | `/admin/users/{identifier}` | Retrieve user by UUID, username, or email | `hasAuthority('user:read')` |
-| `PUT` | `/admin/users/{identifier}` | Update user roles (revokes active sessions on change) | `hasAuthority('user:update')` |
+| `PUT`, `PATCH` | `/admin/users/{identifier}` | Update user roles (revokes active sessions on change) | `hasAuthority('user:update')` |
 | `POST` | `/admin/users/{identifier}/disable` | Disable user and revoke all active sessions | `hasAuthority('user:update')` |
 | `POST` | `/admin/users/{identifier}/enable` | Re-enable user and clear lockout state | `hasAuthority('user:update')` |
 | `DELETE` | `/admin/users/{identifier}` | Soft-delete user and revoke active sessions | `hasAuthority('user:delete')` |
@@ -133,7 +132,7 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 | `POST` | `/admin/roles` | Create a new role with level and permissions | `hasAuthority('role:create')` |
 | `GET` | `/admin/roles` | Retrieve paginated list of roles with permissions | `hasAuthority('role:read')` |
 | `GET` | `/admin/roles/{identifier}` | Retrieve role by UUID or role name | `hasAuthority('role:read')` |
-| `PUT` | `/admin/roles/{identifier}` | Update role description and assigned permissions | `hasAuthority('role:update')` |
+| `PUT`, `PATCH` | `/admin/roles/{identifier}` | Update role description and assigned permissions | `hasAuthority('role:update')` |
 | `POST` | `/admin/roles/{identifier}/disable` | Disable role and broadcast revocation event | `hasAuthority('role:update')` |
 | `POST` | `/admin/roles/{identifier}/enable` | Re-enable previously disabled role | `hasAuthority('role:update')` |
 | `DELETE` | `/admin/roles/{identifier}` | Soft-delete role and broadcast revocation event | `hasAuthority('role:delete')` |
