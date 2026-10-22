@@ -10,7 +10,11 @@ public record AuthResponse(
         String accessToken,
         String refreshToken,
         String tokenType,
-        long expiresIn) {
+        Long expiresIn,
+        Boolean mfaRequired,
+        String mfaToken,
+        String maskedEmail,
+        Boolean hasRecoveryCodes) {
 
     public static final String TOKEN_TYPE_BEARER = "Bearer";
 }

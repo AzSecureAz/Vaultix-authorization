@@ -9,6 +9,8 @@ import com.vaultix.authorization.dto.LoginRequest;
 import com.vaultix.authorization.dto.RefreshTokenRequest;
 import com.vaultix.authorization.dto.RegisterRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
+import com.vaultix.authorization.dto.mfa.MfaLoginRequest;
+import com.vaultix.authorization.dto.mfa.SendMfaEmailOtpRequest;
 import com.vaultix.common.util.ClientContextUtil.ClientContext;
 
 import jakarta.validation.Valid;
@@ -38,4 +40,13 @@ public interface AuthService {
             @Size(max = 64, message = "Access token JTI cannot exceed 64 characters") String accessTokenJti);
 
     int logoutAll(@NotNull(message = "User ID cannot be null") UUID userId);
+
+    String sendMfaEmailOtp(
+            @NotNull(message = "Request cannot be null")
+            @Valid SendMfaEmailOtpRequest request);
+
+    AuthResponse loginWithMfa(
+            @NotNull(message = "MFA login request cannot be null")
+            @Valid MfaLoginRequest request,
+            ClientContext clientContext);
 }

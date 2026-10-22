@@ -17,6 +17,8 @@ import com.vaultix.authorization.dto.LoginRequest;
 import com.vaultix.authorization.dto.RefreshTokenRequest;
 import com.vaultix.authorization.dto.RegisterRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
+import com.vaultix.authorization.dto.mfa.MfaLoginRequest;
+import com.vaultix.authorization.dto.mfa.SendMfaEmailOtpRequest;
 import com.vaultix.authorization.security.AuthCookieHelper;
 import com.vaultix.authorization.service.AuthService;
 import com.vaultix.common.dto.ApiResponse;
@@ -55,6 +57,11 @@ public class PublicAuthController {
 
         ClientContext clientContext = ClientContextUtil.extract(httpRequest);
         AuthResponse authResponse = authService.login(request, clientContext);
+
+        if (Boolean.TRUE.equals(authResponse.mfaRequired())) {
+            return ResponseEntity.ok(ApiResponse.success("MFA verification required. Please provide your TOTP or recovery code.", authResponse));
+        }
+
         ResponseCookie refreshCookie = authCookieHelper.createRefreshTokenCookie(authResponse.refreshToken(), httpRequest);
 
         return ResponseEntity.ok()
@@ -84,5 +91,27 @@ public class PublicAuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
                 .body(ApiResponse.success("Token refreshed successfully", authResponse));
+    }
+
+    @PostMapping({"/login/mfa/send-email-otp", "/login/mfa/send-otp", "/login/mfa/email-otp"})
+    public ResponseEntity<ApiResponse<Void>> sendMfaEmailOtp(
+            @Valid @RequestBody SendMfaEmailOtpRequest request) {
+
+        String message = authService.sendMfaEmailOtp(request);
+        return ResponseEntity.ok(ApiResponse.success(message));
+    }
+
+    @PostMapping({"/login/mfa", "/login/verify-mfa", "/mfa/verify"})
+    public ResponseEntity<ApiResponse<AuthResponse>> loginWithMfa(
+            @Valid @RequestBody MfaLoginRequest request,
+            HttpServletRequest httpRequest) {
+
+        ClientContext clientContext = ClientContextUtil.extract(httpRequest);
+        AuthResponse authResponse = authService.loginWithMfa(request, clientContext);
+        ResponseCookie refreshCookie = authCookieHelper.createRefreshTokenCookie(authResponse.refreshToken(), httpRequest);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+                .body(ApiResponse.success("Authentication successful", authResponse));
     }
 }

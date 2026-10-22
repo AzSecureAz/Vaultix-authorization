@@ -45,6 +45,10 @@ public record AuthMessagingProperties(
         @NotBlank(message = "MFA disabled routing key is required")
         @Size(max = 256, message = "MFA disabled routing key cannot exceed 256 characters")
         @DefaultValue("auth.notification.mfa-disabled")
-        String mfaDisabledRoutingKey) {
+        String mfaDisabledRoutingKey,
+        @NotBlank(message = "MFA login OTP routing key is required")
+        @Size(max = 256, message = "MFA login OTP routing key cannot exceed 256 characters")
+        @DefaultValue("auth.notification.mfa-login-otp")
+        String mfaLoginOtpRoutingKey) {
 
 }

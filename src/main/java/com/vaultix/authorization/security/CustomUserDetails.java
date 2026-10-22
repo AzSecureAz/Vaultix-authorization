@@ -31,6 +31,8 @@ public class CustomUserDetails implements UserDetails {
     private final String password;
     private final UserStatus status;
     private final Instant lockedUntil;
+    private final boolean mfaEnabled;
+    private final String email;
     private final Collection<? extends GrantedAuthority> authorities;
     private final Map<String, Set<String>> rolePermissions;
 
@@ -40,6 +42,8 @@ public class CustomUserDetails implements UserDetails {
         this.password = user.getPasswordHash();
         this.status = user.getStatus();
         this.lockedUntil = user.getLockedUntil();
+        this.mfaEnabled = user.isMfaEnabled();
+        this.email = user.getEmail();
 
         Map<String, Set<String>> rolePermMap = new HashMap<>();
         Set<GrantedAuthority> auths = new HashSet<>();
