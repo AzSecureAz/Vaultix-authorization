@@ -31,7 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RestController
-@RequestMapping("/admin/signing-keys")
+@RequestMapping({"/admin/signing-keys", "/admin/signing/keys"})
 @RequiredArgsConstructor
 public class AdminSigningKeyController {
 

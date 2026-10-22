@@ -53,7 +53,7 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 - Stored as a **SHA-256 hash** in PostgreSQL (`refresh_tokens` table) to prevent plaintext exposure upon database breach.
 - **Client Context Binding**: Every session persists client `ipAddress`, `deviceInfo` (up to 256 chars), and `locationInfo`.
 - **Generation Tracking (`gen`) & Reuse Detection**: Tokens carry an incrementing generation counter. Presenting a revoked or previously rotated token instantly invalidates the session family.
-- Transmitted as an **`HttpOnly`**, **`SameSite=Strict`** cookie restricted to `/api/v1/auth/refresh` via `AuthCookieHelper`.
+- Transmitted as an **`HttpOnly`**, **`SameSite=Strict`** cookie restricted to `/api/v1/auth/public/refresh` via `AuthCookieHelper`.
 
 ### 4. Real-Time Distributed Revocation
 - **Disabled Roles & Permissions**: When an admin disables a role or permission, the entity status is updated and persisted in Redis hashes (`auth:role:disabled`, `auth:permission:disabled`) with an explicit TTL matching token lifetime.
@@ -75,8 +75,8 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 
 ### 7. Event-Driven Notifications (RabbitMQ)
 - Declares **`auth.exchange`** (`TopicExchange`) for cross-service asynchronous event dispatch.
-- **Welcome Notification**: Dispatched upon user registration (`/register`) with routing key `auth.notification.welcome`.
-- **Password Reset**: Dispatched when requesting password reset (`/password-reset/request`) with a cryptographically secure 6-digit OTP to routing key `auth.notification.password-reset`.
+- **Welcome Notification**: Dispatched upon user registration (`/public/register`) with routing key `auth.notification.welcome`.
+- **Password Reset**: Dispatched when requesting password reset (`/public/password-reset/request`) with a cryptographically secure 6-digit OTP to routing key `auth.notification.password-reset`.
 - **Password Changed**: Dispatched when an authenticated user updates their password (`/password/change`) with security alert details to routing key `auth.notification.password-changed`.
 - **Email Verification**: Dispatched when an authenticated user requests verification (`/email/send-verification`) with a 6-digit OTP and 60-second Redis rate-limit cooldown to routing key `auth.notification.email-verification`.
 - Downstream notification services subscribe using the wildcard pattern **`auth.notification.*`** without coupling to internal authorization logic.
@@ -88,27 +88,32 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 
 ## API Endpoints (`/api/v1/auth`)
 
-### 1. Authentication & Profile Endpoints
+### 1. Public Authentication Endpoints (`/public`)
 
 | Method | Endpoint | Description | Auth Required | Client Context Tracked |
 | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/register` | Register a new user account & dispatch welcome email | No | No |
-| `POST` | `/login` | Authenticate user, issue access token & set refresh cookie | No | Yes (`X-Client-IP`, `X-Device-*`) |
-| `POST` | `/refresh` | Rotate refresh token and issue new access token | Cookie / Body | Yes |
-| `POST` | `/logout` | Revoke current session refresh token and clear cookie | Cookie / Body | No |
-| `POST` | `/logout-all` | Revoke ALL active refresh tokens and blacklist current JWT | Bearer JWT | No |
-| `POST` | `/password-reset/request` | Initiate password reset, generate OTP & publish RabbitMQ event | No | No |
-| `POST` | `/password-reset/confirm` | Validate OTP, update password & invalidate active sessions | No | No |
-| `POST` | `/password/change` | Change authenticated user password, revoke active sessions & alert email | Bearer JWT | No |
-| `PUT` | `/username` | Update authenticated user's unique username | Bearer JWT | No |
-| `POST` | `/username/change` | Alternate endpoint to update authenticated user's unique username | Bearer JWT | No |
-| `POST` | `/email/send-verification` | Send OTP verification code to authenticated user's email (with 60s cooldown) | Bearer JWT | No |
-| `POST` | `/email/verify` | Validate OTP code and mark account email as verified (`email_verified = true`) | Bearer JWT | No |
-| `GET` | `/me`, `/profile` | Retrieve authenticated user profile with roles & permissions | Bearer JWT | No |
+| `POST` | `/public/register` | Register a new user account & dispatch welcome email | No | No |
+| `POST` | `/public/login` | Authenticate user, issue access token & set refresh cookie | No | Yes (`X-Client-IP`, `X-Device-*`) |
+| `POST` | `/public/refresh` | Rotate refresh token and issue new access token | Cookie / Body | Yes |
+| `POST` | `/public/password-reset/request`, `/public/password/reset/request` | Initiate password reset, generate OTP & publish RabbitMQ event | No | No |
+| `POST` | `/public/password-reset/confirm`, `/public/password/reset/confirm` | Validate OTP, update password & invalidate active sessions | No | No |
 | `GET` | `/.well-known/jwks.json` | Public JWK Set containing RSA-2048 verification keys | No | No |
 
+### 2. Authenticated Profile & Session Endpoints
 
-### 2. Admin User Management (`/admin/users`)
+| Method | Endpoint | Description | Auth Required | Client Context Tracked |
+| :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/logout` | Revoke current session refresh token and clear cookie | Cookie / Body | No |
+| `POST` | `/logout-all`, `/logout/all` | Revoke ALL active refresh tokens and blacklist current JWT | Bearer JWT | No |
+| `POST` | `/password/change`, `/password-change` | Change authenticated user password, revoke active sessions & alert email | Bearer JWT | No |
+| `PUT` | `/username` | Update authenticated user's unique username | Bearer JWT | No |
+| `POST` | `/username/change` | Alternate endpoint to update authenticated user's unique username | Bearer JWT | No |
+| `POST` | `/email/send-verification`, `/email/send/verification` | Send OTP verification code to authenticated user's email (with 60s cooldown) | Bearer JWT | No |
+| `POST` | `/email/verify`, `/email-verify` | Validate OTP code and mark account email as verified (`email_verified = true`) | Bearer JWT | No |
+| `GET` | `/me`, `/profile` | Retrieve authenticated user profile with roles & permissions | Bearer JWT | No |
+
+
+### 3. Admin User Management (`/admin/users`)
 
 | Method | Endpoint | Description | PreAuthorize Expression |
 | :--- | :--- | :--- | :--- |
@@ -121,7 +126,7 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 | `DELETE` | `/admin/users/{identifier}` | Soft-delete user and revoke active sessions | `hasAuthority('user:delete')` |
 | `POST` | `/admin/users/{identifier}/restore` | Restore soft-deleted user (placed in DISABLED state) | `hasAuthority('user:restore')` |
 
-### 3. Admin Role Management (`/admin/roles`)
+### 4. Admin Role Management (`/admin/roles`)
 
 | Method | Endpoint | Description | PreAuthorize Expression |
 | :--- | :--- | :--- | :--- |
@@ -134,7 +139,7 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 | `DELETE` | `/admin/roles/{identifier}` | Soft-delete role and broadcast revocation event | `hasAuthority('role:delete')` |
 | `POST` | `/admin/roles/{identifier}/restore` | Restore soft-deleted role (placed in DISABLED state) | `hasAuthority('role:restore')` |
 
-### 4. Admin Permission Management (`/admin/permissions`)
+### 5. Admin Permission Management (`/admin/permissions`)
 
 | Method | Endpoint | Description | PreAuthorize Expression |
 | :--- | :--- | :--- | :--- |
@@ -142,7 +147,7 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 | `GET` | `/admin/permissions/{identifier}` | Retrieve permission by UUID or name | `hasRole('ADMIN') or hasAuthority('permission:read')` |
 | `POST` | `/admin/permissions/{identifier}/disable` | Disable permission and broadcast revocation event | `hasRole('ADMIN')` |
 
-### 5. Admin Signing Key Management (`/admin/signing-keys`)
+### 6. Admin Signing Key Management (`/admin/signing-keys`, `/admin/signing/keys`)
 
 | Method | Endpoint | Description | PreAuthorize Expression |
 | :--- | :--- | :--- | :--- |
@@ -183,6 +188,7 @@ authorization/
     │   ├── controller/
     │   │   ├── AuthController.java
     │   │   ├── JwksController.java
+    │   │   ├── PublicAuthController.java
     │   │   └── admin/
     │   │       ├── AdminPermissionController.java
     │   │       ├── AdminRoleController.java

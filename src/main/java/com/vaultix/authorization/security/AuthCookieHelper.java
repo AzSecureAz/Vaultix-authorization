@@ -19,7 +19,7 @@ import lombok.RequiredArgsConstructor;
 public class AuthCookieHelper {
 
     public static final String REFRESH_TOKEN_COOKIE_NAME = "refresh_token";
-    public static final String REFRESH_COOKIE_PATH = "/api/v1/auth/refresh";
+    public static final String REFRESH_COOKIE_PATH = "/api/v1/auth/public/refresh";
 
     private final JwtProperties jwtProperties;
 

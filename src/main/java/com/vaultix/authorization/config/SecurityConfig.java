@@ -34,7 +34,7 @@ public class SecurityConfig {
                 .logout(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/register", "/login", "/refresh", "/password-reset/**", "/.well-known/jwks.json", "/error").permitAll()
+                        .requestMatchers("/public/**", "/.well-known/**", "/error").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
