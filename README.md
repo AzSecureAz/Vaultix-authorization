@@ -128,6 +128,8 @@ Automated background tasks run on distributed staggered schedules using Spring `
 | `POST` | `/email/verify`, `/email-verify` | Validate OTP code and mark account email as verified (`email_verified = true`) | Bearer JWT | No |
 | `POST`, `PUT` | `/email/change/request`, `/email/change`, `/email/request-change` | Initiate 2-step email change, validate password & send OTP to new email (60s cooldown) | Bearer JWT | No |
 | `POST` | `/email/change/confirm`, `/email/confirm-change` | Validate OTP sent to new email, commit new email (`email_verified = true`) & revoke active sessions | Bearer JWT | No |
+| `POST` | `/mfa/totp/setup`, `/totp/setup`, `/totp/initiate` | Initiate TOTP 2FA setup, encrypt secret with KEK & return Base32 key with QR URI | Bearer JWT | No |
+| `POST` | `/mfa/totp/activate`, `/totp/activate`, `/totp/verify` | Verify 6-digit TOTP code, enable MFA on user account & send security alert email | Bearer JWT | No |
 | `GET` | `/me`, `/profile` | Retrieve authenticated user profile with roles & permissions | Bearer JWT | No |
 
 
@@ -208,6 +210,7 @@ authorization/
     │   │   ├── AccountController.java
     │   │   ├── AuthController.java
     │   │   ├── JwksController.java
+    │   │   ├── TotpController.java
     │   │   ├── admin/
     │   │   │   ├── AdminPermissionController.java
     │   │   │   ├── AdminRoleController.java
@@ -231,21 +234,25 @@ authorization/
     │   │   ├── RevertEmailRequest.java
     │   │   ├── UserProfileDto.java
     │   │   ├── VerifyEmailRequest.java
-    │   │   └── admin/
-    │   │       ├── CreateRoleRequest.java
-    │   │       ├── CreateUserRequest.java
-    │   │       ├── PermissionResponse.java
-    │   │       ├── RoleResponse.java
-    │   │       ├── SigningKeyResponse.java
-    │   │       ├── UpdateRoleRequest.java
-    │   │       ├── UpdateUserRequest.java
-    │   │       └── UserResponse.java
+    │   │   ├── admin/
+    │   │   │   ├── CreateRoleRequest.java
+    │   │   │   ├── CreateUserRequest.java
+    │   │   │   ├── PermissionResponse.java
+    │   │   │   ├── RoleResponse.java
+    │   │   │   ├── SigningKeyResponse.java
+    │   │   │   ├── UpdateRoleRequest.java
+    │   │   │   ├── UpdateUserRequest.java
+    │   │   │   └── UserResponse.java
+    │   │   └── mfa/
+    │   │       ├── TotpSetupResponse.java
+    │   │       └── VerifyTotpRequest.java
     │   ├── entity/
     │   │   ├── Permission.java
     │   │   ├── RefreshToken.java
     │   │   ├── Role.java
     │   │   ├── SigningKey.java
     │   │   ├── User.java
+    │   │   ├── UserTotp.java
     │   │   └── enums/
     │   │       ├── KeyStatus.java
     │   │       ├── PermissionStatus.java
@@ -258,7 +265,8 @@ authorization/
     │   │   ├── RefreshTokenRepository.java
     │   │   ├── RoleRepository.java
     │   │   ├── SigningKeyRepository.java
-    │   │   └── UserRepository.java
+    │   │   ├── UserRepository.java
+    │   │   └── UserTotpRepository.java
     │   ├── scheduler/
     │   │   ├── RefreshTokenScheduler.java
     │   │   ├── RoleScheduler.java
@@ -278,6 +286,7 @@ authorization/
     │   │   ├── RoleService.java
     │   │   ├── SigningKeyService.java
     │   │   ├── TokenService.java
+    │   │   ├── TotpService.java
     │   │   ├── UserService.java
     │   │   └── impl/
     │   │       ├── AccountServiceImpl.java
@@ -288,6 +297,7 @@ authorization/
     │   │       ├── RoleServiceImpl.java
     │   │       ├── SigningKeyServiceImpl.java
     │   │       ├── TokenServiceImpl.java
+    │   │       ├── TotpServiceImpl.java
     │   │       └── UserServiceImpl.java
     │   └── validation/
     │       ├── StrongPassword.java

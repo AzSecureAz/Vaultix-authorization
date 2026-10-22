@@ -37,6 +37,14 @@ public record AuthMessagingProperties(
         @NotBlank(message = "Email reverted routing key is required")
         @Size(max = 256, message = "Email reverted routing key cannot exceed 256 characters")
         @DefaultValue("auth.notification.email-reverted")
-        String emailRevertedRoutingKey) {
+        String emailRevertedRoutingKey,
+        @NotBlank(message = "MFA enabled routing key is required")
+        @Size(max = 256, message = "MFA enabled routing key cannot exceed 256 characters")
+        @DefaultValue("auth.notification.mfa-enabled")
+        String mfaEnabledRoutingKey,
+        @NotBlank(message = "MFA disabled routing key is required")
+        @Size(max = 256, message = "MFA disabled routing key cannot exceed 256 characters")
+        @DefaultValue("auth.notification.mfa-disabled")
+        String mfaDisabledRoutingKey) {
 
 }
