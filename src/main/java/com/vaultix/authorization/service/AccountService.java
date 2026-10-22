@@ -6,6 +6,9 @@ import org.springframework.validation.annotation.Validated;
 
 import com.vaultix.authorization.dto.ChangePasswordRequest;
 import com.vaultix.authorization.dto.ChangeUsernameRequest;
+import com.vaultix.authorization.dto.ConfirmEmailChangeRequest;
+import com.vaultix.authorization.dto.RequestEmailChangeRequest;
+import com.vaultix.authorization.dto.RevertEmailRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
 import com.vaultix.authorization.dto.VerifyEmailRequest;
 
@@ -33,4 +36,18 @@ public interface AccountService {
             @NotNull(message = "User ID cannot be null") UUID userId,
             @NotNull(message = "Verification request cannot be null")
             @Valid VerifyEmailRequest request);
+
+    void requestEmailChange(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            @NotNull(message = "Request email change request cannot be null")
+            @Valid RequestEmailChangeRequest request);
+
+    void confirmEmailChange(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            @NotNull(message = "Confirm email change request cannot be null")
+            @Valid ConfirmEmailChangeRequest request);
+
+    void revertEmail(
+            @NotNull(message = "Revert email request cannot be null")
+            @Valid RevertEmailRequest request);
 }

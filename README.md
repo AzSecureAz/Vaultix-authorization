@@ -97,6 +97,7 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 | `POST` | `/public/refresh` | Rotate refresh token and issue new access token | Cookie / Body | Yes |
 | `POST` | `/public/password-reset/request`, `/public/password/reset/request` | Initiate password reset, generate OTP & publish RabbitMQ event | No | No |
 | `POST` | `/public/password-reset/confirm`, `/public/password/reset/confirm` | Validate OTP, update password & invalidate active sessions | No | No |
+| `POST`, `GET` | `/public/email/revert`, `/public/email-revert` | Revert compromised account email back to previous address using 7-day token & revoke attacker sessions | Token / Query | No |
 | `GET` | `/.well-known/jwks.json` | Public JWK Set containing RSA-2048 verification keys | No | No |
 
 ### 2. Authenticated Profile & Session Endpoints
@@ -109,6 +110,8 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 | `PUT`, `PATCH`, `POST` | `/username`, `/username/change`, `/username-change` | Update authenticated user's unique username | Bearer JWT | No |
 | `POST` | `/email/send-verification`, `/email/send/verification` | Send OTP verification code to authenticated user's email (with 60s cooldown) | Bearer JWT | No |
 | `POST` | `/email/verify`, `/email-verify` | Validate OTP code and mark account email as verified (`email_verified = true`) | Bearer JWT | No |
+| `POST`, `PUT` | `/email/change/request`, `/email/change`, `/email/request-change` | Initiate 2-step email change, validate password & send OTP to new email (60s cooldown) | Bearer JWT | No |
+| `POST` | `/email/change/confirm`, `/email/confirm-change` | Validate OTP sent to new email, commit new email (`email_verified = true`) & revoke active sessions | Bearer JWT | No |
 | `GET` | `/me`, `/profile` | Retrieve authenticated user profile with roles & permissions | Bearer JWT | No |
 
 
@@ -194,17 +197,21 @@ authorization/
     │   │   │   ├── AdminSigningKeyController.java
     │   │   │   └── AdminUserController.java
     │   │   └── pub/
+    │   │       ├── EmailRevertController.java
     │   │       ├── PasswordResetController.java
     │   │       └── PublicAuthController.java
     │   ├── dto/
     │   │   ├── AuthResponse.java
     │   │   ├── ChangePasswordRequest.java
     │   │   ├── ChangeUsernameRequest.java
+    │   │   ├── ConfirmEmailChangeRequest.java
     │   │   ├── LoginRequest.java
     │   │   ├── PasswordResetConfirmRequest.java
     │   │   ├── PasswordResetRequest.java
     │   │   ├── RefreshTokenRequest.java
     │   │   ├── RegisterRequest.java
+    │   │   ├── RequestEmailChangeRequest.java
+    │   │   ├── RevertEmailRequest.java
     │   │   ├── UserProfileDto.java
     │   │   ├── VerifyEmailRequest.java
     │   │   └── admin/
@@ -237,6 +244,7 @@ authorization/
     │   │   └── UserRepository.java
     │   ├── scheduler/
     │   │   ├── RefreshTokenScheduler.java
+    │   │   ├── RoleScheduler.java
     │   │   └── SigningKeyScheduler.java
     │   ├── security/
     │   │   ├── AuthCookieHelper.java

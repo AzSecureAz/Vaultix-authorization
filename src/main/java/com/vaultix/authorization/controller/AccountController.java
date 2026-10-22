@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.vaultix.authorization.dto.ChangePasswordRequest;
 import com.vaultix.authorization.dto.ChangeUsernameRequest;
+import com.vaultix.authorization.dto.ConfirmEmailChangeRequest;
+import com.vaultix.authorization.dto.RequestEmailChangeRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
 import com.vaultix.authorization.dto.VerifyEmailRequest;
 import com.vaultix.authorization.security.AuthCookieHelper;
@@ -90,5 +92,31 @@ public class AccountController {
         UUID userId = SecurityUtil.extractActorId(jwt);
         accountService.verifyEmail(userId, request);
         return ResponseEntity.ok(ApiResponse.success("Email verified successfully"));
+    }
+
+    @RequestMapping(value = {"/email/change/request", "/email/change-request", "/email/request-change", "/email/change"}, method = {RequestMethod.POST, RequestMethod.PUT})
+    public ResponseEntity<ApiResponse<Void>> requestEmailChange(
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
+            @Valid @RequestBody RequestEmailChangeRequest request) {
+
+        UUID userId = SecurityUtil.extractActorId(jwt);
+        accountService.requestEmailChange(userId, request);
+        return ResponseEntity.ok(ApiResponse.success("Verification code sent to your new email address. Please enter the code to complete the email change."));
+    }
+
+    @PostMapping({"/email/change/confirm", "/email/confirm-change", "/email/change-confirm"})
+    public ResponseEntity<ApiResponse<Void>> confirmEmailChange(
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
+            @Valid @RequestBody ConfirmEmailChangeRequest request,
+            HttpServletRequest httpRequest) {
+
+        UUID userId = SecurityUtil.extractActorId(jwt);
+        accountService.confirmEmailChange(userId, request);
+
+        ResponseCookie cleanCookie = authCookieHelper.createCleanCookie(httpRequest);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cleanCookie.toString())
+                .body(ApiResponse.success("Email changed successfully. Please log in with your new email address."));
     }
 }

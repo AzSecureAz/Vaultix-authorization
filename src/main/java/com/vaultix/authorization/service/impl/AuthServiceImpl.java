@@ -5,8 +5,8 @@ import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
@@ -58,6 +58,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final RabbitTemplate rabbitTemplate;
     private final AuthMessagingProperties messagingProperties;
+    private final StringRedisTemplate stringRedisTemplate;
 
     @Override
     @Transactional
@@ -82,6 +83,12 @@ public class AuthServiceImpl implements AuthService {
 
         if (userRepository.existsByEmail(cleanEmail)) {
             throw new ResourceConflictException("User already exists with email: " + cleanEmail);
+        }
+
+        String reservedKey = "auth:reserved-email:" + cleanEmail;
+        if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(reservedKey))) {
+            log.warn("Registration rejected: email '{}' is in a cooling-off reservation period", cleanEmail);
+            throw new ResourceConflictException("Email '" + cleanEmail + "' is currently in a cooling-off reservation period and cannot be registered");
         }
 
         User newUser = User.builder()
