@@ -6,6 +6,7 @@ import java.util.concurrent.TimeUnit;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -13,6 +14,7 @@ import com.vaultix.authorization.service.SigningKeyService;
 
 import lombok.RequiredArgsConstructor;
 
+@Validated
 @RestController
 @RequiredArgsConstructor
 public class JwksController {
@@ -22,7 +24,7 @@ public class JwksController {
     @GetMapping(value = "/.well-known/jwks.json", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> getJwks() {
         return ResponseEntity.ok()
-                .cacheControl(CacheControl.maxAge(15, TimeUnit.MINUTES).cachePublic())
+                .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES).cachePublic())
                 .body(signingKeyService.getJwkSetAsMap());
     }
 }
