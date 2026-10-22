@@ -1,5 +1,6 @@
 package com.vaultix.authorization.service.impl;
 
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
+import com.vaultix.authorization.config.properties.UserProperties;
 import com.vaultix.authorization.dto.admin.CreateUserRequest;
 import com.vaultix.authorization.dto.admin.UpdateUserRequest;
 import com.vaultix.authorization.dto.admin.UserResponse;
@@ -48,6 +50,7 @@ public class UserServiceImpl implements UserService {
     private final RoleRepository roleRepository;
     private final TokenService tokenService;
     private final StringRedisTemplate stringRedisTemplate;
+    private final UserProperties userProperties;
 
     @Override
     @Transactional(readOnly = true)
@@ -395,5 +398,26 @@ public class UserServiceImpl implements UserService {
             throw new AccessDeniedException("Insufficient privilege to " + action + " user '" + targetUser.getUsername()
                     + "' with role level " + targetUserHighestLevel + " (your highest active role level is " + actorHighestLevel + ")");
         }
+    }
+
+    @Override
+    @Transactional
+    public int cleanSoftDeletedUsers() {
+        Instant threshold = Instant.now().minus(userProperties.cleanupGracePeriod());
+
+        int totalDeleted = 0;
+        int deleted;
+        do {
+            deleted = userRepository.deleteSoftDeletedUsersBatch(
+                    threshold,
+                    userProperties.cleanupBatchSize()
+            );
+            totalDeleted += deleted;
+        } while (deleted == userProperties.cleanupBatchSize());
+
+        if (totalDeleted > 0) {
+            log.info("Cleaned up {} soft-deleted users from database (older than {})", totalDeleted, threshold);
+        }
+        return totalDeleted;
     }
 }

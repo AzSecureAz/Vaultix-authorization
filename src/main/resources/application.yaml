@@ -99,6 +99,10 @@ vaultix:
       cleanup-cron: ${VAULTIX_ROLE_CLEANUP_CRON:0 30 2 * * ?}
       cleanup-grace-period: ${VAULTIX_ROLE_CLEANUP_GRACE_PERIOD:30d}
       cleanup-batch-size: ${VAULTIX_ROLE_CLEANUP_BATCH_SIZE:100}
+    user:
+      cleanup-cron: ${VAULTIX_USER_CLEANUP_CRON:0 40 2 * * ?}
+      cleanup-grace-period: ${VAULTIX_USER_CLEANUP_GRACE_PERIOD:90d}
+      cleanup-batch-size: ${VAULTIX_USER_CLEANUP_BATCH_SIZE:100}
     otp:
       length: ${VAULTIX_OTP_LENGTH:6}
       default-ttl: ${VAULTIX_OTP_DEFAULT_TTL:10m}

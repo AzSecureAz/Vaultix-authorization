@@ -55,4 +55,6 @@ public interface UserService {
             @NotBlank(message = "User identifier is required")
             @Size(max = 256, message = "User identifier cannot exceed 256 characters") String identifier,
             @NotNull(message = "Actor ID cannot be null") UUID actorId);
+
+    int cleanSoftDeletedUsers();
 }

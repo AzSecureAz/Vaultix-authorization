@@ -79,10 +79,26 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 - **Password Reset**: Dispatched when requesting password reset (`/public/password-reset/request`) with a cryptographically secure 6-digit OTP to routing key `auth.notification.password-reset`.
 - **Password Changed**: Dispatched when an authenticated user updates their password (`/password/change`) with security alert details to routing key `auth.notification.password-changed`.
 - **Email Verification**: Dispatched when an authenticated user requests verification (`/email/send-verification`) with a 6-digit OTP and 60-second Redis rate-limit cooldown to routing key `auth.notification.email-verification`.
+- **Email Changed**: Dispatched upon confirming an email change (`/email/change/confirm`) with a 7-day secure revert token link sent to the old address to routing key `auth.notification.email-changed`.
+- **Email Reverted**: Dispatched when an email address is reverted via secure token (`/public/email/revert`) notifying the account holder to routing key `auth.notification.email-reverted`.
 - Downstream notification services subscribe using the wildcard pattern **`auth.notification.*`** without coupling to internal authorization logic.
 
 ### 8. Platform-Wide Snake Case JSON (`SNAKE_CASE`)
 - Enforces `spring.jackson.property-naming-strategy: SNAKE_CASE` across all DTOs and endpoints, eliminating manual `@JsonProperty` boilerplate while providing clean REST conventions for clients.
+
+### 9. Distributed Scheduled Maintenance & ShedLock Coordination
+Automated background tasks run on distributed staggered schedules using Spring `@Scheduled` and ShedLock (`@SchedulerLock`) to ensure single-instance execution across multi-node clusters:
+
+| Scheduler | Cron Schedule | Task | Grace Period | Batch Size | Lock Duration (`min` / `max`) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **`SigningKeyScheduler`** | `0 0 2 * * ?` (02:00 AM) | Asymmetric RSA-2048 key rotation | &mdash; | &mdash; | `5m` / `15m` |
+| **`SigningKeyScheduler`** | `0 10 2 * * ?` (02:10 AM) | Purge expired/retired RSA keys | `7d` | `100` | `5m` / `15m` |
+| **`RefreshTokenScheduler`** | `0 20 2 * * ?` (02:20 AM) | Purge expired/revoked refresh sessions | `7d` | `500` | `5m` / `15m` |
+| **`RoleScheduler`** | `0 30 2 * * ?` (02:30 AM) | Hard delete soft-deleted roles | `30d` | `100` | `5m` / `15m` |
+| **`UserScheduler`** | `0 40 2 * * ?` (02:40 AM) | Hard delete soft-deleted users | `90d` | `100` | `5m` / `15m` |
+
+- **Cascading Purges**: Hard deletion of soft-deleted users in PostgreSQL automatically cascades (`ON DELETE CASCADE`) to mapped `user_roles` and associated `refresh_tokens`.
+- **Bounded Batch Processing**: Native SQL subquery deletion loops (`LIMIT :limit`) prevent transaction timeouts and lock contention on high-volume tables.
 
 ---
 
@@ -186,7 +202,8 @@ authorization/
     │   │       ├── KekProperties.java
     │   │       ├── LockoutProperties.java
     │   │       ├── OtpProperties.java
-    │   │       └── RoleProperties.java
+    │   │       ├── RoleProperties.java
+    │   │       └── UserProperties.java
     │   ├── controller/
     │   │   ├── AccountController.java
     │   │   ├── AuthController.java
@@ -245,7 +262,8 @@ authorization/
     │   ├── scheduler/
     │   │   ├── RefreshTokenScheduler.java
     │   │   ├── RoleScheduler.java
-    │   │   └── SigningKeyScheduler.java
+    │   │   ├── SigningKeyScheduler.java
+    │   │   └── UserScheduler.java
     │   ├── security/
     │   │   ├── AuthCookieHelper.java
     │   │   ├── AuthSecurityExpressions.java
