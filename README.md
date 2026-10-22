@@ -304,7 +304,8 @@ authorization/
         ├── application.yaml
         └── db/migration/
             ├── V1__init_auth_schema.sql
-            └── V2__create_signing_keys_schema.sql
+            ├── V2__create_signing_keys_schema.sql
+            └── V3__create_totp_schema.sql
 ```
 
 ---
