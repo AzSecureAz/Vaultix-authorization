@@ -81,6 +81,10 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 - **Email Verification**: Dispatched when an authenticated user requests verification (`/email/send-verification`) with a 6-digit OTP and 60-second Redis rate-limit cooldown to routing key `auth.notification.email-verification`.
 - **Email Changed**: Dispatched upon confirming an email change (`/email/change/confirm`) with a 7-day secure revert token link sent to the old address to routing key `auth.notification.email-changed`.
 - **Email Reverted**: Dispatched when an email address is reverted via secure token (`/public/email/revert`) notifying the account holder to routing key `auth.notification.email-reverted`.
+- **MFA Enabled**: Dispatched when TOTP two-factor authentication is activated (`/mfa/totp/activate`) to routing key `auth.notification.mfa-enabled`.
+- **MFA Disabled**: Dispatched when two-factor authentication is disabled (`/mfa/totp/disable`) to routing key `auth.notification.mfa-disabled`.
+- **MFA Login OTP**: Dispatched when an email one-time code is requested during MFA login (`/public/login/mfa/send-email-otp`) to routing key `auth.notification.mfa-login-otp`.
+- **Emergency Recovery Code Used**: Dispatched when an emergency recovery code is burned to sign in (`/public/login/mfa`), alerting the account holder with remaining code count, IP, device, and timestamp to routing key `auth.notification.recovery-code-used`.
 - Downstream notification services subscribe using the wildcard pattern **`auth.notification.*`** without coupling to internal authorization logic.
 
 ### 8. Platform-Wide Snake Case JSON (`SNAKE_CASE`)

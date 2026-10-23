@@ -5,6 +5,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.HexFormat;
 import java.util.HashSet;
 import java.util.Locale;
@@ -420,22 +422,11 @@ public class AuthServiceImpl implements AuthService {
                 }
                 case "recovery_code", "recovery" -> {
                     /* Direct Emergency Recovery Code verification */
-                    String codeHash = hashRecoveryCode(rawCode);
-                    Optional<UserRecoveryCode> recoveryCodeOpt = userRecoveryCodeRepository
-                            .findByUserIdAndCodeHashAndUsedFalse(userId, codeHash);
-
-                    if (recoveryCodeOpt.isEmpty()) {
+                    boolean codeValid = verifyAndBurnRecoveryCode(userId, rawCode, user, clientContext);
+                    if (!codeValid) {
                         log.warn("MFA login failed: Invalid or used recovery code for user ID: {}", userId);
                         throw new BadCredentialsException("Invalid or already used recovery code");
                     }
-
-                    UserRecoveryCode recoveryCode = recoveryCodeOpt.get();
-                    recoveryCode.setUsed(true);
-                    recoveryCode.setUsedAt(Instant.now());
-                    userRecoveryCodeRepository.save(recoveryCode);
-
-                    long remaining = userRecoveryCodeRepository.countByUserIdAndUsedFalse(userId);
-                    log.warn("Emergency recovery code used for user ID: {}. Remaining codes: {}", userId, remaining);
                     verified = true;
                 }
                 case "totp" -> {
@@ -524,18 +515,7 @@ public class AuthServiceImpl implements AuthService {
                 }
             } else {
                 /* Try Emergency Recovery Code */
-                String codeHash = hashRecoveryCode(rawCode);
-                Optional<UserRecoveryCode> recoveryCodeOpt = userRecoveryCodeRepository
-                        .findByUserIdAndCodeHashAndUsedFalse(userId, codeHash);
-
-                if (recoveryCodeOpt.isPresent()) {
-                    UserRecoveryCode recoveryCode = recoveryCodeOpt.get();
-                    recoveryCode.setUsed(true);
-                    recoveryCode.setUsedAt(Instant.now());
-                    userRecoveryCodeRepository.save(recoveryCode);
-
-                    long remaining = userRecoveryCodeRepository.countByUserIdAndUsedFalse(userId);
-                    log.warn("Emergency recovery code used for user ID: {}. Remaining codes: {}", userId, remaining);
+                if (verifyAndBurnRecoveryCode(userId, rawCode, user, clientContext)) {
                     verified = true;
                 }
             }
@@ -551,6 +531,75 @@ public class AuthServiceImpl implements AuthService {
 
         CustomUserDetails userDetails = new CustomUserDetails(user);
         return tokenService.issueTokens(userDetails, ClientContext.ofNullable(clientContext));
+    }
+
+    private boolean verifyAndBurnRecoveryCode(UUID userId, String rawCode, User user, ClientContext clientContext) {
+        String codeHash = hashRecoveryCode(rawCode);
+        Optional<UserRecoveryCode> recoveryCodeOpt = userRecoveryCodeRepository
+                .findByUserIdAndCodeHashAndUsedFalse(userId, codeHash);
+
+        if (recoveryCodeOpt.isEmpty()) {
+            return false;
+        }
+
+        UserRecoveryCode recoveryCode = recoveryCodeOpt.get();
+        recoveryCode.setUsed(true);
+        recoveryCode.setUsedAt(Instant.now());
+        userRecoveryCodeRepository.save(recoveryCode);
+
+        long remaining = userRecoveryCodeRepository.countByUserIdAndUsedFalse(userId);
+        log.warn("Emergency recovery code used for user ID: {}. Remaining codes: {}", userId, remaining);
+        sendRecoveryCodeUsedAlert(user, remaining, clientContext);
+        return true;
+    }
+
+    private void sendRecoveryCodeUsedAlert(User user, long remainingCodes, ClientContext clientContext) {
+        ClientContext context = ClientContext.ofNullable(clientContext);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm:ss 'UTC'").withZone(ZoneOffset.UTC);
+        String formattedUsedAt = formatter.format(Instant.now());
+
+        Runnable dispatchTask = () -> {
+            try {
+                NotificationEvent event = NotificationEvent.builder()
+                        .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
+                        .templateCode("auth.recovery-code-used")
+                        .channel(NotificationChannel.EMAIL)
+                        .recipient(user.getEmail())
+                        .recipientName(user.getFullName() != null && !user.getFullName().isBlank() ? user.getFullName() : user.getUsername())
+                        .subject("Vaultix - Security Alert: Emergency Recovery Code Used")
+                        .params(Map.of(
+                                "username", user.getUsername(),
+                                "email", user.getEmail(),
+                                "remainingCodes", String.valueOf(remainingCodes),
+                                "usedAt", formattedUsedAt,
+                                "ipAddress", context.ip(),
+                                "deviceInfo", context.deviceInfo(),
+                                "location", context.location()
+                        ))
+                        .createdAt(Instant.now())
+                        .build();
+
+                rabbitTemplate.convertAndSend(
+                        messagingProperties.exchange(),
+                        messagingProperties.recoveryCodeUsedRoutingKey(),
+                        event);
+                log.info("Dispatched emergency recovery code used alert to exchange '{}' with routing key '{}' for user: {}",
+                        messagingProperties.exchange(), messagingProperties.recoveryCodeUsedRoutingKey(), user.getUsername());
+            } catch (Exception ex) {
+                log.warn("Failed to dispatch recovery code used notification for user '{}': {}", user.getUsername(), ex.getMessage());
+            }
+        };
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    dispatchTask.run();
+                }
+            });
+        } else {
+            dispatchTask.run();
+        }
     }
 
     private String hashRecoveryCode(String rawCode) {

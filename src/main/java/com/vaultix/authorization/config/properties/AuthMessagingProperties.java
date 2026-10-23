@@ -49,6 +49,10 @@ public record AuthMessagingProperties(
         @NotBlank(message = "MFA login OTP routing key is required")
         @Size(max = 256, message = "MFA login OTP routing key cannot exceed 256 characters")
         @DefaultValue("auth.notification.mfa-login-otp")
-        String mfaLoginOtpRoutingKey) {
+        String mfaLoginOtpRoutingKey,
+        @NotBlank(message = "Recovery code used routing key is required")
+        @Size(max = 256, message = "Recovery code used routing key cannot exceed 256 characters")
+        @DefaultValue("auth.notification.recovery-code-used")
+        String recoveryCodeUsedRoutingKey) {
 
 }

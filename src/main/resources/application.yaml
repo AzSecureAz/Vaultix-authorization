@@ -115,3 +115,7 @@ vaultix:
     password-changed-routing-key: ${VAULTIX_RABBITMQ_AUTH_PASSWORD_CHANGED_ROUTING_KEY:auth.notification.password-changed}
     email-changed-routing-key: ${VAULTIX_RABBITMQ_AUTH_EMAIL_CHANGED_ROUTING_KEY:auth.notification.email-changed}
     email-reverted-routing-key: ${VAULTIX_RABBITMQ_AUTH_EMAIL_REVERTED_ROUTING_KEY:auth.notification.email-reverted}
+    mfa-enabled-routing-key: ${VAULTIX_RABBITMQ_AUTH_MFA_ENABLED_ROUTING_KEY:auth.notification.mfa-enabled}
+    mfa-disabled-routing-key: ${VAULTIX_RABBITMQ_AUTH_MFA_DISABLED_ROUTING_KEY:auth.notification.mfa-disabled}
+    mfa-login-otp-routing-key: ${VAULTIX_RABBITMQ_AUTH_MFA_LOGIN_OTP_ROUTING_KEY:auth.notification.mfa-login-otp}
+    recovery-code-used-routing-key: ${VAULTIX_RABBITMQ_AUTH_RECOVERY_CODE_USED_ROUTING_KEY:auth.notification.recovery-code-used}
