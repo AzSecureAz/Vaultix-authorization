@@ -1,6 +1,7 @@
 -- =============================================================================
--- Migration: V1__init_auth_schema.sql
--- Description: Core authentication, RBAC, sessions, and audit schema with native UUIDv7
+-- Vaultix Authorization Service - Flyway Migration V1
+-- Schema: Hierarchical Roles, Permissions, Role Mappings, and Baseline Seed
+-- Database: PostgreSQL 18+ (using native uuidv7)
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -47,64 +48,7 @@ CREATE TABLE IF NOT EXISTS role_permissions (
 );
 
 -- -----------------------------------------------------------------------------
--- 4. Users Table
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS users (
-    id UUID PRIMARY KEY DEFAULT uuidv7(),
-    username VARCHAR(128) NOT NULL UNIQUE,
-    email VARCHAR(256) NOT NULL UNIQUE,
-    password_hash VARCHAR(256),
-    full_name VARCHAR(256),
-    phone_number VARCHAR(32),
-    status VARCHAR(16) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'DISABLED', 'LOCKED', 'DELETED')),
-    email_verified BOOLEAN NOT NULL DEFAULT FALSE,
-    mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE,
-    passkey_enabled BOOLEAN NOT NULL DEFAULT FALSE,
-    has_social_accounts BOOLEAN NOT NULL DEFAULT FALSE,
-    failed_login_attempts INT NOT NULL DEFAULT 0,
-    locked_until TIMESTAMPTZ,
-    last_login_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID,
-    updated_at TIMESTAMPTZ,
-    updated_by UUID
-);
-
-CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);
-
--- -----------------------------------------------------------------------------
--- 5. User Roles Mapping Table
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS user_roles (
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    role_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
-    PRIMARY KEY (user_id, role_id)
-);
-
--- -----------------------------------------------------------------------------
--- 6. Refresh Tokens Table (Device Session Store)
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS refresh_tokens (
-    id UUID PRIMARY KEY DEFAULT uuidv7(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    refresh_token_jti UUID NOT NULL UNIQUE,
-    access_token_jti UUID NOT NULL UNIQUE,
-    gen INT NOT NULL DEFAULT 1 CHECK (gen >= 1),
-    device_info VARCHAR(256) NOT NULL,
-    ip_address VARCHAR(64) NOT NULL,
-    location_info VARCHAR(256) NOT NULL,
-    revoked BOOLEAN NOT NULL DEFAULT FALSE,
-    revoked_at TIMESTAMPTZ,
-    expires_at TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ
-);
-
-CREATE INDEX IF NOT EXISTS idx_refresh_tokens_active_user ON refresh_tokens(user_id) WHERE revoked = FALSE;
-CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
-
--- -----------------------------------------------------------------------------
--- 7. Seed Default Roles and Permissions
+-- 4. Seed Default Roles and Permissions
 -- -----------------------------------------------------------------------------
 INSERT INTO roles (name, description, level) VALUES
     ('ROLE_ADMIN', 'Platform administrator with administrative privileges', 1000)

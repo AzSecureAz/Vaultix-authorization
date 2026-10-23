@@ -1,5 +1,5 @@
 -- =============================================================================
--- Vaultix Authorization Service - Flyway Migration V4
+-- Vaultix Authorization Service - Flyway Migration V6
 -- Schema: MFA Emergency Recovery Codes Store
 -- Database: PostgreSQL 18+ (using native uuidv7)
 -- =============================================================================

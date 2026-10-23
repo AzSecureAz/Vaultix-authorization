@@ -1,5 +1,5 @@
 -- =============================================================================
--- Vaultix Authorization Service - Flyway Migration V3
+-- Vaultix Authorization Service - Flyway Migration V5
 -- Schema: Time-Based One-Time Password (TOTP) Authenticator Store
 -- Database: PostgreSQL 18+ (using native uuidv7)
 -- =============================================================================
