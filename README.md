@@ -104,6 +104,12 @@ Automated background tasks run on distributed staggered schedules using Spring `
 - **Cascading Purges**: Hard deletion of soft-deleted users in PostgreSQL automatically cascades (`ON DELETE CASCADE`) to mapped `user_roles` and associated `refresh_tokens`.
 - **Bounded Batch Processing**: Native SQL subquery deletion loops (`LIMIT :limit`) prevent transaction timeouts and lock contention on high-volume tables.
 
+### 10. Multi-Factor Authentication (TOTP, Email OTP & Emergency Recovery Codes)
+- **RFC 6238 TOTP Authenticator**: Generates 20-byte cryptographically secure secrets encoded in Base32. The private secret is encrypted at rest using authenticated **AES-256 GCM** with the platform Key Encryption Key (`KEK`). Enforces strict 30-second time-steps with a $\pm 1$ drift tolerance window (90-second validity) and replay protection via database tracking (`last_used_step`).
+- **Single-Use Emergency Recovery Codes**: Generates 10 single-use `xxxxx-xxxxx` codes upon TOTP activation. Plaintext codes are normalized and stored as **SHA-256 hashes** in PostgreSQL (`user_recovery_codes`). Using a recovery code permanently burns the entry and triggers an immediate security alert email (`auth.notification.recovery-code-used`) reporting the remaining code count, IP address, device info, and UTC timestamp.
+- **On-Demand Email OTP Fallback**: Ephemeral 6-digit OTP stored in Redis (`mfa-login:<user_id>`) with an active 60-second rate-limiting cooldown and dynamic PII masking (`MaskUtil`) on email and username across all public challenge responses.
+- **Zero-Waste Factor Routing**: The `/public/login/mfa` verification endpoint routes using an explicit `factor` parameter (`"totp"`, `"email"`, `"recovery_code"`). Direct factor routing verifies email OTPs in Redis (<1ms) without executing unnecessary database lookups or AES-256/HMAC crypto, while maintaining seamless auto-detection when `factor` is omitted.
+
 ---
 
 ## API Endpoints (`/api/v1/auth`)
@@ -117,7 +123,7 @@ Automated background tasks run on distributed staggered schedules using Spring `
 | `POST` | `/public/refresh` | Rotate refresh token and issue new access token | Cookie / Body | Yes |
 | `POST` | `/public/password-reset/request`, `/public/password/reset/request` | Initiate password reset, generate OTP & publish RabbitMQ event | No | No |
 | `POST` | `/public/password-reset/confirm`, `/public/password/reset/confirm` | Validate OTP, update password & invalidate active sessions | No | No |
-| `POST` | `/public/login/mfa/send-email-otp`, `/public/login/mfa/send-otp` | Dispatch 6-digit one-time code to verified account email for secondary MFA login (60s cooldown) | No (MFA Token) | No |
+| `POST` | `/public/login/mfa/send-email-otp`, `/public/login/mfa/send-otp`, `/public/login/mfa/email-otp` | Dispatch 6-digit one-time code to verified account email for secondary MFA login (60s cooldown) | No (MFA Token) | No |
 | `POST` | `/public/login/mfa`, `/public/login/verify-mfa`, `/public/mfa/verify` | Complete login by verifying 6-digit TOTP, 6-digit Email OTP, or Emergency Recovery Code | No (MFA Token) | Yes (`X-Client-IP`, `X-Device-*`) |
 | `POST`, `GET` | `/public/email/revert`, `/public/email-revert` | Revert compromised account email back to previous address using 7-day token & revoke attacker sessions | Token / Query | No |
 | `GET` | `/.well-known/jwks.json` | Public JWK Set containing RSA-2048 verification keys | No | No |
@@ -331,6 +337,66 @@ authorization/
             ├── V3__create_totp_schema.sql
             └── V4__create_recovery_codes_schema.sql
 ```
+
+---
+
+## Configuration Reference
+
+Configurable via `src/main/resources/application.yaml` or environment variables:
+
+| Environment Variable | Default Value | Description |
+| :--- | :--- | :--- |
+| `PORT` | `8082` | HTTP server port |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/vaultix_auth_db` | PostgreSQL JDBC connection URL |
+| `SPRING_DATASOURCE_USERNAME` | `auth_user` | PostgreSQL connection username |
+| `SPRING_DATASOURCE_PASSWORD` | `auth_password` | PostgreSQL connection password |
+| `VAULTIX_ADMIN_ENABLED` | `true` | Enables initial admin bootstrapping on startup |
+| `VAULTIX_ADMIN_USERNAME` | `admin` | Bootstrap administrator username |
+| `VAULTIX_ADMIN_EMAIL` | `admin@vaultix.com` | Bootstrap administrator email address |
+| `VAULTIX_ADMIN_FULL_NAME` | `Vaultix Administrator` | Bootstrap administrator full name |
+| `VAULTIX_SECURITY_KEK_MASTER_KEY` | `3xhw5B4DZicmirWLS4h3ZkA4pBFZwyKlG6cvEYvdf7I=` | Master Key Encryption Key (KEK) for AES-256 GCM encryption at rest |
+| `VAULTIX_AUTH_LOCKOUT_MAX_FAILED_ATTEMPTS` | `5` | Maximum failed password attempts before account lockout |
+| `VAULTIX_AUTH_LOCKOUT_DURATION` | `15m` | Account lockout duration |
+| `SPRING_DATA_REDIS_HOST` | `localhost` | Redis server hostname |
+| `SPRING_DATA_REDIS_PORT` | `6379` | Redis server port |
+| `SPRING_DATA_REDIS_USERNAME` | `auth_user` | Redis ACL connection username |
+| `SPRING_DATA_REDIS_PASSWORD` | `auth_password` | Redis ACL connection password |
+| `SPRING_RABBITMQ_HOST` | `localhost` | RabbitMQ broker hostname |
+| `SPRING_RABBITMQ_PORT` | `5672` | RabbitMQ broker port |
+| `SPRING_RABBITMQ_USERNAME` | `auth_user` | RabbitMQ connection username |
+| `SPRING_RABBITMQ_PASSWORD` | `auth_password` | RabbitMQ connection password |
+| `SPRING_RABBITMQ_VIRTUAL_HOST` | `/` | RabbitMQ virtual host |
+| `VAULTIX_JWT_ISSUER` | `https://auth.vaultix.com` | JWT issuer (`iss`) claim |
+| `VAULTIX_JWT_ACCESS_TOKEN_EXPIRATION` | `5m` | JWT access token lifespan |
+| `VAULTIX_JWT_REFRESH_TOKEN_EXPIRATION` | `7d` | Refresh token session lifespan |
+| `VAULTIX_KEY_ROTATION_CRON` | `0 0 2 * * ?` | Cron expression for asymmetric RSA key rotation (daily at 02:00 AM) |
+| `VAULTIX_KEY_CLEANUP_CRON` | `0 10 2 * * ?` | Cron expression for retired RSA key cleanup (daily at 02:10 AM) |
+| `VAULTIX_KEY_CLEANUP_GRACE_PERIOD` | `7d` | Grace period before hard deleting retired RSA keys |
+| `VAULTIX_KEY_CLEANUP_BATCH_SIZE` | `100` | Deletion batch size for key cleanup |
+| `VAULTIX_REFRESH_TOKEN_CLEANUP_CRON` | `0 20 2 * * ?` | Cron expression for revoked refresh token cleanup (daily at 02:20 AM) |
+| `VAULTIX_REFRESH_TOKEN_CLEANUP_GRACE_PERIOD` | `7d` | Grace period before hard deleting revoked refresh tokens |
+| `VAULTIX_REFRESH_TOKEN_CLEANUP_BATCH_SIZE` | `500` | Deletion batch size for refresh token cleanup |
+| `VAULTIX_ROLE_CLEANUP_CRON` | `0 30 2 * * ?` | Cron expression for soft-deleted roles cleanup (daily at 02:30 AM) |
+| `VAULTIX_ROLE_CLEANUP_GRACE_PERIOD` | `30d` | Grace period before hard deleting soft-deleted roles |
+| `VAULTIX_ROLE_CLEANUP_BATCH_SIZE` | `100` | Deletion batch size for role cleanup |
+| `VAULTIX_USER_CLEANUP_CRON` | `0 40 2 * * ?` | Cron expression for soft-deleted users cleanup (daily at 02:40 AM) |
+| `VAULTIX_USER_CLEANUP_GRACE_PERIOD` | `90d` | Grace period before hard deleting soft-deleted users |
+| `VAULTIX_USER_CLEANUP_BATCH_SIZE` | `100` | Deletion batch size for user cleanup |
+| `VAULTIX_OTP_LENGTH` | `6` | Length of generated OTP codes |
+| `VAULTIX_OTP_DEFAULT_TTL` | `10m` | Default time-to-live for email and password reset OTPs |
+| `VAULTIX_OTP_MAX_ATTEMPTS` | `5` | Maximum failed OTP attempts before invalidation |
+| `VAULTIX_RABBITMQ_AUTH_EXCHANGE` | `auth.exchange` | RabbitMQ topic exchange for auth events |
+| `VAULTIX_RABBITMQ_AUTH_PASSWORD_RESET_ROUTING_KEY` | `auth.notification.password-reset` | Routing key for password reset OTP events |
+| `VAULTIX_RABBITMQ_AUTH_EMAIL_VERIFICATION_ROUTING_KEY` | `auth.notification.email-verification` | Routing key for email verification OTP events |
+| `VAULTIX_RABBITMQ_AUTH_WELCOME_ROUTING_KEY` | `auth.notification.welcome` | Routing key for user welcome registration events |
+| `VAULTIX_RABBITMQ_AUTH_PASSWORD_CHANGED_ROUTING_KEY` | `auth.notification.password-changed` | Routing key for password change security alerts |
+| `VAULTIX_RABBITMQ_AUTH_EMAIL_CHANGED_ROUTING_KEY` | `auth.notification.email-changed` | Routing key for email change revert token events |
+| `VAULTIX_RABBITMQ_AUTH_EMAIL_REVERTED_ROUTING_KEY` | `auth.notification.email-reverted` | Routing key for email revert confirmation events |
+| `VAULTIX_RABBITMQ_AUTH_MFA_ENABLED_ROUTING_KEY` | `auth.notification.mfa-enabled` | Routing key for MFA activation security alerts |
+| `VAULTIX_RABBITMQ_AUTH_MFA_DISABLED_ROUTING_KEY` | `auth.notification.mfa-disabled` | Routing key for MFA disablement security alerts |
+| `VAULTIX_RABBITMQ_AUTH_MFA_LOGIN_OTP_ROUTING_KEY` | `auth.notification.mfa-login-otp` | Routing key for MFA secondary login OTP dispatch |
+| `VAULTIX_RABBITMQ_AUTH_RECOVERY_CODE_USED_ROUTING_KEY` | `auth.notification.recovery-code-used` | Routing key for emergency recovery code security alerts |
+| `EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE` | `http://localhost:8761/eureka/` | Eureka Service Discovery registry URL |
 
 ---
 
