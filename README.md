@@ -138,6 +138,8 @@ Automated background tasks run on distributed staggered schedules using Spring `
 | `PUT`, `PATCH`, `POST` | `/username`, `/username/change`, `/username-change` | Update authenticated user's unique username | Bearer JWT | No |
 | `POST` | `/email/send-verification`, `/email/send/verification` | Send OTP verification code to authenticated user's email (with 60s cooldown) | Bearer JWT | No |
 | `POST` | `/email/verify`, `/email-verify` | Validate OTP code and mark account email as verified (`email_verified = true`) | Bearer JWT | No |
+| `POST` | `/phone/send-verification`, `/phone/send/verification` | Send OTP verification code via SMS to authenticated user's phone number (60s cooldown) | Bearer JWT | No |
+| `POST` | `/phone/verify`, `/phone-verify` | Validate OTP code and mark account phone number as verified (`phone_number_verified = true`) | Bearer JWT | No |
 | `POST`, `PUT` | `/email/change/request`, `/email/change`, `/email/request-change` | Initiate 2-step email change, validate password & send OTP to new email (60s cooldown) | Bearer JWT | No |
 | `POST` | `/email/change/confirm`, `/email/confirm-change` | Validate OTP sent to new email, commit new email (`email_verified = true`) & revoke active sessions | Bearer JWT | No |
 | `POST` | `/mfa/totp/setup`, `/totp/setup`, `/totp/initiate` | Initiate TOTP 2FA setup, encrypt secret with KEK & return Base32 key with QR URI | Bearer JWT | No |
@@ -247,6 +249,7 @@ authorization/
     │   │   ├── RevertEmailRequest.java
     │   │   ├── UserProfileDto.java
     │   │   ├── VerifyEmailRequest.java
+    │   │   ├── VerifyPhoneNumberRequest.java
     │   │   ├── admin/
     │   │   │   ├── CreateRoleRequest.java
     │   │   │   ├── CreateUserRequest.java

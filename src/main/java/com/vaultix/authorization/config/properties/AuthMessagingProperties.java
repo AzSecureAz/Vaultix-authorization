@@ -22,6 +22,10 @@ public record AuthMessagingProperties(
         @Size(max = 256, message = "Email verification routing key cannot exceed 256 characters")
         @DefaultValue("auth.notification.email-verification")
         String emailVerificationRoutingKey,
+        @NotBlank(message = "Phone verification routing key is required")
+        @Size(max = 256, message = "Phone verification routing key cannot exceed 256 characters")
+        @DefaultValue("auth.notification.phone-verification")
+        String phoneVerificationRoutingKey,
         @NotBlank(message = "Welcome routing key is required")
         @Size(max = 256, message = "Welcome routing key cannot exceed 256 characters")
         @DefaultValue("auth.notification.welcome")

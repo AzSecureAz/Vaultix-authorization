@@ -11,6 +11,7 @@ import com.vaultix.authorization.dto.RequestEmailChangeRequest;
 import com.vaultix.authorization.dto.RevertEmailRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
 import com.vaultix.authorization.dto.VerifyEmailRequest;
+import com.vaultix.authorization.dto.VerifyPhoneNumberRequest;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -36,6 +37,13 @@ public interface AccountService {
             @NotNull(message = "User ID cannot be null") UUID userId,
             @NotNull(message = "Verification request cannot be null")
             @Valid VerifyEmailRequest request);
+
+    void sendPhoneNumberVerification(@NotNull(message = "User ID cannot be null") UUID userId);
+
+    void verifyPhoneNumber(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            @NotNull(message = "Verification request cannot be null")
+            @Valid VerifyPhoneNumberRequest request);
 
     void requestEmailChange(
             @NotNull(message = "User ID cannot be null") UUID userId,

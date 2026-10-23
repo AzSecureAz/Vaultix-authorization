@@ -26,6 +26,7 @@ import com.vaultix.authorization.dto.RequestEmailChangeRequest;
 import com.vaultix.authorization.dto.RevertEmailRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
 import com.vaultix.authorization.dto.VerifyEmailRequest;
+import com.vaultix.authorization.dto.VerifyPhoneNumberRequest;
 import com.vaultix.authorization.entity.User;
 import com.vaultix.authorization.entity.enums.UserStatus;
 import com.vaultix.authorization.repository.UserRepository;
@@ -51,6 +52,8 @@ public class AccountServiceImpl implements AccountService {
 
     private static final String REDIS_COOLDOWN_EMAIL_VERIFICATION_PREFIX = "auth:cooldown:email-verification:";
     private static final Duration EMAIL_VERIFICATION_COOLDOWN_DURATION = Duration.ofSeconds(60);
+    private static final String REDIS_COOLDOWN_PHONE_VERIFICATION_PREFIX = "auth:cooldown:phone-verification:";
+    private static final Duration PHONE_VERIFICATION_COOLDOWN_DURATION = Duration.ofSeconds(60);
     private static final String REDIS_COOLDOWN_EMAIL_CHANGE_PREFIX = "auth:cooldown:email-change:";
     private static final String REDIS_PENDING_EMAIL_CHANGE_PREFIX = "auth:pending:email-change:";
     private static final Duration EMAIL_CHANGE_COOLDOWN_DURATION = Duration.ofSeconds(60);
@@ -279,6 +282,106 @@ public class AccountServiceImpl implements AccountService {
         stringRedisTemplate.delete(cooldownKey);
 
         log.info("Email successfully verified for user: {}", user.getUsername());
+    }
+
+    @Override
+    public void sendPhoneNumberVerification(@NotNull(message = "User ID cannot be null") UUID userId) {
+        log.info("Processing phone verification request for user id: {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        if (user.getStatus() == UserStatus.DISABLED || user.getStatus() == UserStatus.DELETED) {
+            log.warn("Phone verification request rejected for {} user: {}", user.getStatus(), user.getUsername());
+            throw new BadRequestException("Account is " + user.getStatus().name().toLowerCase(Locale.ROOT) + ". Please contact support.");
+        }
+
+        if (user.getPhoneNumber() == null || user.getPhoneNumber().isBlank()) {
+            log.warn("Phone verification requested for user without phone number: {}", user.getUsername());
+            throw new BadRequestException("No phone number registered for this account");
+        }
+
+        if (user.isPhoneNumberVerified()) {
+            log.info("Phone verification requested for already verified user: {}", user.getUsername());
+            throw new BadRequestException("Phone number is already verified");
+        }
+
+        String cooldownKey = REDIS_COOLDOWN_PHONE_VERIFICATION_PREFIX + user.getId();
+        Boolean hasCooldown = stringRedisTemplate.hasKey(cooldownKey);
+        if (Boolean.TRUE.equals(hasCooldown)) {
+            Long remainingTtl = stringRedisTemplate.getExpire(cooldownKey, TimeUnit.SECONDS);
+            long waitSeconds = (remainingTtl != null && remainingTtl > 0) ? remainingTtl : PHONE_VERIFICATION_COOLDOWN_DURATION.toSeconds();
+            log.warn("Phone verification rate-limited for user: {}. Wait time: {}s", user.getUsername(), waitSeconds);
+            throw new BadRequestException("Please wait " + waitSeconds + " seconds before requesting another verification code");
+        }
+
+        String otp = otpService.generateOtp("phone-verification", user.getId().toString());
+        stringRedisTemplate.opsForValue().set(cooldownKey, "1", PHONE_VERIFICATION_COOLDOWN_DURATION);
+        log.info("Generated phone verification OTP for user: {}", user.getUsername());
+
+        NotificationEvent event = NotificationEvent.builder()
+                .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
+                .templateCode("auth.phone-verification")
+                .channel(NotificationChannel.SMS)
+                .recipient(user.getPhoneNumber())
+                .recipientName(user.getFullName() != null && !user.getFullName().isBlank() ? user.getFullName() : user.getUsername())
+                .subject("Vaultix - Phone Verification Code")
+                .params(Map.of(
+                        "otp", otp,
+                        "expiresInMinutes", otpProperties.defaultTtl().toMinutes()
+                ))
+                .createdAt(Instant.now())
+                .build();
+
+        rabbitTemplate.convertAndSend(
+                messagingProperties.exchange(),
+                messagingProperties.phoneVerificationRoutingKey(),
+                event);
+        log.info("Dispatched phone verification notification event to exchange '{}' with routing key '{}' for user: {}",
+                messagingProperties.exchange(), messagingProperties.phoneVerificationRoutingKey(), user.getUsername());
+    }
+
+    @Override
+    @Transactional
+    public void verifyPhoneNumber(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            @NotNull(message = "Verification request cannot be null")
+            @Valid VerifyPhoneNumberRequest request) {
+
+        log.info("Processing phone verification for user id: {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        if (user.getStatus() == UserStatus.DISABLED || user.getStatus() == UserStatus.DELETED) {
+            log.warn("Phone verification rejected for {} user: {}", user.getStatus(), user.getUsername());
+            throw new BadRequestException("Account is " + user.getStatus().name().toLowerCase(Locale.ROOT) + ". Please contact support.");
+        }
+
+        if (user.getPhoneNumber() == null || user.getPhoneNumber().isBlank()) {
+            log.warn("Phone verification attempted for user without phone number: {}", user.getUsername());
+            throw new BadRequestException("No phone number registered for this account");
+        }
+
+        if (user.isPhoneNumberVerified()) {
+            log.info("User {} phone number is already verified, returning success", user.getUsername());
+            return;
+        }
+
+        boolean isValid = otpService.verifyOtp("phone-verification", user.getId().toString(), request.otp().strip());
+        if (!isValid) {
+            log.warn("Invalid or expired phone verification OTP supplied for user: {}", user.getUsername());
+            throw new BadRequestException("Invalid or expired verification code");
+        }
+
+        user.setPhoneNumberVerified(true);
+        user.setUpdatedBy(userId);
+        userRepository.save(user);
+
+        String cooldownKey = REDIS_COOLDOWN_PHONE_VERIFICATION_PREFIX + user.getId();
+        stringRedisTemplate.delete(cooldownKey);
+
+        log.info("Phone number successfully verified for user: {}", user.getUsername());
     }
 
     @Override

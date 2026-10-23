@@ -21,6 +21,7 @@ import com.vaultix.authorization.dto.ConfirmEmailChangeRequest;
 import com.vaultix.authorization.dto.RequestEmailChangeRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
 import com.vaultix.authorization.dto.VerifyEmailRequest;
+import com.vaultix.authorization.dto.VerifyPhoneNumberRequest;
 import com.vaultix.authorization.security.AuthCookieHelper;
 import com.vaultix.authorization.service.AccountService;
 import com.vaultix.common.dto.ApiResponse;
@@ -94,6 +95,25 @@ public class AccountController {
         UUID userId = SecurityUtil.extractActorId(jwt);
         accountService.verifyEmail(userId, request);
         return ResponseEntity.ok(ApiResponse.success("Email verified successfully"));
+    }
+
+    @PostMapping({"/phone/send-verification", "/phone/send/verification", "/phone/verification/send"})
+    public ResponseEntity<ApiResponse<Void>> sendPhoneNumberVerification(
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
+
+        UUID userId = SecurityUtil.extractActorId(jwt);
+        accountService.sendPhoneNumberVerification(userId);
+        return ResponseEntity.ok(ApiResponse.success("Verification code sent to your phone number"));
+    }
+
+    @PostMapping({"/phone/verify", "/phone-verify"})
+    public ResponseEntity<ApiResponse<Void>> verifyPhoneNumber(
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
+            @Valid @RequestBody VerifyPhoneNumberRequest request) {
+
+        UUID userId = SecurityUtil.extractActorId(jwt);
+        accountService.verifyPhoneNumber(userId, request);
+        return ResponseEntity.ok(ApiResponse.success("Phone number verified successfully"));
     }
 
     @RequestMapping(value = {"/email/change/request", "/email/change-request", "/email/request-change", "/email/change"}, method = {RequestMethod.POST, RequestMethod.PUT})
