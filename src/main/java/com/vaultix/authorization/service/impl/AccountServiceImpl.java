@@ -22,7 +22,9 @@ import com.vaultix.authorization.config.properties.OtpProperties;
 import com.vaultix.authorization.dto.ChangePasswordRequest;
 import com.vaultix.authorization.dto.ChangeUsernameRequest;
 import com.vaultix.authorization.dto.ConfirmEmailChangeRequest;
+import com.vaultix.authorization.dto.ConfirmPhoneNumberChangeRequest;
 import com.vaultix.authorization.dto.RequestEmailChangeRequest;
+import com.vaultix.authorization.dto.RequestPhoneNumberChangeRequest;
 import com.vaultix.authorization.dto.RevertEmailRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
 import com.vaultix.authorization.dto.VerifyEmailRequest;
@@ -57,6 +59,9 @@ public class AccountServiceImpl implements AccountService {
     private static final String REDIS_COOLDOWN_EMAIL_CHANGE_PREFIX = "auth:cooldown:email-change:";
     private static final String REDIS_PENDING_EMAIL_CHANGE_PREFIX = "auth:pending:email-change:";
     private static final Duration EMAIL_CHANGE_COOLDOWN_DURATION = Duration.ofSeconds(60);
+    private static final String REDIS_COOLDOWN_PHONE_CHANGE_PREFIX = "auth:cooldown:phone-change:";
+    private static final String REDIS_PENDING_PHONE_CHANGE_PREFIX = "auth:pending:phone-change:";
+    private static final Duration PHONE_CHANGE_COOLDOWN_DURATION = Duration.ofSeconds(60);
     private static final String REDIS_REVERT_EMAIL_PREFIX = "auth:revert-email:";
     public static final String REDIS_RESERVED_EMAIL_PREFIX = "auth:reserved-email:";
     private static final Duration EMAIL_REVERT_WINDOW = Duration.ofDays(7);
@@ -140,12 +145,7 @@ public class AccountServiceImpl implements AccountService {
             throw new BadRequestException("No password is set for this account. Please use password reset to establish a password.");
         }
 
-        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
-            log.warn("Password change failed: incorrect current password supplied for user: {}", user.getUsername());
-            throw new BadRequestException("Current password is incorrect");
-        }
-
-        if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
+        if (user.getPasswordHash() != null && passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
             log.warn("Password change failed: new password identical to current password for user: {}", user.getUsername());
             throw new BadRequestException("New password cannot be the same as your current password");
         }
@@ -400,16 +400,6 @@ public class AccountServiceImpl implements AccountService {
             throw new BadRequestException("Account is " + user.getStatus().name().toLowerCase(Locale.ROOT) + ". Please contact support.");
         }
 
-        if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
-            log.warn("Email change attempted on account without password: {}", user.getUsername());
-            throw new BadRequestException("No password is set for this account. Please use password reset to establish a password.");
-        }
-
-        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
-            log.warn("Email change failed: incorrect current password supplied for user: {}", user.getUsername());
-            throw new BadRequestException("Current password is incorrect");
-        }
-
         String cleanNewEmail = request.newEmail().strip().toLowerCase(Locale.ROOT);
 
         if (cleanNewEmail.equals(user.getEmail().toLowerCase(Locale.ROOT))) {
@@ -581,6 +571,184 @@ public class AccountServiceImpl implements AccountService {
                     log.info("Dispatched email changed confirmation to new email '{}' for user: {}", cleanPendingEmail, user.getUsername());
                 } catch (Exception ex) {
                     log.warn("Failed to dispatch email changed notifications for user '{}': {}", user.getUsername(), ex.getMessage());
+                }
+            }
+        });
+    }
+
+    @Override
+    public void requestPhoneNumberChange(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            @NotNull(message = "Request phone number change request cannot be null")
+            @Valid RequestPhoneNumberChangeRequest request) {
+
+        log.info("Processing phone number change request for user ID: {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        if (user.getStatus() == UserStatus.DISABLED || user.getStatus() == UserStatus.DELETED) {
+            log.warn("Phone number change rejected for {} user: {}", user.getStatus(), user.getUsername());
+            throw new BadRequestException("Account is " + user.getStatus().name().toLowerCase(Locale.ROOT) + ". Please contact support.");
+        }
+
+        String cleanNewPhone = request.newPhoneNumber().strip();
+
+        if (cleanNewPhone.equals(user.getPhoneNumber())) {
+            log.warn("Phone number change rejected: identical phone number supplied by user ID: {}", userId);
+            throw new BadRequestException("New phone number cannot be the same as your current phone number");
+        }
+
+        if (userRepository.existsByPhoneNumber(cleanNewPhone)) {
+            log.warn("Phone number change rejected: phone number '{}' already taken", cleanNewPhone);
+            throw new ResourceConflictException("Phone number '" + cleanNewPhone + "' is already registered to another account");
+        }
+
+        String cooldownKey = REDIS_COOLDOWN_PHONE_CHANGE_PREFIX + user.getId();
+        Boolean hasCooldown = stringRedisTemplate.hasKey(cooldownKey);
+        if (Boolean.TRUE.equals(hasCooldown)) {
+            Long remainingTtl = stringRedisTemplate.getExpire(cooldownKey, TimeUnit.SECONDS);
+            long waitSeconds = (remainingTtl != null && remainingTtl > 0) ? remainingTtl : PHONE_CHANGE_COOLDOWN_DURATION.toSeconds();
+            log.warn("Phone number change rate-limited for user: {}. Wait time: {}s", user.getUsername(), waitSeconds);
+            throw new BadRequestException("Please wait " + waitSeconds + " seconds before requesting another verification code");
+        }
+
+        Duration pendingTtl = otpProperties.defaultTtl();
+        String pendingPhoneKey = REDIS_PENDING_PHONE_CHANGE_PREFIX + user.getId();
+        stringRedisTemplate.opsForValue().set(pendingPhoneKey, cleanNewPhone, pendingTtl);
+
+        String otp = otpService.generateOtp("phone-change", user.getId().toString(), pendingTtl);
+        stringRedisTemplate.opsForValue().set(cooldownKey, "1", PHONE_CHANGE_COOLDOWN_DURATION);
+
+        log.info("Generated phone change verification OTP for user: {} for new phone number: {}", user.getUsername(), cleanNewPhone);
+
+        NotificationEvent event = NotificationEvent.builder()
+                .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
+                .templateCode("auth.phone-verification")
+                .channel(NotificationChannel.SMS)
+                .recipient(cleanNewPhone)
+                .recipientName(user.getFullName() != null && !user.getFullName().isBlank() ? user.getFullName() : user.getUsername())
+                .subject("Vaultix - Verify Your New Phone Number")
+                .params(Map.of(
+                        "otp", otp,
+                        "expiresInMinutes", pendingTtl.toMinutes()
+                ))
+                .createdAt(Instant.now())
+                .build();
+
+        rabbitTemplate.convertAndSend(
+                messagingProperties.exchange(),
+                messagingProperties.phoneVerificationRoutingKey(),
+                event);
+        log.info("Dispatched phone number change verification notification to exchange '{}' with routing key '{}' for user: {}",
+                messagingProperties.exchange(), messagingProperties.phoneVerificationRoutingKey(), user.getUsername());
+    }
+
+    @Override
+    @Transactional
+    public void confirmPhoneNumberChange(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            @NotNull(message = "Confirm phone number change request cannot be null")
+            @Valid ConfirmPhoneNumberChangeRequest request) {
+
+        log.info("Processing phone number change confirmation for user ID: {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        if (user.getStatus() == UserStatus.DISABLED || user.getStatus() == UserStatus.DELETED) {
+            log.warn("Phone number change confirmation rejected for {} user: {}", user.getStatus(), user.getUsername());
+            throw new BadRequestException("Account is " + user.getStatus().name().toLowerCase(Locale.ROOT) + ". Please contact support.");
+        }
+
+        String pendingPhoneKey = REDIS_PENDING_PHONE_CHANGE_PREFIX + user.getId();
+        String pendingPhone = stringRedisTemplate.opsForValue().get(pendingPhoneKey);
+
+        if (pendingPhone == null || pendingPhone.isBlank()) {
+            log.warn("Phone number change confirmation failed: no pending phone number change found for user: {}", user.getUsername());
+            throw new BadRequestException("No pending phone number change request found or the verification code has expired");
+        }
+
+        boolean isValid = otpService.verifyOtp("phone-change", user.getId().toString(), request.otp().strip());
+        if (!isValid) {
+            log.warn("Invalid or expired phone change OTP supplied for user: {}", user.getUsername());
+            throw new BadRequestException("Invalid or expired verification code");
+        }
+
+        String cleanPendingPhone = pendingPhone.strip();
+        if (userRepository.existsByPhoneNumber(cleanPendingPhone)) {
+            log.warn("Phone number change confirmation failed: target phone number '{}' was claimed by another account", cleanPendingPhone);
+            stringRedisTemplate.delete(pendingPhoneKey);
+            otpService.clearOtp("phone-change", user.getId().toString());
+            throw new ResourceConflictException("Phone number '" + cleanPendingPhone + "' is already registered to another account");
+        }
+
+        String oldPhone = user.getPhoneNumber();
+        user.setPhoneNumber(cleanPendingPhone);
+        user.setPhoneNumberVerified(true);
+        user.setUpdatedBy(userId);
+        userRepository.save(user);
+
+        stringRedisTemplate.delete(pendingPhoneKey);
+        stringRedisTemplate.delete(REDIS_COOLDOWN_PHONE_CHANGE_PREFIX + user.getId());
+        otpService.clearOtp("phone-change", user.getId().toString());
+
+        int revokedCount = tokenService.revokeAllUserTokens(user.getId());
+        log.info("Phone number successfully changed from '{}' to '{}' for user: {}. Revoked {} active sessions.",
+                oldPhone, cleanPendingPhone, user.getUsername(), revokedCount);
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    String recipientName = user.getFullName() != null && !user.getFullName().isBlank()
+                            ? user.getFullName()
+                            : user.getUsername();
+
+                    if (oldPhone != null && !oldPhone.isBlank()) {
+                        NotificationEvent oldPhoneAlert = NotificationEvent.builder()
+                                .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
+                                .templateCode("auth.phone-changed")
+                                .channel(NotificationChannel.SMS)
+                                .recipient(oldPhone)
+                                .recipientName(recipientName)
+                                .subject("Vaultix - Security Alert: Phone Number Changed")
+                                .params(Map.of(
+                                        "username", user.getUsername(),
+                                        "oldPhoneNumber", oldPhone,
+                                        "newPhoneNumber", cleanPendingPhone
+                                ))
+                                .createdAt(Instant.now())
+                                .build();
+
+                        rabbitTemplate.convertAndSend(
+                                messagingProperties.exchange(),
+                                messagingProperties.phoneChangedRoutingKey(),
+                                oldPhoneAlert);
+                        log.info("Dispatched phone changed security alert to old phone number '{}' for user: {}", oldPhone, user.getUsername());
+                    }
+
+                    NotificationEvent newPhoneConfirmation = NotificationEvent.builder()
+                            .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
+                            .templateCode("auth.phone-changed")
+                            .channel(NotificationChannel.SMS)
+                            .recipient(cleanPendingPhone)
+                            .recipientName(recipientName)
+                            .subject("Vaultix - Phone Number Successfully Updated")
+                            .params(Map.of(
+                                    "username", user.getUsername(),
+                                    "newPhoneNumber", cleanPendingPhone
+                            ))
+                            .createdAt(Instant.now())
+                            .build();
+
+                    rabbitTemplate.convertAndSend(
+                            messagingProperties.exchange(),
+                            messagingProperties.phoneChangedRoutingKey(),
+                            newPhoneConfirmation);
+                    log.info("Dispatched phone changed confirmation notification to new phone number '{}' for user: {}", cleanPendingPhone, user.getUsername());
+                } catch (Exception ex) {
+                    log.warn("Failed to dispatch phone changed notification events for user '{}': {}", user.getUsername(), ex.getMessage());
                 }
             }
         });

@@ -13,7 +13,6 @@ import java.util.OptionalLong;
 import java.util.UUID;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -22,7 +21,6 @@ import org.springframework.validation.annotation.Validated;
 
 import com.vaultix.authorization.config.properties.AuthMessagingProperties;
 import com.vaultix.authorization.config.properties.KekProperties;
-import com.vaultix.authorization.dto.mfa.DisableTotpRequest;
 import com.vaultix.authorization.dto.mfa.TotpActivationResponse;
 import com.vaultix.authorization.dto.mfa.TotpSetupResponse;
 import com.vaultix.authorization.dto.mfa.VerifyTotpRequest;
@@ -59,7 +57,6 @@ public class TotpServiceImpl implements TotpService {
     private final UserRepository userRepository;
     private final UserTotpRepository userTotpRepository;
     private final UserRecoveryCodeRepository userRecoveryCodeRepository;
-    private final PasswordEncoder passwordEncoder;
     private final KekProperties kekProperties;
     private final RabbitTemplate rabbitTemplate;
     private final AuthMessagingProperties messagingProperties;
@@ -209,9 +206,7 @@ public class TotpServiceImpl implements TotpService {
 
     @Override
     @Transactional
-    public void disableTotp(
-            @NotNull(message = "User ID cannot be null") UUID userId,
-            @Valid @NotNull(message = "Disable request cannot be null") DisableTotpRequest request) {
+    public void disableTotp(@NotNull(message = "User ID cannot be null") UUID userId) {
 
         log.info("Attempting to disable TOTP 2FA for user ID: {}", userId);
 
@@ -226,11 +221,6 @@ public class TotpServiceImpl implements TotpService {
         if (!user.isMfaEnabled()) {
             log.warn("TOTP disable rejected: User ID {} does not have MFA enabled", userId);
             throw new BadRequestException("Two-factor authentication is not currently enabled on this account");
-        }
-
-        if (user.getPasswordHash() == null || !passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
-            log.warn("TOTP disable rejected: Invalid password for user ID: {}", userId);
-            throw new BadRequestException("Invalid account password");
         }
 
         userTotpRepository.deleteByUserId(userId);

@@ -140,11 +140,13 @@ Automated background tasks run on distributed staggered schedules using Spring `
 | `POST` | `/email/verify`, `/email-verify` | Validate OTP code and mark account email as verified (`email_verified = true`) | Bearer JWT | No |
 | `POST` | `/phone/send-verification`, `/phone/send/verification` | Send OTP verification code via SMS to authenticated user's phone number (60s cooldown) | Bearer JWT | No |
 | `POST` | `/phone/verify`, `/phone-verify` | Validate OTP code and mark account phone number as verified (`phone_number_verified = true`) | Bearer JWT | No |
-| `POST`, `PUT` | `/email/change/request`, `/email/change`, `/email/request-change` | Initiate 2-step email change, validate password & send OTP to new email (60s cooldown) | Bearer JWT | No |
+| `POST`, `PUT` | `/email/change/request`, `/email/change`, `/email/request-change` | Initiate 2-step email change & send OTP to new email (60s cooldown) | Bearer JWT | No |
 | `POST` | `/email/change/confirm`, `/email/confirm-change` | Validate OTP sent to new email, commit new email (`email_verified = true`) & revoke active sessions | Bearer JWT | No |
+| `POST`, `PUT` | `/phone/change/request`, `/phone/change`, `/phone/request-change` | Initiate 2-step phone change & send OTP to new phone number (60s cooldown) | Bearer JWT | No |
+| `POST` | `/phone/change/confirm`, `/phone/confirm-change` | Validate OTP sent to new phone number, commit new phone (`phone_number_verified = true`) & revoke active sessions | Bearer JWT | No |
 | `POST` | `/mfa/totp/setup`, `/totp/setup`, `/totp/initiate` | Initiate TOTP 2FA setup, encrypt secret with KEK & return Base32 key with QR URI | Bearer JWT | No |
 | `POST` | `/mfa/totp/activate`, `/totp/activate`, `/totp/verify` | Verify 6-digit TOTP code, enable MFA on user account & send security alert email | Bearer JWT | No |
-| `POST` | `/mfa/totp/disable`, `/totp/disable` | Verify current password, disable MFA, purge TOTP & recovery codes & send security alert email | Bearer JWT | No |
+| `POST` | `/mfa/totp/disable`, `/totp/disable` | Disable MFA, purge TOTP & recovery codes & send security alert email | Bearer JWT | No |
 | `GET` | `/me`, `/profile` | Retrieve authenticated user profile with roles & permissions | Bearer JWT | No |
 
 
@@ -240,12 +242,14 @@ authorization/
     │   │   ├── ChangePasswordRequest.java
     │   │   ├── ChangeUsernameRequest.java
     │   │   ├── ConfirmEmailChangeRequest.java
+    │   │   ├── ConfirmPhoneNumberChangeRequest.java
     │   │   ├── LoginRequest.java
     │   │   ├── PasswordResetConfirmRequest.java
     │   │   ├── PasswordResetRequest.java
     │   │   ├── RefreshTokenRequest.java
     │   │   ├── RegisterRequest.java
     │   │   ├── RequestEmailChangeRequest.java
+    │   │   ├── RequestPhoneNumberChangeRequest.java
     │   │   ├── RevertEmailRequest.java
     │   │   ├── UserProfileDto.java
     │   │   ├── VerifyEmailRequest.java
@@ -260,7 +264,6 @@ authorization/
     │   │   │   ├── UpdateUserRequest.java
     │   │   │   └── UserResponse.java
     │   │   └── mfa/
-    │   │       ├── DisableTotpRequest.java
     │   │       ├── MfaLoginRequest.java
     │   │       ├── SendMfaEmailOtpRequest.java
     │   │       ├── TotpActivationResponse.java

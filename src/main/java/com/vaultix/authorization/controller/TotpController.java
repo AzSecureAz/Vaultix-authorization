@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.vaultix.authorization.dto.mfa.DisableTotpRequest;
 import com.vaultix.authorization.dto.mfa.TotpActivationResponse;
 import com.vaultix.authorization.dto.mfa.TotpSetupResponse;
 import com.vaultix.authorization.dto.mfa.VerifyTotpRequest;
@@ -56,11 +55,10 @@ public class TotpController {
 
     @PostMapping("/disable")
     public ResponseEntity<ApiResponse<Void>> disableTotp(
-            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
-            @Valid @RequestBody DisableTotpRequest request) {
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
 
         UUID userId = SecurityUtil.extractActorId(jwt);
-        totpService.disableTotp(userId, request);
+        totpService.disableTotp(userId);
         return ResponseEntity.ok(ApiResponse.success("TOTP two-factor authentication has been disabled successfully."));
     }
 }

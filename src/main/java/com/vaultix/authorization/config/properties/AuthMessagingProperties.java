@@ -38,6 +38,10 @@ public record AuthMessagingProperties(
         @Size(max = 256, message = "Email changed routing key cannot exceed 256 characters")
         @DefaultValue("auth.notification.email-changed")
         String emailChangedRoutingKey,
+        @NotBlank(message = "Phone changed routing key is required")
+        @Size(max = 256, message = "Phone changed routing key cannot exceed 256 characters")
+        @DefaultValue("auth.notification.phone-changed")
+        String phoneChangedRoutingKey,
         @NotBlank(message = "Email reverted routing key is required")
         @Size(max = 256, message = "Email reverted routing key cannot exceed 256 characters")
         @DefaultValue("auth.notification.email-reverted")

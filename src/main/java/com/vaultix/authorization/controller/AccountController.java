@@ -18,7 +18,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.vaultix.authorization.dto.ChangePasswordRequest;
 import com.vaultix.authorization.dto.ChangeUsernameRequest;
 import com.vaultix.authorization.dto.ConfirmEmailChangeRequest;
+import com.vaultix.authorization.dto.ConfirmPhoneNumberChangeRequest;
 import com.vaultix.authorization.dto.RequestEmailChangeRequest;
+import com.vaultix.authorization.dto.RequestPhoneNumberChangeRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
 import com.vaultix.authorization.dto.VerifyEmailRequest;
 import com.vaultix.authorization.dto.VerifyPhoneNumberRequest;
@@ -140,5 +142,31 @@ public class AccountController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cleanCookie.toString())
                 .body(ApiResponse.success("Email changed successfully. Please log in with your new email address."));
+    }
+
+    @RequestMapping(value = {"/phone/change/request", "/phone/change-request", "/phone/request-change", "/phone/change"}, method = {RequestMethod.POST, RequestMethod.PUT})
+    public ResponseEntity<ApiResponse<Void>> requestPhoneNumberChange(
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
+            @Valid @RequestBody RequestPhoneNumberChangeRequest request) {
+
+        UUID userId = SecurityUtil.extractActorId(jwt);
+        accountService.requestPhoneNumberChange(userId, request);
+        return ResponseEntity.ok(ApiResponse.success("Verification code sent to your new phone number. Please enter the code to complete the phone number change."));
+    }
+
+    @PostMapping({"/phone/change/confirm", "/phone/confirm-change", "/phone/change-confirm"})
+    public ResponseEntity<ApiResponse<Void>> confirmPhoneNumberChange(
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
+            @Valid @RequestBody ConfirmPhoneNumberChangeRequest request,
+            HttpServletRequest httpRequest) {
+
+        UUID userId = SecurityUtil.extractActorId(jwt);
+        accountService.confirmPhoneNumberChange(userId, request);
+
+        ResponseCookie cleanCookie = authCookieHelper.createCleanCookie(httpRequest);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cleanCookie.toString())
+                .body(ApiResponse.success("Phone number changed successfully. Active sessions have been invalidated for security."));
     }
 }
