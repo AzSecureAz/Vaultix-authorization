@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
     phone_number VARCHAR(32) UNIQUE,
     status VARCHAR(16) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'DISABLED', 'LOCKED', 'DELETED')),
     email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    phone_number_verified BOOLEAN NOT NULL DEFAULT FALSE,
     mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     passkey_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     has_social_accounts BOOLEAN NOT NULL DEFAULT FALSE,

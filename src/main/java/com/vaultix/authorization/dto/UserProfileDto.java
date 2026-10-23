@@ -1,7 +1,6 @@
 package com.vaultix.authorization.dto;
 
 import java.time.Instant;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -26,6 +25,7 @@ public record UserProfileDto(
         String phoneNumber,
         UserStatus status,
         boolean emailVerified,
+        boolean phoneNumberVerified,
         boolean mfaEnabled,
         boolean passkeyEnabled,
         boolean hasSocialAccounts,
@@ -65,13 +65,14 @@ public record UserProfileDto(
                 .phoneNumber(user.getPhoneNumber())
                 .status(user.getStatus())
                 .emailVerified(user.isEmailVerified())
+                .phoneNumberVerified(user.isPhoneNumberVerified())
                 .mfaEnabled(user.isMfaEnabled())
                 .passkeyEnabled(user.isPasskeyEnabled())
                 .hasSocialAccounts(user.isHasSocialAccounts())
                 .lastLoginAt(user.getLastLoginAt())
                 .createdAt(user.getCreatedAt())
-                .roles(Collections.unmodifiableSet(roleNames))
-                .permissions(Collections.unmodifiableSet(permissionNames))
+                .roles(roleNames)
+                .permissions(permissionNames)
                 .build();
     }
 }

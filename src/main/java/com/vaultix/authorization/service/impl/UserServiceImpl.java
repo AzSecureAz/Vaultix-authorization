@@ -128,6 +128,7 @@ public class UserServiceImpl implements UserService {
                 .fullName(cleanFullName)
                 .status(UserStatus.ACTIVE)
                 .emailVerified(false)
+                .phoneNumberVerified(false)
                 .roles(rolesToAssign)
                 .createdBy(actorId)
                 .build();

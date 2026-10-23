@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.vaultix.authorization.config.properties.AdminBootstrapProperties;
 import com.vaultix.authorization.entity.Role;
 import com.vaultix.authorization.entity.User;
-import com.vaultix.authorization.entity.enums.UserStatus;
 import com.vaultix.authorization.repository.RoleRepository;
 import com.vaultix.authorization.repository.UserRepository;
 
@@ -51,9 +50,7 @@ public class AdminUserInitializer implements ApplicationRunner {
         User admin = User.builder()
                 .username(adminProps.username())
                 .email(adminProps.email())
-                .passwordHash(null)
                 .fullName(adminProps.fullName())
-                .status(UserStatus.ACTIVE)
                 .emailVerified(true)
                 .roles(new HashSet<>(Set.of(adminRole)))
                 .build();

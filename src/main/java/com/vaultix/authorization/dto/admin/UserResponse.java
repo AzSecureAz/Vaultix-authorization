@@ -1,7 +1,6 @@
 package com.vaultix.authorization.dto.admin;
 
 import java.time.Instant;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -23,6 +22,7 @@ public record UserResponse(
         String phoneNumber,
         UserStatus status,
         boolean emailVerified,
+        boolean phoneNumberVerified,
         boolean mfaEnabled,
         boolean passkeyEnabled,
         boolean hasSocialAccounts,
@@ -55,13 +55,14 @@ public record UserResponse(
                 .phoneNumber(user.getPhoneNumber())
                 .status(user.getStatus())
                 .emailVerified(user.isEmailVerified())
+                .phoneNumberVerified(user.isPhoneNumberVerified())
                 .mfaEnabled(user.isMfaEnabled())
                 .passkeyEnabled(user.isPasskeyEnabled())
                 .hasSocialAccounts(user.isHasSocialAccounts())
                 .failedLoginAttempts(user.getFailedLoginAttempts())
                 .lockedUntil(user.getLockedUntil())
                 .lastLoginAt(user.getLastLoginAt())
-                .roles(Collections.unmodifiableSet(roleNames))
+                .roles(roleNames)
                 .createdAt(user.getCreatedAt())
                 .createdBy(user.getCreatedBy())
                 .updatedAt(user.getUpdatedAt())

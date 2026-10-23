@@ -332,10 +332,12 @@ authorization/
     └── resources/
         ├── application.yaml
         └── db/migration/
-            ├── V1__init_auth_schema.sql
-            ├── V2__create_signing_keys_schema.sql
-            ├── V3__create_totp_schema.sql
-            └── V4__create_recovery_codes_schema.sql
+            ├── V1__create_rbac_schema.sql
+            ├── V2__create_users_schema.sql
+            ├── V3__create_refresh_tokens_schema.sql
+            ├── V4__create_signing_keys_schema.sql
+            ├── V5__create_totp_schema.sql
+            └── V6__create_recovery_codes_schema.sql
 ```
 
 ---

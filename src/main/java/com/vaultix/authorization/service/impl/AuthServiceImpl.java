@@ -120,6 +120,10 @@ public class AuthServiceImpl implements AuthService {
             throw new ResourceConflictException("User already exists with email: " + cleanEmail);
         }
 
+        if (cleanPhoneNumber != null && userRepository.existsByPhoneNumber(cleanPhoneNumber)) {
+            throw new ResourceConflictException("User already exists with phone number: " + cleanPhoneNumber);
+        }
+
         String reservedKey = AccountServiceImpl.REDIS_RESERVED_EMAIL_PREFIX + cleanEmail;
         if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(reservedKey))) {
             log.warn("Registration rejected: email '{}' is in a cooling-off reservation period", cleanEmail);
@@ -134,6 +138,7 @@ public class AuthServiceImpl implements AuthService {
                 .phoneNumber(cleanPhoneNumber)
                 .status(UserStatus.ACTIVE)
                 .emailVerified(false)
+                .phoneNumberVerified(false)
                 .roles(new HashSet<>())
                 .build();
 

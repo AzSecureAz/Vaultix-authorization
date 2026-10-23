@@ -64,7 +64,7 @@ public class User {
     @ToString.Include
     private String fullName;
 
-    @Column(name = "phone_number", length = 32)
+    @Column(name = "phone_number", length = 32, unique = true)
     @ToString.Include
     private String phoneNumber;
 
@@ -78,6 +78,11 @@ public class User {
     @Builder.Default
     @ToString.Include
     private boolean emailVerified = false;
+
+    @Column(name = "phone_number_verified", nullable = false)
+    @Builder.Default
+    @ToString.Include
+    private boolean phoneNumberVerified = false;
 
     @Column(name = "mfa_enabled", nullable = false)
     @Builder.Default
