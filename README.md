@@ -170,6 +170,7 @@ authorization/
     │   │       ├── JpaPublicKeyCredentialUserEntityRepository.java
     │   │       ├── JpaUserCredentialRepository.java
     │   │       ├── RedisPublicKeyCredentialCreationOptionsRepository.java
+    │   │       ├── RedisPublicKeyCredentialRequestOptionsRepository.java
     │   │       ├── WebAuthnAuthenticationFailureHandler.java
     │   │       └── WebAuthnAuthenticationSuccessHandler.java
     │   ├── service/

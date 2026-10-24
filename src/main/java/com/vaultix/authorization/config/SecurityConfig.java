@@ -9,10 +9,18 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+import org.springframework.security.web.webauthn.api.PublicKeyCredentialRpEntity;
+import org.springframework.security.web.webauthn.authentication.PublicKeyCredentialRequestOptionsFilter;
 import org.springframework.security.web.webauthn.authentication.WebAuthnAuthenticationFilter;
+import org.springframework.security.web.webauthn.management.PublicKeyCredentialUserEntityRepository;
+import org.springframework.security.web.webauthn.management.UserCredentialRepository;
+import org.springframework.security.web.webauthn.management.WebAuthnRelyingPartyOperations;
+import org.springframework.security.web.webauthn.management.Webauthn4JRelyingPartyOperations;
 
 import com.vaultix.authorization.config.properties.PasskeyProperties;
 import com.vaultix.authorization.security.webauthn.RedisPublicKeyCredentialCreationOptionsRepository;
+import com.vaultix.authorization.security.webauthn.RedisPublicKeyCredentialRequestOptionsRepository;
 import com.vaultix.authorization.security.webauthn.WebAuthnAuthenticationFailureHandler;
 import com.vaultix.authorization.security.webauthn.WebAuthnAuthenticationSuccessHandler;
 import com.vaultix.common.security.CustomAccessDeniedHandler;
@@ -32,11 +40,34 @@ public class SecurityConfig {
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
     private final PasskeyProperties passkeyProperties;
     private final RedisPublicKeyCredentialCreationOptionsRepository creationOptionsRepository;
+    private final RedisPublicKeyCredentialRequestOptionsRepository requestOptionsRepository;
     private final WebAuthnAuthenticationSuccessHandler webAuthnAuthenticationSuccessHandler;
     private final WebAuthnAuthenticationFailureHandler webAuthnAuthenticationFailureHandler;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public WebAuthnRelyingPartyOperations webAuthnRelyingPartyOperations(
+            PublicKeyCredentialUserEntityRepository userEntityRepository,
+            UserCredentialRepository userCredentialRepository) {
+        PublicKeyCredentialRpEntity rpEntity = PublicKeyCredentialRpEntity.builder()
+                .id(passkeyProperties.rpId())
+                .name(passkeyProperties.rpName() != null ? passkeyProperties.rpName() : passkeyProperties.rpId())
+                .build();
+        return new Webauthn4JRelyingPartyOperations(
+                userEntityRepository,
+                userCredentialRepository,
+                rpEntity,
+                passkeyProperties.allowedOrigins()
+        );
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            WebAuthnRelyingPartyOperations webAuthnRelyingPartyOperations) throws Exception {
+        PublicKeyCredentialRequestOptionsFilter requestOptionsFilter
+                = new PublicKeyCredentialRequestOptionsFilter(webAuthnRelyingPartyOperations);
+        requestOptionsFilter.setRequestOptionsRepository(requestOptionsRepository);
+
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
@@ -53,6 +84,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint(customAuthenticationEntryPoint)
                         .accessDeniedHandler(customAccessDeniedHandler)
                 )
+                .addFilterBefore(requestOptionsFilter, BasicAuthenticationFilter.class)
                 .webAuthn(webAuthn -> webAuthn
                         .rpId(passkeyProperties.rpId())
                         .rpName(passkeyProperties.rpName())
@@ -62,6 +94,7 @@ public class SecurityConfig {
                         .withObjectPostProcessor(new ObjectPostProcessor<WebAuthnAuthenticationFilter>() {
                             @Override
                             public <O extends WebAuthnAuthenticationFilter> O postProcess(O filter) {
+                                filter.setRequestOptionsRepository(requestOptionsRepository);
                                 filter.setAuthenticationSuccessHandler(webAuthnAuthenticationSuccessHandler);
                                 filter.setAuthenticationFailureHandler(webAuthnAuthenticationFailureHandler);
                                 return filter;
