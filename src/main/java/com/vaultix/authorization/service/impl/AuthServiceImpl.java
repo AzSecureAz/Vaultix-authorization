@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -33,14 +32,12 @@ import org.springframework.validation.annotation.Validated;
 import com.vaultix.authorization.config.properties.AuthMessagingProperties;
 import com.vaultix.authorization.config.properties.KekProperties;
 import com.vaultix.authorization.config.properties.LockoutProperties;
-import com.vaultix.authorization.config.properties.OtpProperties;
 import com.vaultix.authorization.dto.AuthResponse;
 import com.vaultix.authorization.dto.LoginRequest;
 import com.vaultix.authorization.dto.RefreshTokenRequest;
 import com.vaultix.authorization.dto.RegisterRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
 import com.vaultix.authorization.dto.mfa.MfaLoginRequest;
-import com.vaultix.authorization.dto.mfa.SendMfaEmailOtpRequest;
 import com.vaultix.authorization.entity.User;
 import com.vaultix.authorization.entity.UserRecoveryCode;
 import com.vaultix.authorization.entity.UserTotp;
@@ -50,7 +47,6 @@ import com.vaultix.authorization.repository.UserRepository;
 import com.vaultix.authorization.repository.UserTotpRepository;
 import com.vaultix.authorization.security.CustomUserDetails;
 import com.vaultix.authorization.service.AuthService;
-import com.vaultix.authorization.service.OtpService;
 import com.vaultix.authorization.service.TokenService;
 import com.vaultix.common.crypto.AesGcmCryptoUtil;
 import com.vaultix.common.crypto.RecoveryCodeUtil;
@@ -61,7 +57,6 @@ import com.vaultix.common.exception.BadRequestException;
 import com.vaultix.common.exception.ResourceConflictException;
 import com.vaultix.common.exception.ResourceNotFoundException;
 import com.vaultix.common.util.ClientContextUtil.ClientContext;
-import com.vaultix.common.util.MaskUtil;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -87,13 +82,9 @@ public class AuthServiceImpl implements AuthService {
     private final RabbitTemplate rabbitTemplate;
     private final AuthMessagingProperties messagingProperties;
     private final StringRedisTemplate stringRedisTemplate;
-    private final OtpService otpService;
-    private final OtpProperties otpProperties;
 
     public static final String REDIS_MFA_CHALLENGE_PREFIX = "auth:mfa:challenge:";
-    public static final String REDIS_COOLDOWN_MFA_EMAIL_OTP_PREFIX = "auth:mfa:email:cooldown:";
     public static final Duration MFA_CHALLENGE_TTL = Duration.ofMinutes(5);
-    public static final Duration MFA_EMAIL_OTP_COOLDOWN = Duration.ofSeconds(60);
 
     @Override
     @Transactional
@@ -214,12 +205,10 @@ public class AuthServiceImpl implements AuthService {
             stringRedisTemplate.opsForValue().set(REDIS_MFA_CHALLENGE_PREFIX + mfaToken, userDetails.getId().toString(), MFA_CHALLENGE_TTL);
 
             boolean hasRecoveryCodes = userRecoveryCodeRepository.existsByUserIdAndUsedFalse(userDetails.getId());
-            String maskedEmail = MaskUtil.maskEmail(userDetails.getEmail());
 
             return AuthResponse.builder()
                     .mfaRequired(true)
                     .mfaToken(mfaToken)
-                    .maskedEmail(maskedEmail)
                     .hasRecoveryCodes(hasRecoveryCodes)
                     .build();
         }
@@ -306,73 +295,6 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public String sendMfaEmailOtp(
-            @NotNull(message = "Request cannot be null")
-            @Valid SendMfaEmailOtpRequest request) {
-
-        String mfaToken = request.mfaToken().strip();
-        String redisKey = REDIS_MFA_CHALLENGE_PREFIX + mfaToken;
-        String userIdStr = stringRedisTemplate.opsForValue().get(redisKey);
-
-        if (userIdStr == null || userIdStr.isBlank()) {
-            log.warn("MFA email OTP request rejected: Invalid or expired MFA challenge token");
-            throw new BadRequestException("Invalid or expired MFA challenge session. Please restart login.");
-        }
-
-        UUID userId;
-        try {
-            userId = UUID.fromString(userIdStr);
-        } catch (IllegalArgumentException e) {
-            log.error("Corrupt user ID in MFA challenge token Redis key: {}", userIdStr);
-            throw new BadRequestException("Invalid MFA challenge session. Please restart login.");
-        }
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
-
-        if (user.getStatus() == UserStatus.DISABLED || user.getStatus() == UserStatus.DELETED) {
-            log.warn("MFA email OTP request rejected for {} user: {}", user.getStatus(), user.getUsername());
-            throw new BadRequestException("Account is " + user.getStatus().name().toLowerCase(Locale.ROOT) + ". Please contact support.");
-        }
-
-        String cooldownKey = REDIS_COOLDOWN_MFA_EMAIL_OTP_PREFIX + userId;
-        Boolean hasCooldown = stringRedisTemplate.hasKey(cooldownKey);
-        if (Boolean.TRUE.equals(hasCooldown)) {
-            Long remainingTtl = stringRedisTemplate.getExpire(cooldownKey, TimeUnit.SECONDS);
-            long waitSeconds = (remainingTtl != null && remainingTtl > 0) ? remainingTtl : MFA_EMAIL_OTP_COOLDOWN.toSeconds();
-            log.warn("MFA email OTP rate-limited for user ID: {}. Wait time: {}s", userId, waitSeconds);
-            throw new BadRequestException("Please wait " + waitSeconds + " seconds before requesting another verification code");
-        }
-
-        String otp = otpService.generateOtp("mfa-login", userId.toString(), otpProperties.defaultTtl());
-        stringRedisTemplate.opsForValue().set(cooldownKey, "1", MFA_EMAIL_OTP_COOLDOWN);
-        log.info("Generated MFA login email OTP for user ID: {}", userId);
-
-        NotificationEvent event = NotificationEvent.builder()
-                .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
-                .templateCode("auth.mfa-login-otp")
-                .channel(NotificationChannel.EMAIL)
-                .recipient(user.getEmail())
-                .recipientName(user.getFullName() != null && !user.getFullName().isBlank() ? user.getFullName() : user.getUsername())
-                .subject("Vaultix - Two-Factor Authentication Code")
-                .params(Map.of(
-                        "otp", otp,
-                        "expiresInMinutes", otpProperties.defaultTtl().toMinutes()
-                ))
-                .createdAt(Instant.now())
-                .build();
-
-        rabbitTemplate.convertAndSend(
-                messagingProperties.exchange(),
-                messagingProperties.mfaLoginOtpRoutingKey(),
-                event);
-        log.info("Dispatched MFA login email OTP notification event to exchange '{}' with routing key '{}' for user ID: {}",
-                messagingProperties.exchange(), messagingProperties.mfaLoginOtpRoutingKey(), userId);
-
-        return "A one-time verification code has been sent to " + MaskUtil.maskEmail(user.getEmail());
-    }
-
-    @Override
     @Transactional
     public AuthResponse loginWithMfa(
             @NotNull(message = "MFA login request cannot be null")
@@ -414,17 +336,6 @@ public class AuthServiceImpl implements AuthService {
 
         if (factor != null) {
             switch (factor) {
-                case "email" -> {
-                    /* Direct Email OTP verification - skips Postgres and AES crypto entirely */
-                    boolean emailOtpValid = otpService.verifyOtp("mfa-login", userId.toString(), rawCode);
-                    if (!emailOtpValid) {
-                        log.warn("MFA login failed: Invalid or expired Email OTP for user ID: {}", userId);
-                        throw new BadCredentialsException("Invalid or expired email verification code");
-                    }
-                    otpService.clearOtp("mfa-login", userId.toString());
-                    verified = true;
-                    log.info("MFA login verified successfully via direct Email OTP for user ID: {}", userId);
-                }
                 case "recovery_code", "recovery" -> {
                     /* Direct Emergency Recovery Code verification */
                     boolean codeValid = verifyAndBurnRecoveryCode(userId, rawCode, user, clientContext);
@@ -474,7 +385,7 @@ public class AuthServiceImpl implements AuthService {
                 }
                 default -> {
                     log.warn("MFA login rejected: Unsupported factor '{}' for user ID: {}", factor, userId);
-                    throw new BadRequestException("Unsupported MFA factor: '" + factor + "'. Supported factors are 'totp', 'email', or 'recovery_code'.");
+                    throw new BadRequestException("Unsupported MFA factor: '" + factor + "'. Supported factors are 'totp' or 'recovery_code'.");
                 }
             }
         } else {
@@ -506,16 +417,6 @@ public class AuthServiceImpl implements AuthService {
                         userTotpRepository.save(totp);
                         verified = true;
                         log.info("MFA login verified successfully via auto-detected TOTP for user ID: {}", userId);
-                    }
-                }
-
-                /* Fall back to Email OTP if TOTP did not match */
-                if (!verified) {
-                    boolean emailOtpValid = otpService.verifyOtp("mfa-login", userId.toString(), rawCode);
-                    if (emailOtpValid) {
-                        otpService.clearOtp("mfa-login", userId.toString());
-                        verified = true;
-                        log.info("MFA login verified successfully via auto-detected Email OTP for user ID: {}", userId);
                     }
                 }
             } else {

@@ -18,7 +18,6 @@ import com.vaultix.authorization.dto.RefreshTokenRequest;
 import com.vaultix.authorization.dto.RegisterRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
 import com.vaultix.authorization.dto.mfa.MfaLoginRequest;
-import com.vaultix.authorization.dto.mfa.SendMfaEmailOtpRequest;
 import com.vaultix.authorization.security.AuthCookieHelper;
 import com.vaultix.authorization.service.AuthService;
 import com.vaultix.common.dto.ApiResponse;
@@ -91,14 +90,6 @@ public class PublicAuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
                 .body(ApiResponse.success("Token refreshed successfully", authResponse));
-    }
-
-    @PostMapping({"/login/mfa/send-email-otp", "/login/mfa/send-otp", "/login/mfa/email-otp"})
-    public ResponseEntity<ApiResponse<Void>> sendMfaEmailOtp(
-            @Valid @RequestBody SendMfaEmailOtpRequest request) {
-
-        String message = authService.sendMfaEmailOtp(request);
-        return ResponseEntity.ok(ApiResponse.success(message));
     }
 
     @PostMapping({"/login/mfa", "/login/verify-mfa", "/mfa/verify"})

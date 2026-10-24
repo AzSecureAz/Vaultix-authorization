@@ -13,7 +13,6 @@ public record AuthResponse(
         Long expiresIn,
         Boolean mfaRequired,
         String mfaToken,
-        String maskedEmail,
         Boolean hasRecoveryCodes) {
 
     public static final String TOKEN_TYPE_BEARER = "Bearer";

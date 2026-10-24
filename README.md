@@ -127,7 +127,6 @@ authorization/
     │   │   └── mfa/
     │   │       ├── MfaLoginRequest.java
     │   │       ├── PasskeyResponse.java
-    │   │       ├── SendMfaEmailOtpRequest.java
     │   │       ├── TotpActivationResponse.java
     │   │       ├── TotpSetupResponse.java
     │   │       ├── UpdatePasskeyRequest.java
@@ -279,7 +278,6 @@ Configurable via `src/main/resources/application.yaml` or environment variables:
 | `VAULTIX_RABBITMQ_AUTH_EMAIL_REVERTED_ROUTING_KEY` | `auth.notification.email-reverted` | Routing key for email revert confirmation events |
 | `VAULTIX_RABBITMQ_AUTH_MFA_ENABLED_ROUTING_KEY` | `auth.notification.mfa-enabled` | Routing key for MFA activation security alerts |
 | `VAULTIX_RABBITMQ_AUTH_MFA_DISABLED_ROUTING_KEY` | `auth.notification.mfa-disabled` | Routing key for MFA disablement security alerts |
-| `VAULTIX_RABBITMQ_AUTH_MFA_LOGIN_OTP_ROUTING_KEY` | `auth.notification.mfa-login-otp` | Routing key for MFA secondary login OTP dispatch |
 | `VAULTIX_RABBITMQ_AUTH_RECOVERY_CODE_USED_ROUTING_KEY` | `auth.notification.recovery-code-used` | Routing key for emergency recovery code security alerts |
 | `VAULTIX_RABBITMQ_AUTH_RECOVERY_CODES_REGENERATED_ROUTING_KEY` | `auth.notification.recovery-codes-regenerated` | Routing key for emergency recovery codes regeneration alerts |
 | `EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE` | `http://localhost:8761/eureka/` | Eureka Service Discovery registry URL |

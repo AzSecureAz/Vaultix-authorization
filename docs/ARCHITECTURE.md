@@ -73,7 +73,6 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 - **Email Reverted**: Dispatched when an email address is reverted via secure token (`/public/email/revert`) notifying the account holder to routing key `auth.notification.email-reverted`.
 - **MFA Enabled**: Dispatched when TOTP two-factor authentication is activated (`/mfa/totp/activate`) to routing key `auth.notification.mfa-enabled`.
 - **MFA Disabled**: Dispatched when two-factor authentication is disabled (`/mfa/totp/disable`) to routing key `auth.notification.mfa-disabled`.
-- **MFA Login OTP**: Dispatched when an email one-time code is requested during MFA login (`/public/login/mfa/send-email-otp`) to routing key `auth.notification.mfa-login-otp`.
 - **Emergency Recovery Code Used**: Dispatched when an emergency recovery code is burned to sign in (`/public/login/mfa`), alerting the account holder with remaining code count, IP, device, and timestamp to routing key `auth.notification.recovery-code-used`.
 - **Emergency Recovery Codes Regenerated**: Dispatched when emergency recovery codes are regenerated (`/mfa/totp/recovery-codes/regenerate`), alerting the account holder that previous codes were invalidated and reporting the fresh code count to routing key `auth.notification.recovery-codes-regenerated`.
 - Downstream notification services subscribe using the wildcard pattern **`auth.notification.*`** without coupling to internal authorization logic.
@@ -95,11 +94,10 @@ Automated background tasks run on distributed staggered schedules using Spring `
 - **Cascading Purges**: Hard deletion of soft-deleted users in PostgreSQL automatically cascades (`ON DELETE CASCADE`) to mapped `user_roles` and associated `refresh_tokens`.
 - **Bounded Batch Processing**: Native SQL subquery deletion loops (`LIMIT :limit`) prevent transaction timeouts and lock contention on high-volume tables.
 
-## 10. Multi-Factor Authentication (TOTP, Email OTP & Emergency Recovery Codes)
+## 10. Multi-Factor Authentication (TOTP & Emergency Recovery Codes)
 - **RFC 6238 TOTP Authenticator**: Generates 20-byte cryptographically secure secrets encoded in Base32. The private secret is encrypted at rest using authenticated **AES-256 GCM** with the platform Key Encryption Key (`KEK`). Enforces strict 30-second time-steps with a $\pm 1$ drift tolerance window (90-second validity) and replay protection via database tracking (`last_used_step`).
 - **Single-Use Emergency Recovery Codes**: Generates 10 single-use `xxxxx-xxxxx` codes upon TOTP activation or on-demand regeneration (`/mfa/totp/recovery-codes/regenerate`). Plaintext codes are normalized and stored as **SHA-256 hashes** in PostgreSQL (`user_recovery_codes`). Using a recovery code permanently burns the entry and triggers an immediate security alert email (`auth.notification.recovery-code-used`) reporting the remaining code count, IP address, device info, and UTC timestamp.
-- **On-Demand Email OTP Fallback**: Ephemeral 6-digit OTP stored in Redis (`mfa-login:<user_id>`) with an active 60-second rate-limiting cooldown and dynamic PII masking (`MaskUtil`) on email and username across all public challenge responses.
-- **Zero-Waste Factor Routing**: The `/public/login/mfa` verification endpoint routes using an explicit `factor` parameter (`"totp"`, `"email"`, `"recovery_code"`). Direct factor routing verifies email OTPs in Redis (<1ms) without executing unnecessary database lookups or AES-256/HMAC crypto, while maintaining seamless auto-detection when `factor` is omitted.
+- **Zero-Waste Factor Routing**: The `/public/login/mfa` verification endpoint routes using an explicit `factor` parameter (`"totp"`, `"recovery_code"`) or auto-detects based on code length (6 digits for TOTP vs 10 characters for recovery codes).
 
 ## 11. WebAuthn Passkeys (FIDO2 / W3C WebAuthn Passwordless Authentication)
 - **Native Spring Security 7.x WebAuthn**: Implements W3C WebAuthn Level 3 passkey registration and authentication using `spring-security-webauthn`.

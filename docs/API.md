@@ -16,9 +16,7 @@ Complete endpoint reference for the **Vaultix Authorization Service**.
 | `POST` | `/public/login` | Authenticate user, issue access token & set refresh cookie | No | Yes (`X-Client-IP`, `X-Device-*`) |
 | `POST` | `/public/refresh` | Rotate refresh token and issue new access token | Cookie / Body | Yes |
 | `POST` | `/public/password-reset/request`, `/public/password/reset/request` | Initiate password reset, generate OTP & publish RabbitMQ event | No | No |
-| `POST` | `/public/password-reset/confirm`, `/public/password/reset/confirm` | Validate OTP, update password & invalidate active sessions | No | No |
-| `POST` | `/public/login/mfa/send-email-otp`, `/public/login/mfa/send-otp`, `/public/login/mfa/email-otp` | Dispatch 6-digit one-time code to verified account email for secondary MFA login (60s cooldown) | No (MFA Token) | No |
-| `POST` | `/public/login/mfa`, `/public/login/verify-mfa`, `/public/mfa/verify` | Complete login by verifying 6-digit TOTP, 6-digit Email OTP, or Emergency Recovery Code | No (MFA Token) | Yes (`X-Client-IP`, `X-Device-*`) |
+| `POST` | `/public/login/mfa`, `/public/login/verify-mfa`, `/public/mfa/verify` | Complete login by verifying 6-digit TOTP authenticator code or Emergency Recovery Code | No (MFA Token) | Yes (`X-Client-IP`, `X-Device-*`) |
 | `POST`, `GET` | `/public/email/revert`, `/public/email-revert` | Revert compromised account email back to previous address using 7-day token & revoke attacker sessions | Token / Query | No |
 | `POST` | `/webauthn/authenticate/options` | Request WebAuthn publicKey credential request options (challenge, RP ID, user verification) | No | No |
 | `POST` | `/login/webauthn` | Authenticate passkey credential assertion, issue access token & set refresh cookie | No | Yes (`X-Client-IP`, `X-Device-*`) |
