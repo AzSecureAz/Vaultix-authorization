@@ -1,14 +1,17 @@
 package com.vaultix.authorization.security.webauthn;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Base64;
 
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialCreationOptions;
-import org.springframework.security.web.webauthn.jackson.WebauthnJacksonModule;
 import org.springframework.security.web.webauthn.registration.PublicKeyCredentialCreationOptionsRepository;
 import org.springframework.stereotype.Component;
 
@@ -16,8 +19,6 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.json.JsonMapper;
 
 @Slf4j
 @Component
@@ -25,38 +26,46 @@ public class RedisPublicKeyCredentialCreationOptionsRepository implements Public
 
     public static final String REDIS_CHALLENGE_PREFIX = "auth:webauthn:challenge:";
     public static final String CHALLENGE_COOKIE_NAME = "VAULTIX_WEBAUTHN_CHALLENGE";
+    public static final String CHALLENGE_HEADER_NAME = "X-WebAuthn-Challenge";
     public static final Duration CHALLENGE_TTL = Duration.ofMinutes(5);
 
     private final StringRedisTemplate stringRedisTemplate;
-    private final JsonMapper jsonMapper;
 
     public RedisPublicKeyCredentialCreationOptionsRepository(StringRedisTemplate stringRedisTemplate) {
         this.stringRedisTemplate = stringRedisTemplate;
-        this.jsonMapper = JsonMapper.builder()
-                .addModule(new WebauthnJacksonModule())
-                .build();
     }
 
     @Override
     public void save(HttpServletRequest request, HttpServletResponse response, PublicKeyCredentialCreationOptions creationOptions) {
         if (creationOptions == null) {
+            String challengeId = extractChallengeCookie(request);
+            if (challengeId == null || challengeId.isBlank()) {
+                challengeId = request != null ? request.getHeader(CHALLENGE_HEADER_NAME) : null;
+            }
+            if (challengeId != null && !challengeId.isBlank()) {
+                stringRedisTemplate.delete(REDIS_CHALLENGE_PREFIX + challengeId);
+            }
+            if (response != null) {
+                Cookie cookie = new Cookie(CHALLENGE_COOKIE_NAME, "");
+                cookie.setHttpOnly(true);
+                boolean isHttps = request != null && (request.isSecure() || "https".equalsIgnoreCase(request.getHeader("X-Forwarded-Proto")));
+                cookie.setSecure(isHttps);
+                cookie.setAttribute("SameSite", "Lax");
+                String contextPath = request != null ? request.getContextPath() : null;
+                cookie.setPath(contextPath != null && !contextPath.isBlank() ? contextPath : "/api/v1/auth");
+                cookie.setMaxAge(0);
+                response.addCookie(cookie);
+            }
             return;
         }
 
         try {
-            String json = jsonMapper.writeValueAsString(creationOptions);
+            String payload = serialize(creationOptions);
             String challengeId = creationOptions.getChallenge().toBase64UrlString();
 
-            /* Key by challenge ID */
+            /* Key solely by challenge ID: exactly one entry in Redis */
             String challengeKey = REDIS_CHALLENGE_PREFIX + challengeId;
-            stringRedisTemplate.opsForValue().set(challengeKey, json, CHALLENGE_TTL);
-
-            /* Also key by authenticated user name/id if present */
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
-                String userKey = REDIS_CHALLENGE_PREFIX + "user:" + auth.getName();
-                stringRedisTemplate.opsForValue().set(userKey, json, CHALLENGE_TTL);
-            }
+            stringRedisTemplate.opsForValue().set(challengeKey, payload, CHALLENGE_TTL);
 
             /* Set short-lived challenge cookie */
             Cookie cookie = new Cookie(CHALLENGE_COOKIE_NAME, challengeId);
@@ -64,12 +73,16 @@ public class RedisPublicKeyCredentialCreationOptionsRepository implements Public
             boolean isHttps = request.isSecure() || "https".equalsIgnoreCase(request.getHeader("X-Forwarded-Proto"));
             cookie.setSecure(isHttps);
             cookie.setAttribute("SameSite", "Lax");
-            cookie.setPath("/api/v1/auth");
+            String contextPath = request.getContextPath();
+            cookie.setPath(contextPath != null && !contextPath.isBlank() ? contextPath : "/api/v1/auth");
             cookie.setMaxAge((int) CHALLENGE_TTL.toSeconds());
             response.addCookie(cookie);
 
-            log.debug("Saved WebAuthn PublicKeyCredentialCreationOptions to Redis with TTL: {}", CHALLENGE_TTL);
-        } catch (JacksonException | DataAccessException e) {
+            /* Expose response header for clients */
+            response.setHeader(CHALLENGE_HEADER_NAME, challengeId);
+
+            log.debug("Saved WebAuthn PublicKeyCredentialCreationOptions to Redis with challengeId: {}", challengeId);
+        } catch (DataAccessException | IllegalStateException e) {
             log.error("Failed to serialize and save PublicKeyCredentialCreationOptions to Redis", e);
             throw new IllegalStateException("Failed to persist WebAuthn registration challenge", e);
         }
@@ -83,52 +96,49 @@ public class RedisPublicKeyCredentialCreationOptionsRepository implements Public
 
         /* 1. Try to find challenge from cookie */
         String challengeId = extractChallengeCookie(request);
-        String json = null;
-        String resolvedKey = null;
 
-        if (challengeId != null && !challengeId.isBlank()) {
-            String challengeKey = REDIS_CHALLENGE_PREFIX + challengeId;
-            json = stringRedisTemplate.opsForValue().get(challengeKey);
-            if (json != null) {
-                resolvedKey = challengeKey;
-            }
+        /* 2. Fallback to header */
+        if (challengeId == null || challengeId.isBlank()) {
+            challengeId = request.getHeader(CHALLENGE_HEADER_NAME);
         }
 
-        /* 2. Fallback to authenticated user principal */
-        if (json == null) {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
-                String userKey = REDIS_CHALLENGE_PREFIX + "user:" + auth.getName();
-                json = stringRedisTemplate.opsForValue().get(userKey);
-                if (json != null) {
-                    resolvedKey = userKey;
-                }
-            }
-        }
-
-        if (json == null) {
+        if (challengeId == null || challengeId.isBlank()) {
             log.warn("No WebAuthn creation options found in Redis for registration request");
             return null;
         }
 
-        try {
-            PublicKeyCredentialCreationOptions options = jsonMapper.readValue(json, PublicKeyCredentialCreationOptions.class);
+        String challengeKey = REDIS_CHALLENGE_PREFIX + challengeId;
+        String payload = stringRedisTemplate.opsForValue().get(challengeKey);
 
-            /* One-time use: clean up from Redis */
-            if (resolvedKey != null) {
-                stringRedisTemplate.delete(resolvedKey);
-            }
-            if (challengeId != null) {
-                stringRedisTemplate.delete(REDIS_CHALLENGE_PREFIX + challengeId);
-            }
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
-                stringRedisTemplate.delete(REDIS_CHALLENGE_PREFIX + "user:" + auth.getName());
-            }
+        if (payload == null) {
+            log.warn("WebAuthn creation options expired or not found in Redis for challengeId: {}", challengeId);
+            return null;
+        }
 
-            return options;
-        } catch (JacksonException | DataAccessException e) {
-            log.error("Failed to deserialize PublicKeyCredentialCreationOptions from Redis", e);
+        PublicKeyCredentialCreationOptions options = deserialize(payload);
+
+        /* One-time use: clean up from Redis */
+        stringRedisTemplate.delete(challengeKey);
+
+        return options;
+    }
+
+    private String serialize(PublicKeyCredentialCreationOptions creationOptions) {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+            oos.writeObject(creationOptions);
+            return Base64.getEncoder().encodeToString(baos.toByteArray());
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to serialize PublicKeyCredentialCreationOptions", e);
+        }
+    }
+
+    private PublicKeyCredentialCreationOptions deserialize(String base64) {
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(Base64.getDecoder().decode(base64));
+             ObjectInputStream ois = new ObjectInputStream(bais)) {
+            return (PublicKeyCredentialCreationOptions) ois.readObject();
+        } catch (IOException | ClassNotFoundException e) {
+            log.error("Failed to deserialize PublicKeyCredentialCreationOptions from Redis payload", e);
             return null;
         }
     }
