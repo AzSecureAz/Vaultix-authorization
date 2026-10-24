@@ -1,6 +1,7 @@
 package com.vaultix.authorization.bootstrap;
 
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 
 import org.springframework.boot.ApplicationArguments;
@@ -11,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.vaultix.authorization.config.properties.AdminBootstrapProperties;
 import com.vaultix.authorization.entity.Role;
 import com.vaultix.authorization.entity.User;
+import com.vaultix.authorization.entity.enums.UserStatus;
 import com.vaultix.authorization.repository.RoleRepository;
 import com.vaultix.authorization.repository.UserRepository;
 
@@ -34,13 +36,19 @@ public class AdminUserInitializer implements ApplicationRunner {
             return;
         }
 
-        if (userRepository.existsByUsername(adminProps.username())) {
-            log.info("Admin user with username '{}' already exists. Skipping bootstrapping.", adminProps.username());
+        String cleanUsername = adminProps.username().strip().toLowerCase(Locale.ROOT);
+        String cleanEmail = adminProps.email().strip().toLowerCase(Locale.ROOT);
+        String cleanFullName = (adminProps.fullName() != null && !adminProps.fullName().isBlank())
+                ? adminProps.fullName().strip()
+                : null;
+
+        if (userRepository.existsByUsername(cleanUsername)) {
+            log.info("Admin user with username '{}' already exists. Skipping bootstrapping.", cleanUsername);
             return;
         }
 
-        if (userRepository.existsByEmail(adminProps.email())) {
-            log.info("Admin user with email '{}' already exists. Skipping bootstrapping.", adminProps.email());
+        if (userRepository.existsByEmail(cleanEmail)) {
+            log.info("Admin user with email '{}' already exists. Skipping bootstrapping.", cleanEmail);
             return;
         }
 
@@ -48,16 +56,19 @@ public class AdminUserInitializer implements ApplicationRunner {
                 .orElseThrow(() -> new IllegalStateException("ROLE_ADMIN role not found. Ensure Flyway migrations have executed."));
 
         User admin = User.builder()
-                .username(adminProps.username())
-                .email(adminProps.email())
-                .fullName(adminProps.fullName())
+                .username(cleanUsername)
+                .email(cleanEmail)
+                .passwordHash(null)
+                .fullName(cleanFullName)
+                .status(UserStatus.ACTIVE)
                 .emailVerified(true)
+                .phoneNumberVerified(false)
                 .roles(new HashSet<>(Set.of(adminRole)))
                 .build();
 
         userRepository.save(admin);
 
         log.info("Initial admin user '{}' ({}) successfully bootstrapped without password. Initial password must be set via password reset.",
-                adminProps.username(), adminProps.email());
+                cleanUsername, cleanEmail);
     }
 }
