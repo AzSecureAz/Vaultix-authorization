@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -60,5 +61,25 @@ public class TotpController {
         UUID userId = SecurityUtil.extractActorId(jwt);
         totpService.disableTotp(userId);
         return ResponseEntity.ok(ApiResponse.success("TOTP two-factor authentication has been disabled successfully."));
+    }
+
+    @GetMapping({"/recovery-codes", "/recovery-codes/count"})
+    public ResponseEntity<ApiResponse<Long>> getRemainingRecoveryCodes(
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
+
+        UUID userId = SecurityUtil.extractActorId(jwt);
+        long remaining = totpService.getRemainingRecoveryCodesCount(userId);
+        return ResponseEntity.ok(ApiResponse.success("Remaining recovery codes count retrieved successfully.", remaining));
+    }
+
+    @PostMapping({"/recovery-codes/regenerate", "/recovery-codes"})
+    public ResponseEntity<ApiResponse<TotpActivationResponse>> regenerateRecoveryCodes(
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
+
+        UUID userId = SecurityUtil.extractActorId(jwt);
+        TotpActivationResponse response = totpService.regenerateRecoveryCodes(userId);
+        return ResponseEntity.ok(ApiResponse.success(
+                "Recovery codes regenerated successfully. Please store your new emergency recovery codes safely.",
+                response));
     }
 }

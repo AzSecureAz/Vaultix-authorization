@@ -61,6 +61,10 @@ public record AuthMessagingProperties(
         @NotBlank(message = "Recovery code used routing key is required")
         @Size(max = 256, message = "Recovery code used routing key cannot exceed 256 characters")
         @DefaultValue("auth.notification.recovery-code-used")
-        String recoveryCodeUsedRoutingKey) {
+        String recoveryCodeUsedRoutingKey,
+        @NotBlank(message = "Recovery codes regenerated routing key is required")
+        @Size(max = 256, message = "Recovery codes regenerated routing key cannot exceed 256 characters")
+        @DefaultValue("auth.notification.recovery-codes-regenerated")
+        String recoveryCodesRegeneratedRoutingKey) {
 
 }

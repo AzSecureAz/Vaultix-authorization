@@ -85,6 +85,7 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 - **MFA Disabled**: Dispatched when two-factor authentication is disabled (`/mfa/totp/disable`) to routing key `auth.notification.mfa-disabled`.
 - **MFA Login OTP**: Dispatched when an email one-time code is requested during MFA login (`/public/login/mfa/send-email-otp`) to routing key `auth.notification.mfa-login-otp`.
 - **Emergency Recovery Code Used**: Dispatched when an emergency recovery code is burned to sign in (`/public/login/mfa`), alerting the account holder with remaining code count, IP, device, and timestamp to routing key `auth.notification.recovery-code-used`.
+- **Emergency Recovery Codes Regenerated**: Dispatched when emergency recovery codes are regenerated (`/mfa/totp/recovery-codes/regenerate`), alerting the account holder that previous codes were invalidated and reporting the fresh code count to routing key `auth.notification.recovery-codes-regenerated`.
 - Downstream notification services subscribe using the wildcard pattern **`auth.notification.*`** without coupling to internal authorization logic.
 
 ### 8. Platform-Wide Snake Case JSON (`SNAKE_CASE`)
@@ -106,7 +107,7 @@ Automated background tasks run on distributed staggered schedules using Spring `
 
 ### 10. Multi-Factor Authentication (TOTP, Email OTP & Emergency Recovery Codes)
 - **RFC 6238 TOTP Authenticator**: Generates 20-byte cryptographically secure secrets encoded in Base32. The private secret is encrypted at rest using authenticated **AES-256 GCM** with the platform Key Encryption Key (`KEK`). Enforces strict 30-second time-steps with a $\pm 1$ drift tolerance window (90-second validity) and replay protection via database tracking (`last_used_step`).
-- **Single-Use Emergency Recovery Codes**: Generates 10 single-use `xxxxx-xxxxx` codes upon TOTP activation. Plaintext codes are normalized and stored as **SHA-256 hashes** in PostgreSQL (`user_recovery_codes`). Using a recovery code permanently burns the entry and triggers an immediate security alert email (`auth.notification.recovery-code-used`) reporting the remaining code count, IP address, device info, and UTC timestamp.
+- **Single-Use Emergency Recovery Codes**: Generates 10 single-use `xxxxx-xxxxx` codes upon TOTP activation or on-demand regeneration (`/mfa/totp/recovery-codes/regenerate`). Plaintext codes are normalized and stored as **SHA-256 hashes** in PostgreSQL (`user_recovery_codes`). Using a recovery code permanently burns the entry and triggers an immediate security alert email (`auth.notification.recovery-code-used`) reporting the remaining code count, IP address, device info, and UTC timestamp.
 - **On-Demand Email OTP Fallback**: Ephemeral 6-digit OTP stored in Redis (`mfa-login:<user_id>`) with an active 60-second rate-limiting cooldown and dynamic PII masking (`MaskUtil`) on email and username across all public challenge responses.
 - **Zero-Waste Factor Routing**: The `/public/login/mfa` verification endpoint routes using an explicit `factor` parameter (`"totp"`, `"email"`, `"recovery_code"`). Direct factor routing verifies email OTPs in Redis (<1ms) without executing unnecessary database lookups or AES-256/HMAC crypto, while maintaining seamless auto-detection when `factor` is omitted.
 
@@ -156,6 +157,8 @@ Automated background tasks run on distributed staggered schedules using Spring `
 | `POST` | `/mfa/totp/setup`, `/totp/setup`, `/totp/initiate` | Initiate TOTP 2FA setup, encrypt secret with KEK & return Base32 key with QR URI | Bearer JWT | No |
 | `POST` | `/mfa/totp/activate`, `/totp/activate`, `/totp/verify` | Verify 6-digit TOTP code, enable MFA on user account & send security alert email | Bearer JWT | No |
 | `POST` | `/mfa/totp/disable`, `/totp/disable` | Disable MFA, purge TOTP & recovery codes & send security alert email | Bearer JWT | No |
+| `GET` | `/mfa/totp/recovery-codes`, `/totp/recovery-codes`, `/mfa/totp/recovery-codes/count`, `/totp/recovery-codes/count` | Retrieve remaining count of unused emergency recovery codes | Bearer JWT | No |
+| `POST` | `/mfa/totp/recovery-codes/regenerate`, `/mfa/totp/recovery-codes`, `/totp/recovery-codes/regenerate`, `/totp/recovery-codes` | Invalidate existing recovery codes and generate 10 fresh emergency recovery codes | Bearer JWT | No |
 | `POST` | `/webauthn/register/options` | Request WebAuthn publicKey credential creation options for passkey registration | Bearer JWT | No |
 | `POST` | `/webauthn/register` | Register new passkey credential (public key, authenticator transports, attestation) | Bearer JWT | No |
 | `GET` | `/mfa/passkeys`, `/passkeys` | Retrieve all registered passkeys for authenticated user | Bearer JWT | No |

@@ -125,3 +125,4 @@ vaultix:
     mfa-disabled-routing-key: ${VAULTIX_RABBITMQ_AUTH_MFA_DISABLED_ROUTING_KEY:auth.notification.mfa-disabled}
     mfa-login-otp-routing-key: ${VAULTIX_RABBITMQ_AUTH_MFA_LOGIN_OTP_ROUTING_KEY:auth.notification.mfa-login-otp}
     recovery-code-used-routing-key: ${VAULTIX_RABBITMQ_AUTH_RECOVERY_CODE_USED_ROUTING_KEY:auth.notification.recovery-code-used}
+    recovery-codes-regenerated-routing-key: ${VAULTIX_RABBITMQ_AUTH_RECOVERY_CODES_REGENERATED_ROUTING_KEY:auth.notification.recovery-codes-regenerated}

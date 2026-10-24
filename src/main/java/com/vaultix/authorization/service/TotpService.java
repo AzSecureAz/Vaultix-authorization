@@ -21,4 +21,8 @@ public interface TotpService {
             @Valid @NotNull(message = "Verification request cannot be null") VerifyTotpRequest request);
 
     void disableTotp(@NotNull(message = "User ID cannot be null") UUID userId);
+
+    long getRemainingRecoveryCodesCount(@NotNull(message = "User ID cannot be null") UUID userId);
+
+    TotpActivationResponse regenerateRecoveryCodes(@NotNull(message = "User ID cannot be null") UUID userId);
 }

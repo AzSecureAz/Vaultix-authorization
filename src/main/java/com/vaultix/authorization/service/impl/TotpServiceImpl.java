@@ -4,6 +4,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
@@ -261,6 +263,97 @@ public class TotpServiceImpl implements TotpService {
         });
 
         log.info("Successfully disabled TOTP two-factor authentication for user ID: {}", userId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long getRemainingRecoveryCodesCount(@NotNull(message = "User ID cannot be null") UUID userId) {
+        log.info("Checking remaining recovery codes count for user ID: {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        if (user.getStatus() == UserStatus.DISABLED || user.getStatus() == UserStatus.DELETED) {
+            log.warn("Recovery codes query rejected for {} user: {}", user.getStatus(), user.getUsername());
+            throw new BadRequestException("Account is " + user.getStatus().name().toLowerCase(Locale.ROOT) + ". Please contact support.");
+        }
+
+        if (!user.isMfaEnabled()) {
+            log.warn("Recovery codes query rejected: User ID {} does not have MFA enabled", userId);
+            throw new BadRequestException("Two-factor authentication is not currently enabled on this account");
+        }
+
+        return userRecoveryCodeRepository.countByUserIdAndUsedFalse(userId);
+    }
+
+    @Override
+    @Transactional
+    public TotpActivationResponse regenerateRecoveryCodes(@NotNull(message = "User ID cannot be null") UUID userId) {
+        log.info("Attempting to regenerate emergency recovery codes for user ID: {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        if (user.getStatus() == UserStatus.DISABLED || user.getStatus() == UserStatus.DELETED) {
+            log.warn("Recovery codes regeneration rejected for {} user: {}", user.getStatus(), user.getUsername());
+            throw new BadRequestException("Account is " + user.getStatus().name().toLowerCase(Locale.ROOT) + ". Please contact support.");
+        }
+
+        if (!user.isMfaEnabled()) {
+            log.warn("Recovery codes regeneration rejected: User ID {} does not have MFA enabled", userId);
+            throw new BadRequestException("Two-factor authentication is not currently enabled on this account");
+        }
+
+        userRecoveryCodeRepository.deleteByUserId(userId);
+
+        List<String> recoveryCodes = RecoveryCodeUtil.generateCodes();
+        List<UserRecoveryCode> recoveryCodeEntities = recoveryCodes.stream()
+                .map(code -> UserRecoveryCode.builder()
+                        .user(user)
+                        .codeHash(hashRecoveryCode(code))
+                        .used(false)
+                        .build())
+                .toList();
+
+        userRecoveryCodeRepository.saveAll(recoveryCodeEntities);
+        log.info("Successfully regenerated {} emergency recovery codes for user ID: {}", recoveryCodes.size(), userId);
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm:ss 'UTC'").withZone(ZoneOffset.UTC);
+        String formattedRegeneratedAt = formatter.format(Instant.now());
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    NotificationEvent event = NotificationEvent.builder()
+                            .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
+                            .templateCode("auth.recovery-codes-regenerated")
+                            .channel(NotificationChannel.EMAIL)
+                            .recipient(user.getEmail())
+                            .recipientName(user.getFullName() != null && !user.getFullName().isBlank() ? user.getFullName() : user.getUsername())
+                            .subject("Vaultix - Security Alert: Emergency Recovery Codes Regenerated")
+                            .params(Map.of(
+                                    "username", user.getUsername(),
+                                    "email", user.getEmail(),
+                                    "codeCount", String.valueOf(recoveryCodes.size()),
+                                    "regeneratedAt", formattedRegeneratedAt
+                            ))
+                            .createdAt(Instant.now())
+                            .build();
+
+                    rabbitTemplate.convertAndSend(
+                            messagingProperties.exchange(),
+                            messagingProperties.recoveryCodesRegeneratedRoutingKey(),
+                            event);
+                    log.info("Dispatched recovery codes regenerated notification to exchange '{}' with routing key '{}' for user: {}",
+                            messagingProperties.exchange(), messagingProperties.recoveryCodesRegeneratedRoutingKey(), user.getUsername());
+                } catch (Exception ex) {
+                    log.warn("Failed to dispatch recovery codes regenerated notification for user '{}': {}", user.getUsername(), ex.getMessage());
+                }
+            }
+        });
+
+        return new TotpActivationResponse(recoveryCodes);
     }
 
     private String hashRecoveryCode(String rawCode) {
