@@ -110,6 +110,13 @@ Automated background tasks run on distributed staggered schedules using Spring `
 - **On-Demand Email OTP Fallback**: Ephemeral 6-digit OTP stored in Redis (`mfa-login:<user_id>`) with an active 60-second rate-limiting cooldown and dynamic PII masking (`MaskUtil`) on email and username across all public challenge responses.
 - **Zero-Waste Factor Routing**: The `/public/login/mfa` verification endpoint routes using an explicit `factor` parameter (`"totp"`, `"email"`, `"recovery_code"`). Direct factor routing verifies email OTPs in Redis (<1ms) without executing unnecessary database lookups or AES-256/HMAC crypto, while maintaining seamless auto-detection when `factor` is omitted.
 
+### 11. WebAuthn Passkeys (FIDO2 / W3C WebAuthn Passwordless Authentication)
+- **Native Spring Security 7.x WebAuthn**: Implements W3C WebAuthn Level 3 passkey registration and authentication using `spring-security-webauthn`.
+- **Passkey Persistence**: Credentials stored in PostgreSQL (`user_credentials` table) mapped to `UserPasskeyCredential` JPA entity with UUIDv7, updatable = false on immutable cryptographic elements, and cascade delete foreign keys linked to `users(id)`.
+- **Stateless Redis Challenge Store**: `RedisPublicKeyCredentialCreationOptionsRepository` persists registration challenges in Redis with a 5-minute TTL (`auth:webauthn:challenge:*`) and dual-resolution via secure cookie (`VAULTIX_WEBAUTHN_CHALLENGE`) or authenticated user principal fallback.
+- **Custom Auth Handlers**: `WebAuthnAuthenticationSuccessHandler` issues standard Vaultix JWT access tokens and secure refresh token cookies upon passkey assertion, while `WebAuthnAuthenticationFailureHandler` outputs standardized `ApiResponse.error(...)` 401 envelopes.
+- **Passkey Lifecycle Management**: Authenticated REST API (`/mfa/passkeys`) allowing users to view registered passkeys (with authenticator transports and usage metadata), rename labels, and delete passkeys with automatic synchronization of `user.passkey_enabled`.
+
 ---
 
 ## API Endpoints (`/api/v1/auth`)
@@ -126,6 +133,8 @@ Automated background tasks run on distributed staggered schedules using Spring `
 | `POST` | `/public/login/mfa/send-email-otp`, `/public/login/mfa/send-otp`, `/public/login/mfa/email-otp` | Dispatch 6-digit one-time code to verified account email for secondary MFA login (60s cooldown) | No (MFA Token) | No |
 | `POST` | `/public/login/mfa`, `/public/login/verify-mfa`, `/public/mfa/verify` | Complete login by verifying 6-digit TOTP, 6-digit Email OTP, or Emergency Recovery Code | No (MFA Token) | Yes (`X-Client-IP`, `X-Device-*`) |
 | `POST`, `GET` | `/public/email/revert`, `/public/email-revert` | Revert compromised account email back to previous address using 7-day token & revoke attacker sessions | Token / Query | No |
+| `POST` | `/webauthn/authenticate/options` | Request WebAuthn publicKey credential request options (challenge, RP ID, user verification) | No | No |
+| `POST` | `/login/webauthn` | Authenticate passkey credential assertion, issue access token & set refresh cookie | No | Yes (`X-Client-IP`, `X-Device-*`) |
 | `GET` | `/.well-known/jwks.json` | Public JWK Set containing RSA-2048 verification keys | No | No |
 
 ### 2. Authenticated Profile & Session Endpoints
@@ -147,6 +156,11 @@ Automated background tasks run on distributed staggered schedules using Spring `
 | `POST` | `/mfa/totp/setup`, `/totp/setup`, `/totp/initiate` | Initiate TOTP 2FA setup, encrypt secret with KEK & return Base32 key with QR URI | Bearer JWT | No |
 | `POST` | `/mfa/totp/activate`, `/totp/activate`, `/totp/verify` | Verify 6-digit TOTP code, enable MFA on user account & send security alert email | Bearer JWT | No |
 | `POST` | `/mfa/totp/disable`, `/totp/disable` | Disable MFA, purge TOTP & recovery codes & send security alert email | Bearer JWT | No |
+| `POST` | `/webauthn/register/options` | Request WebAuthn publicKey credential creation options for passkey registration | Bearer JWT | No |
+| `POST` | `/webauthn/register` | Register new passkey credential (public key, authenticator transports, attestation) | Bearer JWT | No |
+| `GET` | `/mfa/passkeys`, `/passkeys` | Retrieve all registered passkeys for authenticated user | Bearer JWT | No |
+| `PATCH` | `/mfa/passkeys/{id}` | Update user-defined label for a passkey | Bearer JWT | No |
+| `DELETE` | `/mfa/passkeys/{id}` | Delete passkey credential & auto-disable passkey flag if last passkey | Bearer JWT | No |
 | `GET` | `/me`, `/profile` | Retrieve authenticated user profile with roles & permissions | Bearer JWT | No |
 
 
@@ -221,12 +235,14 @@ authorization/
     │   │       ├── KekProperties.java
     │   │       ├── LockoutProperties.java
     │   │       ├── OtpProperties.java
+    │   │       ├── PasskeyProperties.java
     │   │       ├── RoleProperties.java
     │   │       └── UserProperties.java
     │   ├── controller/
     │   │   ├── AccountController.java
     │   │   ├── AuthController.java
     │   │   ├── JwksController.java
+    │   │   ├── PasskeyController.java
     │   │   ├── TotpController.java
     │   │   ├── admin/
     │   │   │   ├── AdminPermissionController.java
@@ -265,9 +281,11 @@ authorization/
     │   │   │   └── UserResponse.java
     │   │   └── mfa/
     │   │       ├── MfaLoginRequest.java
+    │   │       ├── PasskeyResponse.java
     │   │       ├── SendMfaEmailOtpRequest.java
     │   │       ├── TotpActivationResponse.java
     │   │       ├── TotpSetupResponse.java
+    │   │       ├── UpdatePasskeyRequest.java
     │   │       └── VerifyTotpRequest.java
     │   ├── entity/
     │   │   ├── Permission.java
@@ -275,6 +293,7 @@ authorization/
     │   │   ├── Role.java
     │   │   ├── SigningKey.java
     │   │   ├── User.java
+    │   │   ├── UserPasskeyCredential.java
     │   │   ├── UserRecoveryCode.java
     │   │   ├── UserTotp.java
     │   │   └── enums/
@@ -289,6 +308,7 @@ authorization/
     │   │   ├── RefreshTokenRepository.java
     │   │   ├── RoleRepository.java
     │   │   ├── SigningKeyRepository.java
+    │   │   ├── UserPasskeyCredentialRepository.java
     │   │   ├── UserRepository.java
     │   │   ├── UserRecoveryCodeRepository.java
     │   │   └── UserTotpRepository.java
@@ -301,11 +321,18 @@ authorization/
     │   │   ├── AuthCookieHelper.java
     │   │   ├── AuthSecurityExpressions.java
     │   │   ├── CustomUserDetails.java
-    │   │   └── CustomUserDetailsService.java
+    │   │   ├── CustomUserDetailsService.java
+    │   │   └── webauthn/
+    │   │       ├── JpaPublicKeyCredentialUserEntityRepository.java
+    │   │       ├── JpaUserCredentialRepository.java
+    │   │       ├── RedisPublicKeyCredentialCreationOptionsRepository.java
+    │   │       ├── WebAuthnAuthenticationFailureHandler.java
+    │   │       └── WebAuthnAuthenticationSuccessHandler.java
     │   ├── service/
     │   │   ├── AccountService.java
     │   │   ├── AuthService.java
     │   │   ├── OtpService.java
+    │   │   ├── PasskeyService.java
     │   │   ├── PasswordResetService.java
     │   │   ├── PermissionService.java
     │   │   ├── RoleService.java
@@ -317,6 +344,7 @@ authorization/
     │   │       ├── AccountServiceImpl.java
     │   │       ├── AuthServiceImpl.java
     │   │       ├── OtpServiceImpl.java
+    │   │       ├── PasskeyServiceImpl.java
     │   │       ├── PasswordResetServiceImpl.java
     │   │       ├── PermissionServiceImpl.java
     │   │       ├── RoleServiceImpl.java
@@ -343,7 +371,8 @@ authorization/
             ├── V3__create_refresh_tokens_schema.sql
             ├── V4__create_signing_keys_schema.sql
             ├── V5__create_totp_schema.sql
-            └── V6__create_recovery_codes_schema.sql
+            ├── V6__create_recovery_codes_schema.sql
+            └── V7__create_passkeys_schema.sql
 ```
 
 ---
@@ -365,6 +394,9 @@ Configurable via `src/main/resources/application.yaml` or environment variables:
 | `VAULTIX_SECURITY_KEK_MASTER_KEY` | `3xhw5B4DZicmirWLS4h3ZkA4pBFZwyKlG6cvEYvdf7I=` | Master Key Encryption Key (KEK) for AES-256 GCM encryption at rest |
 | `VAULTIX_AUTH_LOCKOUT_MAX_FAILED_ATTEMPTS` | `5` | Maximum failed password attempts before account lockout |
 | `VAULTIX_AUTH_LOCKOUT_DURATION` | `15m` | Account lockout duration |
+| `VAULTIX_PASSKEY_RP_ID` | `localhost` | WebAuthn Relying Party ID |
+| `VAULTIX_PASSKEY_RP_NAME` | `Vaultix` | WebAuthn Relying Party Name |
+| `VAULTIX_PASSKEY_ALLOWED_ORIGINS` | `http://localhost:3000,http://localhost:5173,http://localhost:8080` | Allowed browser origins for passkey ceremonies |
 | `SPRING_DATA_REDIS_HOST` | `localhost` | Redis server hostname |
 | `SPRING_DATA_REDIS_PORT` | `6379` | Redis server port |
 | `SPRING_DATA_REDIS_USERNAME` | `auth_user` | Redis ACL connection username |
