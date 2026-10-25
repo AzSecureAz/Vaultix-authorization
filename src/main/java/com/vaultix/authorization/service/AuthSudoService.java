@@ -2,12 +2,17 @@ package com.vaultix.authorization.service;
 
 import java.util.UUID;
 
+import org.springframework.security.web.webauthn.api.AuthenticatorAssertionResponse;
+import org.springframework.security.web.webauthn.api.PublicKeyCredential;
+import org.springframework.security.web.webauthn.api.PublicKeyCredentialRequestOptions;
 import org.springframework.validation.annotation.Validated;
 
 import com.vaultix.authorization.dto.SudoResponse;
 import com.vaultix.authorization.dto.SudoVerifyRequest;
 import com.vaultix.common.util.ClientContextUtil.ClientContext;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 
@@ -25,4 +30,16 @@ public interface AuthSudoService {
     void revokeSudo(@NotNull(message = "Session ID cannot be null") UUID sessionId);
 
     void sendSudoSmsOtp(@NotNull(message = "User ID cannot be null") UUID userId);
+
+    PublicKeyCredentialRequestOptions generatePasskeySudoOptions(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            HttpServletRequest request,
+            HttpServletResponse response);
+
+    SudoResponse verifyPasskeySudo(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            @NotNull(message = "Session ID cannot be null") UUID sessionId,
+            @NotNull(message = "Credential assertion cannot be null") PublicKeyCredential<AuthenticatorAssertionResponse> credential,
+            HttpServletRequest request,
+            HttpServletResponse response);
 }

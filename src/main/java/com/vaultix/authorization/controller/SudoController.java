@@ -5,12 +5,16 @@ import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.web.webauthn.api.AuthenticatorAssertionResponse;
+import org.springframework.security.web.webauthn.api.PublicKeyCredential;
+import org.springframework.security.web.webauthn.api.PublicKeyCredentialRequestOptions;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.vaultix.authorization.dto.SudoResponse;
@@ -22,6 +26,7 @@ import com.vaultix.common.util.ClientContextUtil;
 import com.vaultix.common.util.ClientContextUtil.ClientContext;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -58,6 +63,32 @@ public class SudoController {
         log.info("Received sudo verification request for user ID: {}, session ID: {}", userId, sessionId);
         SudoResponse response = authSudoService.verifySudo(userId, sessionId, request, clientContext);
         return ResponseEntity.ok(ApiResponse.success("Sudo elevation activated successfully", response));
+    }
+
+    @RequestMapping(value = {"/passkey/options", "/passkey-options"}, method = {RequestMethod.GET, RequestMethod.POST})
+    public ResponseEntity<ApiResponse<PublicKeyCredentialRequestOptions>> getSudoPasskeyOptions(
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+
+        UUID userId = SecurityUtil.extractActorId(jwt);
+        log.info("Received request for passkey sudo options for user ID: {}", userId);
+        PublicKeyCredentialRequestOptions options = authSudoService.generatePasskeySudoOptions(userId, request, response);
+        return ResponseEntity.ok(ApiResponse.success("Passkey sudo options generated successfully", options));
+    }
+
+    @PostMapping({"/passkey/verify", "/passkey"})
+    public ResponseEntity<ApiResponse<SudoResponse>> verifySudoPasskey(
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
+            @RequestBody PublicKeyCredential<AuthenticatorAssertionResponse> credential,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+
+        UUID userId = SecurityUtil.extractActorId(jwt);
+        UUID sessionId = SecurityUtil.extractSessionId(jwt);
+        log.info("Received passkey sudo verification request for user ID: {}, session ID: {}", userId, sessionId);
+        SudoResponse sudoResponse = authSudoService.verifyPasskeySudo(userId, sessionId, credential, request, response);
+        return ResponseEntity.ok(ApiResponse.success("Sudo elevation activated successfully via passkey", sudoResponse));
     }
 
     @PostMapping({"/send-sms-otp", "/sms-otp"})

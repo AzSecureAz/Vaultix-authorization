@@ -88,6 +88,8 @@ When accessing sensitive endpoints marked **(Requires Sudo)** without active ele
 | :--- | :--- | :--- | :--- | :--- |
 | `GET` | `/sudo`, `/sudo/status` | Check current session sudo elevation status (`elevated`, `expires_in_seconds`, `expires_at`) | Bearer JWT | No |
 | `POST` | `/sudo`, `/sudo/verify` | Elevate session to sudo mode via `(Password OR Social Login) + (TOTP / SMS OTP / Recovery Code if MFA enabled)` | Bearer JWT | Yes (`X-Client-IP`, `X-Device-*`) |
+| `GET`, `POST` | `/sudo/passkey/options`, `/sudo/passkey-options` | Generate WebAuthn assertion request options restricted to user's registered passkeys | Bearer JWT | No |
+| `POST` | `/sudo/passkey/verify`, `/sudo/passkey` | Elevate session to sudo mode via standalone biometric/hardware WebAuthn assertion verification | Bearer JWT | No |
 | `POST` | `/sudo/send-sms-otp`, `/sudo/sms-otp` | Dispatch SMS OTP verification code to registered phone number for sudo elevation | Bearer JWT | No |
 | `DELETE` | `/sudo`, `/sudo/revoke` | Revoke active sudo elevation early | Bearer JWT | No |
 

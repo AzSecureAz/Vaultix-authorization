@@ -15,7 +15,16 @@ import java.util.UUID;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.webauthn.api.AuthenticatorAssertionResponse;
+import org.springframework.security.web.webauthn.api.PublicKeyCredential;
+import org.springframework.security.web.webauthn.api.PublicKeyCredentialRequestOptions;
+import org.springframework.security.web.webauthn.api.PublicKeyCredentialUserEntity;
+import org.springframework.security.web.webauthn.management.ImmutablePublicKeyCredentialRequestOptionsRequest;
+import org.springframework.security.web.webauthn.management.RelyingPartyAuthenticationRequest;
+import org.springframework.security.web.webauthn.management.WebAuthnRelyingPartyOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -33,10 +42,13 @@ import com.vaultix.authorization.entity.UserSocialAccount;
 import com.vaultix.authorization.entity.UserTotp;
 import com.vaultix.authorization.entity.enums.SocialProvider;
 import com.vaultix.authorization.entity.enums.UserStatus;
+import com.vaultix.authorization.repository.UserPasskeyCredentialRepository;
 import com.vaultix.authorization.repository.UserRecoveryCodeRepository;
 import com.vaultix.authorization.repository.UserRepository;
 import com.vaultix.authorization.repository.UserSocialAccountRepository;
 import com.vaultix.authorization.repository.UserTotpRepository;
+import com.vaultix.authorization.security.webauthn.JpaPublicKeyCredentialUserEntityRepository;
+import com.vaultix.authorization.security.webauthn.RedisPublicKeyCredentialRequestOptionsRepository;
 import com.vaultix.authorization.service.AuthSudoService;
 import com.vaultix.authorization.service.GitHubAuthService;
 import com.vaultix.authorization.service.GoogleAuthService;
@@ -52,6 +64,8 @@ import com.vaultix.common.exception.ResourceNotFoundException;
 import com.vaultix.common.security.SudoService;
 import com.vaultix.common.util.ClientContextUtil.ClientContext;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -76,6 +90,9 @@ public class AuthSudoServiceImpl implements AuthSudoService {
     private final KekProperties kekProperties;
     private final RabbitTemplate rabbitTemplate;
     private final AuthMessagingProperties messagingProperties;
+    private final UserPasskeyCredentialRepository passkeyRepository;
+    private final WebAuthnRelyingPartyOperations webAuthnRelyingPartyOperations;
+    private final RedisPublicKeyCredentialRequestOptionsRepository requestOptionsRepository;
 
     @Override
     @Transactional
@@ -235,6 +252,99 @@ public class AuthSudoServiceImpl implements AuthSudoService {
     @Override
     public void sendSudoSmsOtp(@NotNull(message = "User ID cannot be null") UUID userId) {
         smsMfaService.sendLoginSmsOtp(userId);
+    }
+
+    @Override
+    public PublicKeyCredentialRequestOptions generatePasskeySudoOptions(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+
+        log.info("Generating passkey sudo request options for user ID: {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        if (user.getStatus() == UserStatus.DISABLED || user.getStatus() == UserStatus.DELETED) {
+            log.warn("Passkey sudo options rejected for {} user: {}", user.getStatus(), user.getUsername());
+            throw new BadRequestException("Account is " + user.getStatus().name().toLowerCase(Locale.ROOT) + ". Please contact support.");
+        }
+
+        long passkeyCount = passkeyRepository.countByUserId(userId);
+        if (passkeyCount == 0) {
+            log.warn("Passkey sudo options rejected: no registered passkeys for user: {}", user.getUsername());
+            throw new BadRequestException("No passkeys registered for this account. Please verify with password or social login.");
+        }
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        ImmutablePublicKeyCredentialRequestOptionsRequest optionsRequest
+                = new ImmutablePublicKeyCredentialRequestOptionsRequest(authentication);
+
+        PublicKeyCredentialRequestOptions options
+                = webAuthnRelyingPartyOperations.createCredentialRequestOptions(optionsRequest);
+
+        requestOptionsRepository.save(request, response, options);
+        log.info("Successfully saved passkey sudo challenge to Redis for user: {}", user.getUsername());
+
+        return options;
+    }
+
+    @Override
+    @Transactional
+    public SudoResponse verifyPasskeySudo(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            @NotNull(message = "Session ID cannot be null") UUID sessionId,
+            @NotNull(message = "Credential assertion cannot be null") PublicKeyCredential<AuthenticatorAssertionResponse> credential,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+
+        log.info("Processing passkey sudo verification for user ID: {}, session ID: {}", userId, sessionId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        if (user.getStatus() == UserStatus.DISABLED || user.getStatus() == UserStatus.DELETED) {
+            log.warn("Passkey sudo verification rejected for {} user: {}", user.getStatus(), user.getUsername());
+            throw new BadRequestException("Account is " + user.getStatus().name().toLowerCase(Locale.ROOT) + ". Please contact support.");
+        }
+
+        /* 1. Retrieve the single-use request options challenge from Redis */
+        PublicKeyCredentialRequestOptions requestOptions = requestOptionsRepository.load(request);
+        if (requestOptions == null) {
+            log.warn("Passkey sudo verification failed: No active challenge found for user: {}", user.getUsername());
+            throw new BadCredentialsException("WebAuthn challenge expired or not found. Please request new options.");
+        }
+
+        /* Clear challenge cookie on the response */
+        requestOptionsRepository.save(request, response, null);
+
+        /* 2. Authenticate cryptographic assertion via WebAuthnRelyingPartyOperations */
+        PublicKeyCredentialUserEntity userEntity;
+        try {
+            RelyingPartyAuthenticationRequest rpRequest
+                    = new RelyingPartyAuthenticationRequest(requestOptions, credential);
+            userEntity = webAuthnRelyingPartyOperations.authenticate(rpRequest);
+        } catch (Exception ex) {
+            log.warn("Passkey assertion verification failed for user '{}': {}", user.getUsername(), ex.getMessage());
+            throw new BadCredentialsException("Passkey verification failed: " + ex.getMessage(), ex);
+        }
+
+        if (userEntity == null || userEntity.getId() == null) {
+            throw new BadCredentialsException("Passkey verification returned no user identity");
+        }
+
+        UUID verifiedUserId = JpaPublicKeyCredentialUserEntityRepository.bytesToUuid(userEntity.getId());
+        if (verifiedUserId == null || !verifiedUserId.equals(userId)) {
+            log.warn("Passkey credential belongs to user ID '{}', expected '{}'", verifiedUserId, userId);
+            throw new BadCredentialsException("Passkey credential belongs to a different account");
+        }
+
+        /* 4. Elevate session in Redis via SudoService */
+        sudoService.elevateSudo(sessionId);
+        log.info("Successfully elevated sudo mode via Passkey for session ID: {}, user: {}", sessionId, user.getUsername());
+
+        long remaining = sudoService.getRemainingSeconds(sessionId).orElse(SudoService.DEFAULT_SUDO_DURATION.toSeconds());
+        return SudoResponse.active(remaining);
     }
 
     private boolean verifyAndBurnRecoveryCode(UUID userId, String rawCode, User user, ClientContext clientContext) {

@@ -11,6 +11,7 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.webauthn.jackson.WebauthnJacksonModule;
 
 import com.vaultix.common.security.CustomAccessDeniedHandler;
 import com.vaultix.common.security.CustomAuthenticationEntryPoint;
@@ -26,6 +27,7 @@ import com.vaultix.common.security.RoleRevocationService;
 import com.vaultix.common.security.SudoService;
 import com.vaultix.common.security.TokenBlacklistService;
 
+import tools.jackson.databind.JacksonModule;
 import tools.jackson.databind.ObjectMapper;
 
 @Configuration
@@ -110,5 +112,10 @@ public class SecurityBeansConfig {
         return RequireSudoAspect.builder()
                 .sudoService(sudoService)
                 .build();
+    }
+
+    @Bean
+    public JacksonModule webauthnJacksonModule() {
+        return new WebauthnJacksonModule();
     }
 }

@@ -151,10 +151,12 @@ Automated background tasks run on distributed staggered schedules using Spring `
   - **Primary Authentication Factor**: Requires either the user's account password, a valid Google OIDC ID token, or a GitHub OAuth2 authorization code matching a linked social account (`user_social_accounts`).
   - **Secondary MFA Factor**: If the user account has TOTP or SMS MFA enabled (`mfa_enabled = true` or `sms_mfa_enabled = true`), a valid 6-digit TOTP code, 6-digit SMS OTP, or unused emergency recovery code is strictly required.
   - If an emergency recovery code is used for sudo elevation, the code is immediately burned in PostgreSQL and an `auth.recovery-code-used` security alert is dispatched over RabbitMQ.
-  - Passkey sudo verification is designed as a standalone biometric ceremony and will be integrated directly via WebAuthn assertion.
+  - **Standalone Passkey Sudo Ceremony**: FIDO2 / WebAuthn passkeys are hardware-backed and require biometric or PIN User Verification (`UV`), providing phishing-resistant multi-factor authentication natively. Sudo verification via passkey is completely standalone: **no password, social login, TOTP, SMS OTP, or recovery codes are needed**.
 - **Sudo Elevation API**:
   - `GET /sudo`, `/sudo/status`: Inspect active elevation status (`elevated`, `expires_in_seconds`, `expires_at`).
-  - `POST /sudo`, `/sudo/verify`: Elevate session via unified primary and MFA verification.
+  - `POST /sudo`, `/sudo/verify`: Elevate session via unified primary (password/social) and secondary MFA factors.
+  - `GET`, `POST` `/sudo/passkey/options`: Generate WebAuthn assertion challenge options scoped to the user's registered passkeys (cached in Redis with 5-minute TTL).
+  - `POST /sudo/passkey/verify`, `/sudo/passkey`: Authenticate WebAuthn credential assertion cryptographically and activate 5-minute sudo elevation.
   - `POST /sudo/send-sms-otp`: Dispatch a fresh 6-digit SMS verification code to the registered phone.
-  - `DELETE /sudo`, `POST /sudo/revoke`: Manually drop sudo privileges before the 5-minute timeout.
+  - `DELETE /sudo`, `/sudo/revoke`: Manually drop sudo privileges before the 5-minute timeout.
 
