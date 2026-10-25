@@ -70,7 +70,6 @@ public class SudoController {
     }
 
     @DeleteMapping({"", "/", "/revoke"})
-    @PostMapping("/revoke")
     public ResponseEntity<ApiResponse<Void>> revokeSudo(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
 
