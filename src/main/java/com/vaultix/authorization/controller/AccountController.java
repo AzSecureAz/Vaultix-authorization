@@ -69,17 +69,21 @@ public class AccountController {
     @RequestMapping(value = {"/password", "/password/change", "/password-change"}, method = {RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.POST})
     public ResponseEntity<ApiResponse<Void>> changePassword(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
-            @Valid @RequestBody ChangePasswordRequest request,
-            HttpServletRequest httpRequest) {
+            @Valid @RequestBody ChangePasswordRequest request) {
 
         UUID userId = SecurityUtil.extractActorId(jwt);
-        accountService.changePassword(userId, request);
+        UUID currentJti = null;
+        if (jwt.getId() != null && !jwt.getId().isBlank()) {
+            try {
+                currentJti = UUID.fromString(jwt.getId().strip());
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid JWT JTI UUID: {}", jwt.getId());
+            }
+        }
 
-        ResponseCookie cleanCookie = authCookieHelper.createCleanCookie(httpRequest);
+        accountService.changePassword(userId, currentJti, request);
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cleanCookie.toString())
-                .body(ApiResponse.success("Password changed successfully. Please log in with your new password."));
+        return ResponseEntity.ok(ApiResponse.success("Password changed successfully. All other active sessions have been signed out."));
     }
 
     @PostMapping({"/email/send-verification", "/email/send/verification", "/email/verification/send"})

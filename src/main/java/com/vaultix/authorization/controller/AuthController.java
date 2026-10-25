@@ -38,7 +38,11 @@ public class AuthController {
             HttpServletRequest httpRequest) {
 
         if (jwt.getId() != null && !jwt.getId().isBlank()) {
-            authService.logout(jwt.getId().strip());
+            try {
+                authService.logout(UUID.fromString(jwt.getId().strip()));
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid UUID format for access token JTI during logout: {}", jwt.getId());
+            }
         }
 
         ResponseCookie cleanCookie = authCookieHelper.createCleanCookie(httpRequest);
@@ -46,6 +50,30 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cleanCookie.toString())
                 .body(ApiResponse.success("Logged out successfully"));
+    }
+
+    @PostMapping({"/logout-other", "/logout/other"})
+    public ResponseEntity<ApiResponse<Void>> logoutOther(
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
+
+        UUID userId = SecurityUtil.extractActorId(jwt);
+        UUID currentAccessTokenJti = null;
+        if (jwt.getId() != null && !jwt.getId().isBlank()) {
+            try {
+                currentAccessTokenJti = UUID.fromString(jwt.getId().strip());
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid UUID format for current access token JTI during logout other: {}", jwt.getId());
+            }
+        }
+
+        if (currentAccessTokenJti == null) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Valid session token identifier is required"));
+        }
+
+        authService.logoutOther(userId, currentAccessTokenJti);
+
+        return ResponseEntity.ok(ApiResponse.success("Logged out from all other devices successfully"));
     }
 
     @PostMapping({"/logout-all", "/logout/all"})

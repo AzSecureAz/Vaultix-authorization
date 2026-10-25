@@ -292,12 +292,20 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void logout(
-            @NotBlank(message = "Access token JTI is required")
-            @Size(max = 64, message = "Access token JTI cannot exceed 64 characters") String accessTokenJti) {
+            @NotNull(message = "Access token JTI cannot be null") UUID accessTokenJti) {
 
-        String cleanedJti = accessTokenJti.strip();
-        log.info("Processing logout request for accessTokenJti: {}", cleanedJti);
-        tokenService.logout(cleanedJti);
+        log.info("Processing logout request for accessTokenJti: {}", accessTokenJti);
+        tokenService.logout(accessTokenJti);
+    }
+
+    @Override
+    @Transactional
+    public int logoutOther(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            @NotNull(message = "Current access token JTI cannot be null") UUID currentAccessTokenJti) {
+
+        log.info("Processing logout other sessions for user ID: {}, keeping session JTI: {}", userId, currentAccessTokenJti);
+        return tokenService.revokeOtherUserTokens(userId, currentAccessTokenJti);
     }
 
     @Override

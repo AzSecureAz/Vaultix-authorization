@@ -33,6 +33,12 @@ public interface AccountService {
             @NotNull(message = "Change password request cannot be null")
             @Valid ChangePasswordRequest request);
 
+    void changePassword(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            UUID currentAccessTokenJti,
+            @NotNull(message = "Change password request cannot be null")
+            @Valid ChangePasswordRequest request);
+
     void sendEmailVerification(@NotNull(message = "User ID cannot be null") UUID userId);
 
     void verifyEmail(

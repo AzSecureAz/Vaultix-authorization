@@ -25,6 +25,12 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
     @Query("SELECT r.accessTokenJti FROM RefreshToken r WHERE r.user.id = :userId AND r.revoked = false AND r.expiresAt > :now")
     List<UUID> findActiveAccessTokenJtisByUserId(@Param("userId") UUID userId, @Param("now") Instant now);
 
+    @Query("SELECT r.accessTokenJti FROM RefreshToken r WHERE r.user.id = :userId AND r.accessTokenJti <> :currentJti AND r.revoked = false AND r.expiresAt > :now")
+    List<UUID> findActiveAccessTokenJtisByUserIdExcludingCurrent(
+            @Param("userId") UUID userId,
+            @Param("currentJti") UUID currentJti,
+            @Param("now") Instant now);
+
     @Modifying
     @Query(value = """
             DELETE FROM refresh_tokens

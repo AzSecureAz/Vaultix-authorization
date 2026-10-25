@@ -77,7 +77,8 @@ Complete endpoint reference for the **Vaultix Authorization Service**.
 
 | Method | Endpoint | Description | Auth Required | Client Context Tracked |
 | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/logout` | Revoke current session refresh token and clear cookie | Cookie / Body | No |
+| `POST` | `/logout` | Revoke current session refresh token and clear cookie | Bearer JWT | No |
+| `POST` | `/logout-other`, `/logout/other` | Revoke all other active sessions for user, keeping current device authenticated | Bearer JWT | No |
 | `POST` | `/logout-all`, `/logout/all` | Revoke ALL active refresh tokens for the user and blacklist current JWT in Redis | Bearer JWT | No |
 
 ### 2.5 Sudo Mode Elevation & Verification (`/sudo`)

@@ -132,6 +132,16 @@ public class AccountServiceImpl implements AccountService {
             @NotNull(message = "User ID cannot be null") UUID userId,
             @NotNull(message = "Change password request cannot be null")
             @Valid ChangePasswordRequest request) {
+        changePassword(userId, null, request);
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            UUID currentAccessTokenJti,
+            @NotNull(message = "Change password request cannot be null")
+            @Valid ChangePasswordRequest request) {
 
         log.info("Processing password change for user ID: {}", userId);
 
@@ -159,9 +169,16 @@ public class AccountServiceImpl implements AccountService {
         user.setUpdatedBy(userId);
         userRepository.save(user);
 
-        int revokedCount = tokenService.revokeAllUserTokens(user.getId());
-        log.info("Password successfully changed for user: {}. Revoked {} active sessions.",
-                user.getUsername(), revokedCount);
+        int revokedCount;
+        if (currentAccessTokenJti != null) {
+            revokedCount = tokenService.revokeOtherUserTokens(user.getId(), currentAccessTokenJti);
+            log.info("Password successfully changed for user: {}. Revoked {} other active sessions (current session preserved).",
+                    user.getUsername(), revokedCount);
+        } else {
+            revokedCount = tokenService.revokeAllUserTokens(user.getId());
+            log.info("Password successfully changed for user: {}. Revoked all {} active sessions.",
+                    user.getUsername(), revokedCount);
+        }
 
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override

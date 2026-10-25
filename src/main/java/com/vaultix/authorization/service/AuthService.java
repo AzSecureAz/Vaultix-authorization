@@ -35,8 +35,11 @@ public interface AuthService {
             ClientContext clientContext);
 
     void logout(
-            @NotBlank(message = "Access token JTI is required")
-            @Size(max = 64, message = "Access token JTI cannot exceed 64 characters") String accessTokenJti);
+            @NotNull(message = "Access token JTI cannot be null") UUID accessTokenJti);
+
+    int logoutOther(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            @NotNull(message = "Current access token JTI cannot be null") UUID currentAccessTokenJti);
 
     int logoutAll(@NotNull(message = "User ID cannot be null") UUID userId);
 

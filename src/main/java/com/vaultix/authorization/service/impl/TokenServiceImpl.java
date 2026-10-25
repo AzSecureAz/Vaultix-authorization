@@ -228,25 +228,18 @@ public class TokenServiceImpl implements TokenService {
     @Override
     @Transactional
     public void logout(
-            @NotBlank(message = "Access token JTI is required")
-            @Size(max = 64, message = "Access token JTI cannot exceed 64 characters") String accessTokenJti) {
+            @NotNull(message = "Access token JTI cannot be null") UUID accessTokenJti) {
 
-        String cleanedJti = accessTokenJti.strip();
-        log.info("Processing logout for access token JTI: {}", cleanedJti);
+        log.info("Processing logout for access token JTI: {}", accessTokenJti);
 
-        tokenBlacklistService.blacklist(cleanedJti, jwtProperties.accessTokenExpiration());
+        tokenBlacklistService.blacklist(accessTokenJti.toString(), jwtProperties.accessTokenExpiration());
 
-        try {
-            UUID jtiUuid = UUID.fromString(cleanedJti);
-            refreshTokenRepository.findByAccessTokenJti(jtiUuid).ifPresent(session -> {
-                session.setRevoked(true);
-                session.setRevokedAt(Instant.now());
-                refreshTokenRepository.save(session);
-                log.info("Revoked refresh token session for user ID: {} upon logout", session.getUser().getId());
-            });
-        } catch (IllegalArgumentException e) {
-            log.warn("Invalid UUID format for access token JTI during logout: {}", cleanedJti);
-        }
+        refreshTokenRepository.findByAccessTokenJti(accessTokenJti).ifPresent(session -> {
+            session.setRevoked(true);
+            session.setRevokedAt(Instant.now());
+            refreshTokenRepository.save(session);
+            log.info("Revoked refresh token session for user ID: {} upon logout", session.getUser().getId());
+        });
     }
 
     @Override
@@ -265,6 +258,30 @@ public class TokenServiceImpl implements TokenService {
 
         log.info("Revoked {} refresh token sessions and scheduled blacklist for {} access tokens for user ID: {}",
                 revokedCount, activeAccessTokenJtis.size(), userId);
+        return revokedCount;
+    }
+
+    @Override
+    @Transactional
+    public int revokeOtherUserTokens(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            @NotNull(message = "Current access token JTI cannot be null") UUID currentAccessTokenJti) {
+
+        log.info("Revoking other active tokens and sessions for user ID: {}, keeping session JTI: {}",
+                userId, currentAccessTokenJti);
+
+        Instant now = Instant.now();
+        List<UUID> otherAccessTokenJtis = refreshTokenRepository.findActiveAccessTokenJtisByUserIdExcludingCurrent(
+                userId, currentAccessTokenJti, now);
+
+        int revokedCount = 0;
+        if (!otherAccessTokenJtis.isEmpty()) {
+            blacklistTokensAfterCommit(otherAccessTokenJtis);
+            revokedCount = refreshTokenRepository.revokeByAccessTokenJtis(otherAccessTokenJtis, now);
+        }
+
+        log.info("Revoked {} other refresh token sessions and scheduled blacklist for {} access tokens for user ID: {}",
+                revokedCount, otherAccessTokenJtis.size(), userId);
         return revokedCount;
     }
 
