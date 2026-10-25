@@ -16,9 +16,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.vaultix.authorization.dto.oauth2.GitHubLoginRequest;
 import com.vaultix.authorization.dto.oauth2.GoogleLoginRequest;
 import com.vaultix.authorization.dto.oauth2.SocialAccountResponse;
 import com.vaultix.authorization.entity.enums.SocialProvider;
+import com.vaultix.authorization.service.GitHubAuthService;
 import com.vaultix.authorization.service.GoogleAuthService;
 import com.vaultix.authorization.service.SocialAccountService;
 import com.vaultix.common.dto.ApiResponse;
@@ -39,6 +41,7 @@ public class SocialAccountController {
 
     private final SocialAccountService socialAccountService;
     private final GoogleAuthService googleAuthService;
+    private final GitHubAuthService gitHubAuthService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<SocialAccountResponse>>> getLinkedAccounts(
@@ -57,6 +60,16 @@ public class SocialAccountController {
         UUID userId = SecurityUtil.extractActorId(jwt);
         SocialAccountResponse response = googleAuthService.linkGoogle(userId, request);
         return ResponseEntity.ok(ApiResponse.success("Google account linked successfully", response));
+    }
+
+    @PostMapping({"/github/link", "/github"})
+    public ResponseEntity<ApiResponse<SocialAccountResponse>> linkGitHub(
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
+            @Valid @RequestBody GitHubLoginRequest request) {
+
+        UUID userId = SecurityUtil.extractActorId(jwt);
+        SocialAccountResponse response = gitHubAuthService.linkGitHub(userId, request);
+        return ResponseEntity.ok(ApiResponse.success("GitHub account linked successfully", response));
     }
 
     @DeleteMapping({"/{provider}", "/{provider}/unlink"})
