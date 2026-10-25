@@ -113,6 +113,9 @@ vaultix:
       allowed-origins: ${VAULTIX_PASSKEY_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,http://localhost:8080,https://zj153pc4-3000.inc1.devtunnels.ms}
   frontend:
     base-url: ${VAULTIX_FRONTEND_BASE_URL:https://zj153pc4-3000.inc1.devtunnels.ms}
+  oauth2:
+    google:
+      client-id: ${VAULTIX_GOOGLE_CLIENT_ID:YOUR_GOOGLE_CLIENT_ID}
   rabbitmq:
     exchange: ${VAULTIX_RABBITMQ_AUTH_EXCHANGE:auth.exchange}
     password-reset-routing-key: ${VAULTIX_RABBITMQ_AUTH_PASSWORD_RESET_ROUTING_KEY:auth.notification.password-reset}
