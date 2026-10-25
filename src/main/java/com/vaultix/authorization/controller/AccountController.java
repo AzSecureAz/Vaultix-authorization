@@ -27,6 +27,7 @@ import com.vaultix.authorization.dto.VerifyPhoneNumberRequest;
 import com.vaultix.authorization.security.AuthCookieHelper;
 import com.vaultix.authorization.service.AccountService;
 import com.vaultix.common.dto.ApiResponse;
+import com.vaultix.common.security.RequireSudo;
 import com.vaultix.common.security.SecurityUtil;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -64,6 +65,7 @@ public class AccountController {
         return ResponseEntity.ok(ApiResponse.success("Username changed successfully"));
     }
 
+    @RequireSudo
     @RequestMapping(value = {"/password", "/password/change", "/password-change"}, method = {RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.POST})
     public ResponseEntity<ApiResponse<Void>> changePassword(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
@@ -118,6 +120,7 @@ public class AccountController {
         return ResponseEntity.ok(ApiResponse.success("Phone number verified successfully"));
     }
 
+    @RequireSudo
     @RequestMapping(value = {"/email/change/request", "/email/change-request", "/email/request-change", "/email/change"}, method = {RequestMethod.POST, RequestMethod.PUT})
     public ResponseEntity<ApiResponse<Void>> requestEmailChange(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
@@ -144,6 +147,7 @@ public class AccountController {
                 .body(ApiResponse.success("Email changed successfully. Please log in with your new email address."));
     }
 
+    @RequireSudo
     @RequestMapping(value = {"/phone/change/request", "/phone/change-request", "/phone/request-change", "/phone/change"}, method = {RequestMethod.POST, RequestMethod.PUT})
     public ResponseEntity<ApiResponse<Void>> requestPhoneNumberChange(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,

@@ -39,7 +39,7 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
 
 ## 2. JWT Access Tokens
 - Signed with active RSA-2048 private key via Nimbus JOSE.
-- Claims: `iss`, `sub` (User UUID), `jti` (UUIDv7), `token_type: access`, `roles_permissions` map, `iat`, `exp` (15 min default).
+- Claims: `iss`, `sub` (User UUID), `jti` (UUIDv7), `sid` (Session UUID / Refresh Token JTI), `token_type: access`, `roles_permissions` map, `iat`, `exp` (15 min default).
 - Subject UUID is validated early at the filter layer via `SecurityUtil.extractActorId(jwt)` during `CustomJwtAuthenticationConverter` processing.
 
 ## 3. Refresh Token Rotation & Session Tracking
@@ -140,3 +140,21 @@ Automated background tasks run on distributed staggered schedules using Spring `
   - The client invokes `/public/login/mfa/sms/send-otp` with the `mfa_token` to send an SMS verification OTP to the user's registered phone number.
   - The user enters the OTP in the unified MFA challenge dialog, which sends it to `/public/login/mfa` with `factor: "sms"` to complete authentication and receive JWT tokens.
 - **Disablement**: User calls `/mfa/sms/disable` &rarr; Sets `sms_mfa_enabled = false` and sends `auth.notification.mfa-disabled` security alert.
+
+## 14. Sudo Mode Elevation & Step-Up Re-Authentication
+- **Defense-in-Depth IAM Protection**: Critical account modifications (password modification, email change, phone change, disabling TOTP or SMS MFA, unlinking social accounts, deleting WebAuthn passkeys, and regenerating emergency recovery codes) are guarded by `@RequireSudo`.
+- **Zero-Trust AOP Enforcement**: `RequireSudoAspect` intercepts `@RequireSudo` methods, extracting the session ID (`sid`) from the authenticated JWT. If no active sudo key is found in Redis, execution is halted with `SudoRequiredException`, emitting an HTTP `403 FORBIDDEN` response with the header `X-Sudo-Required: true`.
+- **Stateless Distributed Session Binding**:
+  - Sudo elevation status is tracked in Redis under `auth:sudo:session:{sessionId}` with a default TTL of 5 minutes (`DEFAULT_SUDO_DURATION`).
+  - Sudo elevation is strictly scoped to the active session ID, ensuring that elevating on one browser session does not inadvertently grant sudo privileges to other active sessions or devices.
+- **Unified Multi-Factor Sudo Verification Formula**:
+  - **Primary Authentication Factor**: Requires either the user's account password, a valid Google OIDC ID token, or a GitHub OAuth2 authorization code matching a linked social account (`user_social_accounts`).
+  - **Secondary MFA Factor**: If the user account has TOTP or SMS MFA enabled (`mfa_enabled = true` or `sms_mfa_enabled = true`), a valid 6-digit TOTP code, 6-digit SMS OTP, or unused emergency recovery code is strictly required.
+  - If an emergency recovery code is used for sudo elevation, the code is immediately burned in PostgreSQL and an `auth.recovery-code-used` security alert is dispatched over RabbitMQ.
+  - Passkey sudo verification is designed as a standalone biometric ceremony and will be integrated directly via WebAuthn assertion.
+- **Sudo Elevation API**:
+  - `GET /sudo`, `/sudo/status`: Inspect active elevation status (`elevated`, `expires_in_seconds`, `expires_at`).
+  - `POST /sudo`, `/sudo/verify`: Elevate session via unified primary and MFA verification.
+  - `POST /sudo/send-sms-otp`: Dispatch a fresh 6-digit SMS verification code to the registered phone.
+  - `DELETE /sudo`, `POST /sudo/revoke`: Manually drop sudo privileges before the 5-minute timeout.
+

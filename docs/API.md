@@ -35,15 +35,15 @@ Complete endpoint reference for the **Vaultix Authorization Service**.
 | Method | Endpoint | Description | Auth Required | Client Context Tracked |
 | :--- | :--- | :--- | :--- | :--- |
 | `GET` | `/me`, `/profile` | Retrieve authenticated user profile with roles, permissions, and MFA status | Bearer JWT | No |
-| `PUT`, `PATCH`, `POST` | `/password`, `/password/change`, `/password-change` | Change password, revoke active sessions & alert email | Bearer JWT | No |
+| `PUT`, `PATCH`, `POST` | `/password`, `/password/change`, `/password-change` | Change password, revoke active sessions & alert email **(Requires Sudo)** | Bearer JWT | No |
 | `PUT`, `PATCH`, `POST` | `/username`, `/username/change`, `/username-change` | Update authenticated user's unique username | Bearer JWT | No |
 | `POST` | `/email/send-verification`, `/email/send/verification` | Send OTP verification code to authenticated user's email (60s cooldown) | Bearer JWT | No |
 | `POST` | `/email/verify`, `/email-verify` | Validate OTP code and mark account email as verified (`email_verified = true`) | Bearer JWT | No |
-| `POST`, `PUT` | `/email/change/request`, `/email/change`, `/email/request-change` | Initiate 2-step email change & send OTP to new email (60s cooldown) | Bearer JWT | No |
+| `POST`, `PUT` | `/email/change/request`, `/email/change`, `/email/request-change` | Initiate 2-step email change & send OTP to new email (60s cooldown) **(Requires Sudo)** | Bearer JWT | No |
 | `POST` | `/email/change/confirm`, `/email/confirm-change` | Validate OTP sent to new email, commit new email & revoke active sessions | Bearer JWT | No |
 | `POST` | `/phone/send-verification`, `/phone/send/verification` | Send OTP verification code via SMS to registered phone number (60s cooldown) | Bearer JWT | No |
 | `POST` | `/phone/verify`, `/phone-verify` | Validate OTP code and mark phone number as verified (`phone_number_verified = true`) | Bearer JWT | No |
-| `POST`, `PUT` | `/phone/change/request`, `/phone/change`, `/phone/request-change` | Initiate 2-step phone change & send OTP to new phone number (60s cooldown) | Bearer JWT | No |
+| `POST`, `PUT` | `/phone/change/request`, `/phone/change`, `/phone/request-change` | Initiate 2-step phone change & send OTP to new phone number (60s cooldown) **(Requires Sudo)** | Bearer JWT | No |
 | `POST` | `/phone/change/confirm`, `/phone/confirm-change` | Validate OTP sent to new phone number, commit new phone & revoke active sessions | Bearer JWT | No |
 
 ### 2.2 Multi-Factor Authentication (MFA) & Passkeys
@@ -52,17 +52,17 @@ Complete endpoint reference for the **Vaultix Authorization Service**.
 | :--- | :--- | :--- | :--- | :--- |
 | `POST` | `/mfa/totp/setup`, `/totp/setup`, `/totp/initiate` | Initiate TOTP 2FA setup, encrypt secret with KEK & return Base32 key with QR URI | Bearer JWT | No |
 | `POST` | `/mfa/totp/activate`, `/totp/activate`, `/totp/verify` | Verify 6-digit TOTP code, enable MFA on user account, generate 10 recovery codes & alert email | Bearer JWT | No |
-| `POST` | `/mfa/totp/disable`, `/totp/disable` | Disable TOTP MFA, purge secret & recovery codes & send security alert email | Bearer JWT | No |
+| `POST` | `/mfa/totp/disable`, `/totp/disable` | Disable TOTP MFA, purge secret & recovery codes & send security alert email **(Requires Sudo)** | Bearer JWT | No |
 | `POST` | `/mfa/sms/setup`, `/mfa/sms/send-setup-otp`, `/mfa/sms/initiate` | Send 6-digit OTP to user's registered phone number for SMS MFA activation (60s cooldown) | Bearer JWT | No |
 | `POST` | `/mfa/sms/enable`, `/mfa/sms/activate`, `/mfa/sms/verify` | Verify SMS OTP, enable SMS MFA (`sms_mfa_enabled = true`), issue recovery codes & alert email | Bearer JWT | No |
-| `POST` | `/mfa/sms/disable` | Disable SMS MFA & send security alert email | Bearer JWT | No |
+| `POST` | `/mfa/sms/disable` | Disable SMS MFA & send security alert email **(Requires Sudo)** | Bearer JWT | No |
 | `GET` | `/mfa/recovery-codes`, `/mfa/totp/recovery-codes`, `/recovery-codes/count` | Retrieve remaining count of unused emergency recovery codes | Bearer JWT | No |
-| `POST` | `/mfa/recovery-codes`, `/mfa/recovery-codes/regenerate`, `/mfa/totp/recovery-codes/regenerate` | Invalidate existing recovery codes and generate 10 fresh emergency recovery codes | Bearer JWT | No |
+| `POST` | `/mfa/recovery-codes`, `/mfa/recovery-codes/regenerate`, `/mfa/totp/recovery-codes/regenerate` | Invalidate existing recovery codes and generate 10 fresh emergency recovery codes **(Requires Sudo)** | Bearer JWT | No |
 | `POST` | `/webauthn/register/options` | Request WebAuthn publicKey credential creation options for passkey registration | Bearer JWT | No |
 | `POST` | `/webauthn/register` | Register new passkey credential (public key, authenticator transports, attestation) | Bearer JWT | No |
 | `GET` | `/mfa/passkeys`, `/passkeys` | Retrieve all registered passkeys for authenticated user | Bearer JWT | No |
 | `PATCH` | `/mfa/passkeys/{id}` | Update user-defined label/nickname for a registered passkey | Bearer JWT | No |
-| `DELETE` | `/mfa/passkeys/{id}` | Delete passkey credential & auto-disable passkey flag if last credential removed | Bearer JWT | No |
+| `DELETE` | `/mfa/passkeys/{id}` | Delete passkey credential & auto-disable passkey flag if last credential removed **(Requires Sudo)** | Bearer JWT | No |
 
 ### 2.3 Connected Social Accounts (`/social`)
 
@@ -71,7 +71,7 @@ Complete endpoint reference for the **Vaultix Authorization Service**.
 | `GET` | `/social` | Retrieve all linked social accounts (Google, GitHub) with profile metadata | Bearer JWT | No |
 | `POST` | `/social/google/link`, `/social/google` | Link Google account to current user account via Google OIDC ID token | Bearer JWT | No |
 | `POST` | `/social/github/link`, `/social/github` | Link GitHub account to current user account via OAuth2 authorization code | Bearer JWT | No |
-| `DELETE` | `/social/{provider}`, `/social/{provider}/unlink` | Unlink social provider account (prevented if account has no password or other login methods) | Bearer JWT | No |
+| `DELETE` | `/social/{provider}`, `/social/{provider}/unlink` | Unlink social provider account (prevented if account has no password or other login methods) **(Requires Sudo)** | Bearer JWT | No |
 
 ### 2.4 Session Management & Logout
 
@@ -79,6 +79,17 @@ Complete endpoint reference for the **Vaultix Authorization Service**.
 | :--- | :--- | :--- | :--- | :--- |
 | `POST` | `/logout` | Revoke current session refresh token and clear cookie | Cookie / Body | No |
 | `POST` | `/logout-all`, `/logout/all` | Revoke ALL active refresh tokens for the user and blacklist current JWT in Redis | Bearer JWT | No |
+
+### 2.5 Sudo Mode Elevation & Verification (`/sudo`)
+
+When accessing sensitive endpoints marked **(Requires Sudo)** without active elevation, the API returns HTTP `403 FORBIDDEN` with the response header `X-Sudo-Required: true`. Active elevation is scoped to the user session (`auth:sudo:session:{sessionId}`) in Redis with a 5-minute sliding TTL (`DEFAULT_SUDO_DURATION`).
+
+| Method | Endpoint | Description | Auth Required | Client Context Tracked |
+| :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/sudo`, `/sudo/status` | Check current session sudo elevation status (`elevated`, `expires_in_seconds`, `expires_at`) | Bearer JWT | No |
+| `POST` | `/sudo`, `/sudo/verify` | Elevate session to sudo mode via `(Password OR Social Login) + (TOTP / SMS OTP / Recovery Code if MFA enabled)` | Bearer JWT | Yes (`X-Client-IP`, `X-Device-*`) |
+| `POST` | `/sudo/send-sms-otp`, `/sudo/sms-otp` | Dispatch SMS OTP verification code to registered phone number for sudo elevation | Bearer JWT | No |
+| `DELETE`, `POST` | `/sudo/revoke`, `/sudo` (DELETE) | Revoke active sudo elevation early | Bearer JWT | No |
 
 ---
 

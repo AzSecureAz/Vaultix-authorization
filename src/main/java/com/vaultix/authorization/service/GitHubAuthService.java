@@ -24,4 +24,8 @@ public interface GitHubAuthService {
             @NotNull(message = "User ID cannot be null") UUID userId,
             @NotNull(message = "GitHub login request cannot be null")
             @Valid GitHubLoginRequest request);
+
+    String verifyGitHubCode(
+            @NotNull(message = "GitHub login request cannot be null")
+            @Valid GitHubLoginRequest request);
 }

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.vaultix.authorization.dto.mfa.RecoveryCodesResponse;
 import com.vaultix.authorization.service.TotpService;
 import com.vaultix.common.dto.ApiResponse;
+import com.vaultix.common.security.RequireSudo;
 import com.vaultix.common.security.SecurityUtil;
 
 import jakarta.validation.constraints.NotNull;
@@ -38,6 +39,7 @@ public class MfaRecoveryCodeController {
         return ResponseEntity.ok(ApiResponse.success("Remaining recovery codes count retrieved successfully.", remaining));
     }
 
+    @RequireSudo
     @PostMapping({"", "/", "/regenerate"})
     public ResponseEntity<ApiResponse<RecoveryCodesResponse>> regenerateRecoveryCodes(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {

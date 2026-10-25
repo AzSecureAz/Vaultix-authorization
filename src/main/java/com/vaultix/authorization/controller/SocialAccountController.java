@@ -25,6 +25,7 @@ import com.vaultix.authorization.service.GoogleAuthService;
 import com.vaultix.authorization.service.SocialAccountService;
 import com.vaultix.common.dto.ApiResponse;
 import com.vaultix.common.exception.BadRequestException;
+import com.vaultix.common.security.RequireSudo;
 import com.vaultix.common.security.SecurityUtil;
 
 import jakarta.validation.Valid;
@@ -72,6 +73,7 @@ public class SocialAccountController {
         return ResponseEntity.ok(ApiResponse.success("GitHub account linked successfully", response));
     }
 
+    @RequireSudo
     @DeleteMapping({"/{provider}", "/{provider}/unlink"})
     public ResponseEntity<ApiResponse<Void>> unlinkAccount(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,

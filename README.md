@@ -23,8 +23,8 @@ Detailed technical specifications, security designs, and endpoint documentation 
 
 | Document | Description |
 | :--- | :--- |
-| 📖 [**Core Security Architecture**](docs/ARCHITECTURE.md) | In-depth breakdown of the 13 security subsystems: dynamic RSA-2048 key rotation, AES-256 GCM KEK encryption, refresh token rotation, Redis Pub/Sub revocation, hierarchical RBAC governance, ShedLock maintenance, TOTP, WebAuthn Passkeys, Social Identity Federation (Google OIDC / GitHub OAuth2), and SMS MFA. |
-| 📡 [**REST API Reference**](docs/API.md) | Complete specification of all `/api/v1/auth` endpoints, including Public auth (login, register, OAuth2/OIDC, passkeys), Authenticated Profile, MFA (TOTP, SMS, Recovery Codes), Social Linking, and Admin APIs. |
+| 📖 [**Core Security Architecture**](docs/ARCHITECTURE.md) | In-depth breakdown of the 14 security subsystems: dynamic RSA-2048 key rotation, AES-256 GCM KEK encryption, refresh token rotation, Redis Pub/Sub revocation, hierarchical RBAC governance, ShedLock maintenance, TOTP, WebAuthn Passkeys, Social Identity Federation (Google OIDC / GitHub OAuth2), SMS MFA, and Sudo Mode Elevation. |
+| 📡 [**REST API Reference**](docs/API.md) | Complete specification of all `/api/v1/auth` endpoints, including Public auth (login, register, OAuth2/OIDC, passkeys), Authenticated Profile, MFA (TOTP, SMS, Recovery Codes), Social Linking, Sudo Elevation (`/sudo`), and Admin APIs. |
 
 ---
 
@@ -46,6 +46,7 @@ Client Request ──► Gateway ──► Controllers ──► Service Layer (
                                ┌────────────────────────────┴─────────────────────────────┐
                                │                          Redis                           │
                                │  • JTI token blacklist (`auth:blacklist:*`)              │
+                               │  • Sudo elevation sessions (`auth:sudo:session:*`)       │
                                │  • Disabled roles/permissions hashes                     │
                                │  • WebAuthn challenge stores (stateless session-free)    │
                                │  • OTP verification cooldowns (`auth:cooldown:*`)        │
@@ -75,10 +76,11 @@ authorization/
     │   │   ├── PasskeyController.java (WebAuthn passkey management)
     │   │   ├── SmsMfaController.java (SMS MFA setup, activation, disablement)
     │   │   ├── SocialAccountController.java (social linking & unlinking)
+    │   │   ├── SudoController.java (step-up sudo elevation & verification)
     │   │   ├── TotpController.java (TOTP setup, activation, disablement)
     │   │   ├── admin/ (AdminUserController, AdminRoleController, AdminPermissionController, AdminSigningKeyController)
     │   │   └── pub/ (PublicAuthController, GoogleAuthController, GitHubAuthController, PasswordResetController, EmailRevertController)
-    │   ├── dto/ (AuthResponse, LoginRequest, oauth2/, mfa/, admin/)
+    │   ├── dto/ (AuthResponse, LoginRequest, oauth2/, mfa/, admin/, SudoVerifyRequest, SudoResponse)
     │   ├── entity/ (User, Role, Permission, RefreshToken, SigningKey, UserSocialAccount, UserPasskeyCredential, UserTotp, UserRecoveryCode)
     │   ├── repository/ (UserRepository, UserSocialAccountRepository, RefreshTokenRepository, SigningKeyRepository, ...)
     │   ├── scheduler/ (SigningKeyScheduler, RefreshTokenScheduler, RoleScheduler, UserScheduler)

@@ -24,4 +24,7 @@ public interface GoogleAuthService {
             @NotNull(message = "User ID cannot be null") UUID userId,
             @NotNull(message = "Google login request cannot be null")
             @Valid GoogleLoginRequest request);
+
+    String verifyGoogleIdToken(
+            @NotNull(message = "Google ID token cannot be null") String idToken);
 }

@@ -626,4 +626,10 @@ public class GitHubAuthServiceImpl implements GitHubAuthService {
             String visibility) {
 
     }
+
+    @Override
+    public String verifyGitHubCode(GitHubLoginRequest request) {
+        GitHubIdentity identity = fetchGitHubIdentity(request);
+        return identity.providerUserId();
+    }
 }

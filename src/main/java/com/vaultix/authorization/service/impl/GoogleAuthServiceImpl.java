@@ -491,4 +491,10 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
         String stripped = rawUrl.strip();
         return stripped.length() > 1024 ? stripped.substring(0, 1024).strip() : stripped;
     }
+
+    @Override
+    public String verifyGoogleIdToken(String idToken) {
+        Jwt jwt = verifyAndDecodeGoogleToken(idToken.strip());
+        return jwt.getSubject();
+    }
 }

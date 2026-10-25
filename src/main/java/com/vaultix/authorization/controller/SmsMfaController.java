@@ -15,6 +15,7 @@ import com.vaultix.authorization.dto.mfa.SmsMfaActivationResponse;
 import com.vaultix.authorization.dto.mfa.VerifySmsMfaRequest;
 import com.vaultix.authorization.service.SmsMfaService;
 import com.vaultix.common.dto.ApiResponse;
+import com.vaultix.common.security.RequireSudo;
 import com.vaultix.common.security.SecurityUtil;
 
 import jakarta.validation.Valid;
@@ -52,6 +53,7 @@ public class SmsMfaController {
                 response));
     }
 
+    @RequireSudo
     @PostMapping("/disable")
     public ResponseEntity<ApiResponse<Void>> disableSmsMfa(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {

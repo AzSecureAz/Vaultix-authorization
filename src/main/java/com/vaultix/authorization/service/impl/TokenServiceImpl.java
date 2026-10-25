@@ -313,6 +313,7 @@ public class TokenServiceImpl implements TokenService {
                     .issueTime(Date.from(now))
                     .expirationTime(Date.from(accessExp))
                     .claim("token_type", "access")
+                    .claim("sid", refreshTokenJti.toString())
                     .claim("roles_permissions", userDetails.getRolePermissions())
                     .build();
 

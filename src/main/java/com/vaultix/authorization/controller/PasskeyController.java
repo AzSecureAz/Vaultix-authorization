@@ -19,6 +19,7 @@ import com.vaultix.authorization.dto.mfa.PasskeyResponse;
 import com.vaultix.authorization.dto.mfa.UpdatePasskeyRequest;
 import com.vaultix.authorization.service.PasskeyService;
 import com.vaultix.common.dto.ApiResponse;
+import com.vaultix.common.security.RequireSudo;
 import com.vaultix.common.security.SecurityUtil;
 
 import jakarta.validation.Valid;
@@ -55,6 +56,7 @@ public class PasskeyController {
         return ResponseEntity.ok(ApiResponse.success("Passkey label updated successfully.", response));
     }
 
+    @RequireSudo
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deletePasskey(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,

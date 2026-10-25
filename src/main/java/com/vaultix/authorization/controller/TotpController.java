@@ -18,6 +18,7 @@ import com.vaultix.authorization.dto.mfa.TotpSetupResponse;
 import com.vaultix.authorization.dto.mfa.VerifyTotpRequest;
 import com.vaultix.authorization.service.TotpService;
 import com.vaultix.common.dto.ApiResponse;
+import com.vaultix.common.security.RequireSudo;
 import com.vaultix.common.security.SecurityUtil;
 
 import jakarta.validation.Valid;
@@ -55,6 +56,7 @@ public class TotpController {
                 response));
     }
 
+    @RequireSudo
     @PostMapping("/disable")
     public ResponseEntity<ApiResponse<Void>> disableTotp(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
@@ -73,6 +75,7 @@ public class TotpController {
         return ResponseEntity.ok(ApiResponse.success("Remaining recovery codes count retrieved successfully.", remaining));
     }
 
+    @RequireSudo
     @PostMapping({"/recovery-codes/regenerate", "/recovery-codes"})
     public ResponseEntity<ApiResponse<RecoveryCodesResponse>> regenerateRecoveryCodes(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
