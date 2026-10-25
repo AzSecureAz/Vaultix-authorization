@@ -18,6 +18,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.validation.annotation.Validated;
 
 import com.vaultix.authorization.config.properties.AuthMessagingProperties;
+import com.vaultix.authorization.config.properties.FrontendProperties;
 import com.vaultix.authorization.config.properties.OtpProperties;
 import com.vaultix.authorization.dto.ChangePasswordRequest;
 import com.vaultix.authorization.dto.ChangeUsernameRequest;
@@ -75,6 +76,7 @@ public class AccountServiceImpl implements AccountService {
     private final StringRedisTemplate stringRedisTemplate;
     private final RabbitTemplate rabbitTemplate;
     private final AuthMessagingProperties messagingProperties;
+    private final FrontendProperties frontendProperties;
 
     @Override
     @Transactional(readOnly = true)
@@ -524,7 +526,7 @@ public class AccountServiceImpl implements AccountService {
                             ? user.getFullName()
                             : user.getUsername();
 
-                    String revertUrl = "http://localhost:8082/api/v1/auth/public/email-revert?token=" + revertToken;
+                    String revertUrl = buildFrontendUrl("/email-revert?token=" + revertToken);
 
                     NotificationEvent oldEmailAlert = NotificationEvent.builder()
                             .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
@@ -830,7 +832,7 @@ public class AccountServiceImpl implements AccountService {
                             ? user.getFullName()
                             : user.getUsername();
 
-                    String passwordResetUrl = "http://localhost:8082/api/v1/auth/public/password-reset";
+                    String passwordResetUrl = buildFrontendUrl("/forgot-password");
 
                     NotificationEvent restoredEmailAlert = NotificationEvent.builder()
                             .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
@@ -877,5 +879,11 @@ public class AccountServiceImpl implements AccountService {
                 }
             }
         });
+    }
+
+    private String buildFrontendUrl(String path) {
+        String base = frontendProperties.baseUrl().replaceAll("/+$", "");
+        String cleanPath = path.startsWith("/") ? path : "/" + path;
+        return base + cleanPath;
     }
 }
