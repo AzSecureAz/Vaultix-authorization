@@ -21,8 +21,6 @@ public interface UserSocialAccountRepository extends JpaRepository<UserSocialAcc
 
     List<UserSocialAccount> findByUserIdOrderByCreatedAtDesc(UUID userId);
 
-    boolean existsByProviderAndProviderUserId(SocialProvider provider, String providerUserId);
-
     long countByUserId(UUID userId);
 
     @Query("SELECT sa FROM UserSocialAccount sa JOIN FETCH sa.user u LEFT JOIN FETCH u.roles r LEFT JOIN FETCH r.permissions WHERE sa.provider = :provider AND sa.providerUserId = :providerUserId")

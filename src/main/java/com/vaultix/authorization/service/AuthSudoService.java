@@ -2,8 +2,6 @@ package com.vaultix.authorization.service;
 
 import java.util.UUID;
 
-import org.springframework.security.web.webauthn.api.AuthenticatorAssertionResponse;
-import org.springframework.security.web.webauthn.api.PublicKeyCredential;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialRequestOptions;
 import org.springframework.validation.annotation.Validated;
 
@@ -39,7 +37,6 @@ public interface AuthSudoService {
     SudoResponse verifyPasskeySudo(
             @NotNull(message = "User ID cannot be null") UUID userId,
             @NotNull(message = "Session ID cannot be null") UUID sessionId,
-            @NotNull(message = "Credential assertion cannot be null") PublicKeyCredential<AuthenticatorAssertionResponse> credential,
             HttpServletRequest request,
             HttpServletResponse response);
 }

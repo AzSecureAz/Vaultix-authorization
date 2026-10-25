@@ -5,8 +5,6 @@ import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.web.webauthn.api.AuthenticatorAssertionResponse;
-import org.springframework.security.web.webauthn.api.PublicKeyCredential;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialRequestOptions;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -80,14 +78,13 @@ public class SudoController {
     @PostMapping({"/passkey/verify", "/passkey"})
     public ResponseEntity<ApiResponse<SudoResponse>> verifySudoPasskey(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
-            @RequestBody PublicKeyCredential<AuthenticatorAssertionResponse> credential,
             HttpServletRequest request,
             HttpServletResponse response) {
 
         UUID userId = SecurityUtil.extractActorId(jwt);
         UUID sessionId = SecurityUtil.extractSessionId(jwt);
         log.info("Received passkey sudo verification request for user ID: {}, session ID: {}", userId, sessionId);
-        SudoResponse sudoResponse = authSudoService.verifyPasskeySudo(userId, sessionId, credential, request, response);
+        SudoResponse sudoResponse = authSudoService.verifyPasskeySudo(userId, sessionId, request, response);
         return ResponseEntity.ok(ApiResponse.success("Sudo elevation activated successfully via passkey", sudoResponse));
     }
 

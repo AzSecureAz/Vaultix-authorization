@@ -1,5 +1,6 @@
 package com.vaultix.authorization.service.impl;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -14,6 +15,11 @@ import java.util.OptionalLong;
 import java.util.UUID;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.core.ResolvableType;
+import org.springframework.http.converter.HttpMessageConversionException;
+import org.springframework.http.converter.SmartHttpMessageConverter;
+import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
+import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,6 +28,7 @@ import org.springframework.security.web.webauthn.api.AuthenticatorAssertionRespo
 import org.springframework.security.web.webauthn.api.PublicKeyCredential;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialRequestOptions;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialUserEntity;
+import org.springframework.security.web.webauthn.jackson.WebauthnJacksonModule;
 import org.springframework.security.web.webauthn.management.ImmutablePublicKeyCredentialRequestOptionsRequest;
 import org.springframework.security.web.webauthn.management.RelyingPartyAuthenticationRequest;
 import org.springframework.security.web.webauthn.management.WebAuthnRelyingPartyOperations;
@@ -30,6 +37,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.validation.annotation.Validated;
+
+import tools.jackson.databind.json.JsonMapper;
 
 import com.vaultix.authorization.config.properties.AuthMessagingProperties;
 import com.vaultix.authorization.config.properties.KekProperties;
@@ -93,6 +102,9 @@ public class AuthSudoServiceImpl implements AuthSudoService {
     private final UserPasskeyCredentialRepository passkeyRepository;
     private final WebAuthnRelyingPartyOperations webAuthnRelyingPartyOperations;
     private final RedisPublicKeyCredentialRequestOptionsRepository requestOptionsRepository;
+
+    private final SmartHttpMessageConverter<Object> webAuthnConverter = new JacksonJsonHttpMessageConverter(
+            JsonMapper.builder().addModule(new WebauthnJacksonModule()).build());
 
     @Override
     @Transactional
@@ -294,7 +306,6 @@ public class AuthSudoServiceImpl implements AuthSudoService {
     public SudoResponse verifyPasskeySudo(
             @NotNull(message = "User ID cannot be null") UUID userId,
             @NotNull(message = "Session ID cannot be null") UUID sessionId,
-            @NotNull(message = "Credential assertion cannot be null") PublicKeyCredential<AuthenticatorAssertionResponse> credential,
             HttpServletRequest request,
             HttpServletResponse response) {
 
@@ -318,7 +329,26 @@ public class AuthSudoServiceImpl implements AuthSudoService {
         /* Clear challenge cookie on the response */
         requestOptionsRepository.save(request, response, null);
 
-        /* 2. Authenticate cryptographic assertion via WebAuthnRelyingPartyOperations */
+        /* 2. Deserialize WebAuthn assertion payload using dedicated WebAuthn converter (W3C camelCase) */
+        PublicKeyCredential<AuthenticatorAssertionResponse> credential;
+        try {
+            ResolvableType type = ResolvableType.forClassWithGenerics(
+                    PublicKeyCredential.class,
+                    AuthenticatorAssertionResponse.class);
+            Object parsedObj = webAuthnConverter.read(type, new ServletServerHttpRequest(request), null);
+            if (parsedObj instanceof PublicKeyCredential<?> pkCred) {
+                credential = (PublicKeyCredential<AuthenticatorAssertionResponse>) pkCred;
+            } else {
+                throw new BadCredentialsException("Invalid WebAuthn credential assertion payload");
+            }
+        } catch (BadCredentialsException ex) {
+            throw ex;
+        } catch (IOException | HttpMessageConversionException ex) {
+            log.warn("Failed to parse WebAuthn assertion payload for user '{}': {}", user.getUsername(), ex.getMessage());
+            throw new BadCredentialsException("Failed to parse WebAuthn assertion payload: " + ex.getMessage(), ex);
+        }
+
+        /* 3. Authenticate cryptographic assertion via WebAuthnRelyingPartyOperations */
         PublicKeyCredentialUserEntity userEntity;
         try {
             RelyingPartyAuthenticationRequest rpRequest
