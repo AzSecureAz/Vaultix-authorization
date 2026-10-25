@@ -34,6 +34,11 @@ public interface AuthSudoService {
             HttpServletRequest request,
             HttpServletResponse response);
 
+    void writePasskeySudoOptions(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            HttpServletRequest request,
+            HttpServletResponse response);
+
     SudoResponse verifyPasskeySudo(
             @NotNull(message = "User ID cannot be null") UUID userId,
             @NotNull(message = "Session ID cannot be null") UUID sessionId,

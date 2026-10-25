@@ -16,10 +16,12 @@ import java.util.UUID;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.core.ResolvableType;
+import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.http.converter.SmartHttpMessageConverter;
 import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
 import org.springframework.http.server.ServletServerHttpRequest;
+import org.springframework.http.server.ServletServerHttpResponse;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -299,6 +301,21 @@ public class AuthSudoServiceImpl implements AuthSudoService {
         log.info("Successfully saved passkey sudo challenge to Redis for user: {}", user.getUsername());
 
         return options;
+    }
+
+    @Override
+    public void writePasskeySudoOptions(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+
+        PublicKeyCredentialRequestOptions options = generatePasskeySudoOptions(userId, request, response);
+        try {
+            webAuthnConverter.write(options, MediaType.APPLICATION_JSON, new ServletServerHttpResponse(response));
+        } catch (IOException ex) {
+            log.error("Failed to write WebAuthn passkey sudo options for user ID: {}", userId, ex);
+            throw new RuntimeException("Failed to write WebAuthn passkey sudo options", ex);
+        }
     }
 
     @Override

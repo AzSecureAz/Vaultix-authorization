@@ -5,7 +5,6 @@ import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.web.webauthn.api.PublicKeyCredentialRequestOptions;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -64,15 +63,14 @@ public class SudoController {
     }
 
     @RequestMapping(value = {"/passkey/options", "/passkey-options"}, method = {RequestMethod.GET, RequestMethod.POST})
-    public ResponseEntity<ApiResponse<PublicKeyCredentialRequestOptions>> getSudoPasskeyOptions(
+    public void getSudoPasskeyOptions(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
             HttpServletRequest request,
             HttpServletResponse response) {
 
         UUID userId = SecurityUtil.extractActorId(jwt);
         log.info("Received request for passkey sudo options for user ID: {}", userId);
-        PublicKeyCredentialRequestOptions options = authSudoService.generatePasskeySudoOptions(userId, request, response);
-        return ResponseEntity.ok(ApiResponse.success("Passkey sudo options generated successfully", options));
+        authSudoService.writePasskeySudoOptions(userId, request, response);
     }
 
     @PostMapping({"/passkey/verify", "/passkey"})
