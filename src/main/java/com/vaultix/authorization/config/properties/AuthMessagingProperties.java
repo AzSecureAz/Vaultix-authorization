@@ -69,6 +69,14 @@ public record AuthMessagingProperties(
         @NotBlank(message = "Passkey removed routing key is required")
         @Size(max = 256, message = "Passkey removed routing key cannot exceed 256 characters")
         @DefaultValue("auth.notification.passkey-removed")
-        String passkeyRemovedRoutingKey) {
+        String passkeyRemovedRoutingKey,
+        @NotBlank(message = "Social account linked routing key is required")
+        @Size(max = 256, message = "Social account linked routing key cannot exceed 256 characters")
+        @DefaultValue("auth.notification.social-account-linked")
+        String socialAccountLinkedRoutingKey,
+        @NotBlank(message = "Social account unlinked routing key is required")
+        @Size(max = 256, message = "Social account unlinked routing key cannot exceed 256 characters")
+        @DefaultValue("auth.notification.social-account-unlinked")
+        String socialAccountUnlinkedRoutingKey) {
 
 }

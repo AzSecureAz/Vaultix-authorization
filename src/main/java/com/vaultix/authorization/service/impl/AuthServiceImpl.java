@@ -156,7 +156,8 @@ public class AuthServiceImpl implements AuthService {
                             .subject("Welcome to Vaultix!")
                             .params(Map.of(
                                     "username", savedUser.getUsername(),
-                                    "email", savedUser.getEmail()
+                                    "email", savedUser.getEmail(),
+                                    "emailVerified", savedUser.isEmailVerified()
                             ))
                             .createdAt(Instant.now())
                             .build();

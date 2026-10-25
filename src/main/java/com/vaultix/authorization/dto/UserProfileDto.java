@@ -30,6 +30,7 @@ public record UserProfileDto(
         boolean passkeyEnabled,
         boolean smsMfaEnabled,
         boolean hasSocialAccounts,
+        boolean hasPassword,
         Instant lastLoginAt,
         Instant createdAt,
         Set<String> roles,
@@ -71,6 +72,7 @@ public record UserProfileDto(
                 .passkeyEnabled(user.isPasskeyEnabled())
                 .smsMfaEnabled(user.isSmsMfaEnabled())
                 .hasSocialAccounts(user.isHasSocialAccounts())
+                .hasPassword(user.getPasswordHash() != null && !user.getPasswordHash().isBlank())
                 .lastLoginAt(user.getLastLoginAt())
                 .createdAt(user.getCreatedAt())
                 .roles(roleNames)

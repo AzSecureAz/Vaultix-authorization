@@ -1,21 +1,27 @@
 package com.vaultix.authorization.service.impl;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.validation.annotation.Validated;
 
+import com.vaultix.authorization.config.properties.AuthMessagingProperties;
 import com.vaultix.authorization.dto.oauth2.SocialAccountResponse;
 import com.vaultix.authorization.entity.User;
 import com.vaultix.authorization.entity.UserSocialAccount;
 import com.vaultix.authorization.entity.enums.SocialProvider;
-import com.vaultix.authorization.repository.UserPasskeyCredentialRepository;
 import com.vaultix.authorization.repository.UserRepository;
 import com.vaultix.authorization.repository.UserSocialAccountRepository;
 import com.vaultix.authorization.service.SocialAccountService;
-import com.vaultix.common.exception.BadRequestException;
+import com.vaultix.common.dto.notification.NotificationChannel;
+import com.vaultix.common.dto.notification.NotificationEvent;
 import com.vaultix.common.exception.ResourceNotFoundException;
 
 import jakarta.validation.constraints.NotNull;
@@ -30,7 +36,8 @@ public class SocialAccountServiceImpl implements SocialAccountService {
 
     private final UserSocialAccountRepository userSocialAccountRepository;
     private final UserRepository userRepository;
-    private final UserPasskeyCredentialRepository userPasskeyCredentialRepository;
+    private final RabbitTemplate rabbitTemplate;
+    private final AuthMessagingProperties messagingProperties;
 
     @Override
     @Transactional(readOnly = true)
@@ -53,18 +60,8 @@ public class SocialAccountServiceImpl implements SocialAccountService {
                 .orElseThrow(() -> new ResourceNotFoundException("No linked " + provider.name() + " account found"));
 
         User user = account.getUser();
-
-        /* Guard against account lockout: verify user has at least one remaining authentication factor */
-        boolean hasPassword = user.getPasswordHash() != null && !user.getPasswordHash().isBlank();
-        boolean hasPasskeys = user.isPasskeyEnabled() || userPasskeyCredentialRepository.countByUserId(userId) > 0;
-        boolean hasOtherSocialAccounts = userSocialAccountRepository.countByUserId(userId) > 1;
-
-        if (!hasPassword && !hasPasskeys && !hasOtherSocialAccounts) {
-            log.warn("Account unlink rejected: user ID '{}' would have no remaining authentication methods", userId);
-            throw new BadRequestException(
-                    "Cannot unlink your only authentication method. Please set a password or register a passkey before unlinking your "
-                    + provider.name() + " account.");
-        }
+        String connectedEmail = account.getEmail() != null ? account.getEmail() : "N/A";
+        String providerName = provider.name();
 
         userSocialAccountRepository.delete(account);
 
@@ -76,5 +73,38 @@ public class SocialAccountServiceImpl implements SocialAccountService {
 
         log.info("Successfully unlinked {} account for user ID: '{}'. Remaining social accounts: {}",
                 provider, userId, remainingSocialAccounts);
+
+        /* Dispatch social account unlinked security alert notification email */
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    NotificationEvent event = NotificationEvent.builder()
+                            .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
+                            .templateCode("auth.social-account-unlinked")
+                            .channel(NotificationChannel.EMAIL)
+                            .recipient(user.getEmail())
+                            .recipientName(user.getFullName() != null && !user.getFullName().isBlank()
+                                    ? user.getFullName()
+                                    : user.getUsername())
+                            .subject("Vaultix - Security Alert: " + providerName + " Account Disconnected")
+                            .params(Map.of(
+                                    "username", user.getUsername(),
+                                    "provider", providerName,
+                                    "connectedEmail", connectedEmail
+                            ))
+                            .createdAt(Instant.now())
+                            .build();
+
+                    rabbitTemplate.convertAndSend(
+                            messagingProperties.exchange(),
+                            messagingProperties.socialAccountUnlinkedRoutingKey(),
+                            event);
+                    log.info("Dispatched social account unlinked security alert email for user: {}", user.getUsername());
+                } catch (Exception ex) {
+                    log.warn("Failed to dispatch social account unlinked notification for user '{}': {}", user.getUsername(), ex.getMessage());
+                }
+            }
+        });
     }
 }

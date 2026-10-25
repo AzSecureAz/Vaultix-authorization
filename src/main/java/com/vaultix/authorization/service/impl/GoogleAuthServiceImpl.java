@@ -10,7 +10,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
-import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -200,6 +199,40 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
         }
 
         log.info("Successfully linked Google account (UID: {}) to user ID: {}", providerUserId, userId);
+
+        /* Dispatch social account linked security alert notification email */
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    NotificationEvent event = NotificationEvent.builder()
+                            .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
+                            .templateCode("auth.social-account-linked")
+                            .channel(NotificationChannel.EMAIL)
+                            .recipient(user.getEmail())
+                            .recipientName(user.getFullName() != null && !user.getFullName().isBlank()
+                                    ? user.getFullName()
+                                    : user.getUsername())
+                            .subject("Vaultix - Security Alert: New Google Account Linked")
+                            .params(Map.of(
+                                    "username", user.getUsername(),
+                                    "provider", "Google",
+                                    "connectedEmail", cleanEmail != null ? cleanEmail : "N/A"
+                            ))
+                            .createdAt(Instant.now())
+                            .build();
+
+                    rabbitTemplate.convertAndSend(
+                            messagingProperties.exchange(),
+                            messagingProperties.socialAccountLinkedRoutingKey(),
+                            event);
+                    log.info("Dispatched social account linked security alert email for user: {}", user.getUsername());
+                } catch (Exception ex) {
+                    log.warn("Failed to dispatch social account linked notification for user '{}': {}", user.getUsername(), ex.getMessage());
+                }
+            }
+        });
+
         return SocialAccountResponse.fromEntity(saved);
     }
 
@@ -344,7 +377,8 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
                             .subject("Welcome to Vaultix!")
                             .params(Map.of(
                                     "username", savedUser.getUsername(),
-                                    "email", savedUser.getEmail()))
+                                    "email", savedUser.getEmail(),
+                                    "emailVerified", savedUser.isEmailVerified()))
                             .createdAt(Instant.now())
                             .build();
 
@@ -353,7 +387,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
                             messagingProperties.welcomeRoutingKey(),
                             welcomeEvent);
                     log.info("Dispatched welcome notification event for Google user: {}", savedUser.getUsername());
-                } catch (AmqpException ex) {
+                } catch (Exception ex) {
                     log.warn("Failed to dispatch welcome notification event for Google user '{}': {}", savedUser.getEmail(), ex.getMessage());
                 }
             }

@@ -143,12 +143,9 @@ public class AccountServiceImpl implements AccountService {
             throw new BadRequestException("Account is " + user.getStatus().name().toLowerCase(Locale.ROOT) + ". Please contact support.");
         }
 
-        if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
-            log.warn("Password change attempted on account without password: {}", user.getUsername());
-            throw new BadRequestException("No password is set for this account. Please use password reset to establish a password.");
-        }
+        boolean hasExistingPassword = user.getPasswordHash() != null && !user.getPasswordHash().isBlank();
 
-        if (user.getPasswordHash() != null && passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
+        if (hasExistingPassword && passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
             log.warn("Password change failed: new password identical to current password for user: {}", user.getUsername());
             throw new BadRequestException("New password cannot be the same as your current password");
         }
