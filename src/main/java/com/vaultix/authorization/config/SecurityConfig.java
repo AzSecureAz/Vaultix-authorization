@@ -18,14 +18,17 @@ import org.springframework.security.web.webauthn.management.UserCredentialReposi
 import org.springframework.security.web.webauthn.management.WebAuthnRelyingPartyOperations;
 import org.springframework.security.web.webauthn.management.Webauthn4JRelyingPartyOperations;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vaultix.authorization.config.properties.PasskeyProperties;
 import com.vaultix.authorization.security.webauthn.RedisPublicKeyCredentialCreationOptionsRepository;
 import com.vaultix.authorization.security.webauthn.RedisPublicKeyCredentialRequestOptionsRepository;
 import com.vaultix.authorization.security.webauthn.WebAuthnAuthenticationFailureHandler;
 import com.vaultix.authorization.security.webauthn.WebAuthnAuthenticationSuccessHandler;
+import com.vaultix.authorization.security.webauthn.WebAuthnRegisterSudoFilter;
 import com.vaultix.common.security.CustomAccessDeniedHandler;
 import com.vaultix.common.security.CustomAuthenticationEntryPoint;
 import com.vaultix.common.security.CustomJwtAuthenticationConverter;
+import com.vaultix.common.security.SudoService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -43,6 +46,8 @@ public class SecurityConfig {
     private final RedisPublicKeyCredentialRequestOptionsRepository requestOptionsRepository;
     private final WebAuthnAuthenticationSuccessHandler webAuthnAuthenticationSuccessHandler;
     private final WebAuthnAuthenticationFailureHandler webAuthnAuthenticationFailureHandler;
+    private final SudoService sudoService;
+    private final ObjectMapper objectMapper;
 
     @Bean
     public WebAuthnRelyingPartyOperations webAuthnRelyingPartyOperations(
@@ -68,6 +73,9 @@ public class SecurityConfig {
                 = new PublicKeyCredentialRequestOptionsFilter(webAuthnRelyingPartyOperations);
         requestOptionsFilter.setRequestOptionsRepository(requestOptionsRepository);
 
+        WebAuthnRegisterSudoFilter webAuthnRegisterSudoFilter
+                = new WebAuthnRegisterSudoFilter(sudoService, objectMapper);
+
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
@@ -85,6 +93,7 @@ public class SecurityConfig {
                         .accessDeniedHandler(customAccessDeniedHandler)
                 )
                 .addFilterBefore(requestOptionsFilter, BasicAuthenticationFilter.class)
+                .addFilterAfter(webAuthnRegisterSudoFilter, BasicAuthenticationFilter.class)
                 .webAuthn(webAuthn -> webAuthn
                         .rpId(passkeyProperties.rpId())
                         .rpName(passkeyProperties.rpName())

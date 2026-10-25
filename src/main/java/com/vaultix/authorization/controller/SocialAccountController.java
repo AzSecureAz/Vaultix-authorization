@@ -53,6 +53,7 @@ public class SocialAccountController {
         return ResponseEntity.ok(ApiResponse.success("Linked social accounts retrieved successfully", accounts));
     }
 
+    @RequireSudo
     @PostMapping({"/google/link", "/google"})
     public ResponseEntity<ApiResponse<SocialAccountResponse>> linkGoogle(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
@@ -63,6 +64,7 @@ public class SocialAccountController {
         return ResponseEntity.ok(ApiResponse.success("Google account linked successfully", response));
     }
 
+    @RequireSudo
     @PostMapping({"/github/link", "/github"})
     public ResponseEntity<ApiResponse<SocialAccountResponse>> linkGitHub(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,

@@ -55,6 +55,7 @@ public class AccountController {
         return ResponseEntity.ok(ApiResponse.success("Current user profile", profile));
     }
 
+    @RequireSudo
     @RequestMapping(value = {"/username", "/username/change", "/username-change"}, method = {RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.POST})
     public ResponseEntity<ApiResponse<Void>> changeUsername(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
@@ -135,6 +136,7 @@ public class AccountController {
         return ResponseEntity.ok(ApiResponse.success("Verification code sent to your new email address. Please enter the code to complete the email change."));
     }
 
+    @RequireSudo
     @PostMapping({"/email/change/confirm", "/email/confirm-change", "/email/change-confirm"})
     public ResponseEntity<ApiResponse<Void>> confirmEmailChange(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
@@ -162,6 +164,7 @@ public class AccountController {
         return ResponseEntity.ok(ApiResponse.success("Verification code sent to your new phone number. Please enter the code to complete the phone number change."));
     }
 
+    @RequireSudo
     @PostMapping({"/phone/change/confirm", "/phone/confirm-change", "/phone/change-confirm"})
     public ResponseEntity<ApiResponse<Void>> confirmPhoneNumberChange(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,

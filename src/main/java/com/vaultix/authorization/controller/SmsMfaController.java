@@ -32,6 +32,7 @@ public class SmsMfaController {
 
     private final SmsMfaService smsMfaService;
 
+    @RequireSudo
     @PostMapping({"/setup", "/send-setup-otp", "/initiate"})
     public ResponseEntity<ApiResponse<Void>> sendSetupOtp(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
@@ -41,6 +42,7 @@ public class SmsMfaController {
         return ResponseEntity.ok(ApiResponse.success("Verification code sent to your registered phone number."));
     }
 
+    @RequireSudo
     @PostMapping({"/enable", "/activate", "/verify"})
     public ResponseEntity<ApiResponse<SmsMfaActivationResponse>> enableSmsMfa(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
