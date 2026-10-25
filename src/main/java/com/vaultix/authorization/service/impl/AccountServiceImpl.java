@@ -513,9 +513,8 @@ public class AccountServiceImpl implements AccountService {
         stringRedisTemplate.opsForValue().set(REDIS_REVERT_EMAIL_PREFIX + revertToken, user.getId().toString() + ":" + oldEmail, EMAIL_REVERT_WINDOW);
         stringRedisTemplate.opsForValue().set(REDIS_RESERVED_EMAIL_PREFIX + oldEmail, user.getId().toString(), EMAIL_REVERT_WINDOW);
 
-        int revokedCount = tokenService.revokeAllUserTokens(user.getId());
-        log.info("Email successfully changed from '{}' to '{}' for user: {}. Revoked {} active sessions.",
-                oldEmail, cleanPendingEmail, user.getUsername(), revokedCount);
+        log.info("Email successfully changed from '{}' to '{}' for user: {}",
+                oldEmail, cleanPendingEmail, user.getUsername());
 
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
@@ -694,9 +693,8 @@ public class AccountServiceImpl implements AccountService {
         stringRedisTemplate.delete(REDIS_COOLDOWN_PHONE_CHANGE_PREFIX + user.getId());
         otpService.clearOtp("phone-change", user.getId().toString());
 
-        int revokedCount = tokenService.revokeAllUserTokens(user.getId());
-        log.info("Phone number successfully changed from '{}' to '{}' for user: {}. Revoked {} active sessions.",
-                oldPhone, cleanPendingPhone, user.getUsername(), revokedCount);
+        log.info("Phone number successfully changed from '{}' to '{}' for user: {}",
+                oldPhone, cleanPendingPhone, user.getUsername());
 
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override

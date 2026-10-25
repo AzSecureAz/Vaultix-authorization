@@ -23,6 +23,7 @@ import org.springframework.validation.annotation.Validated;
 
 import com.vaultix.authorization.config.properties.AuthMessagingProperties;
 import com.vaultix.authorization.config.properties.KekProperties;
+import com.vaultix.authorization.dto.mfa.RecoveryCodesResponse;
 import com.vaultix.authorization.dto.mfa.TotpActivationResponse;
 import com.vaultix.authorization.dto.mfa.TotpSetupResponse;
 import com.vaultix.authorization.dto.mfa.VerifyTotpRequest;
@@ -302,7 +303,7 @@ public class TotpServiceImpl implements TotpService {
 
     @Override
     @Transactional
-    public TotpActivationResponse regenerateRecoveryCodes(@NotNull(message = "User ID cannot be null") UUID userId) {
+    public RecoveryCodesResponse regenerateRecoveryCodes(@NotNull(message = "User ID cannot be null") UUID userId) {
         log.info("Attempting to regenerate emergency recovery codes for user ID: {}", userId);
 
         User user = userRepository.findById(userId)
@@ -367,7 +368,7 @@ public class TotpServiceImpl implements TotpService {
             }
         });
 
-        return new TotpActivationResponse(recoveryCodes);
+        return new RecoveryCodesResponse(recoveryCodes);
     }
 
     private String hashRecoveryCode(String rawCode) {

@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.springframework.validation.annotation.Validated;
 
+import com.vaultix.authorization.dto.mfa.RecoveryCodesResponse;
 import com.vaultix.authorization.dto.mfa.TotpActivationResponse;
 import com.vaultix.authorization.dto.mfa.TotpSetupResponse;
 import com.vaultix.authorization.dto.mfa.VerifyTotpRequest;
@@ -24,5 +25,5 @@ public interface TotpService {
 
     long getRemainingRecoveryCodesCount(@NotNull(message = "User ID cannot be null") UUID userId);
 
-    TotpActivationResponse regenerateRecoveryCodes(@NotNull(message = "User ID cannot be null") UUID userId);
+    RecoveryCodesResponse regenerateRecoveryCodes(@NotNull(message = "User ID cannot be null") UUID userId);
 }

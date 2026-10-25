@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.vaultix.authorization.dto.mfa.RecoveryCodesResponse;
 import com.vaultix.authorization.dto.mfa.TotpActivationResponse;
 import com.vaultix.authorization.dto.mfa.TotpSetupResponse;
 import com.vaultix.authorization.dto.mfa.VerifyTotpRequest;
@@ -73,11 +74,11 @@ public class TotpController {
     }
 
     @PostMapping({"/recovery-codes/regenerate", "/recovery-codes"})
-    public ResponseEntity<ApiResponse<TotpActivationResponse>> regenerateRecoveryCodes(
+    public ResponseEntity<ApiResponse<RecoveryCodesResponse>> regenerateRecoveryCodes(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
 
         UUID userId = SecurityUtil.extractActorId(jwt);
-        TotpActivationResponse response = totpService.regenerateRecoveryCodes(userId);
+        RecoveryCodesResponse response = totpService.regenerateRecoveryCodes(userId);
         return ResponseEntity.ok(ApiResponse.success(
                 "Recovery codes regenerated successfully. Please store your new emergency recovery codes safely.",
                 response));
