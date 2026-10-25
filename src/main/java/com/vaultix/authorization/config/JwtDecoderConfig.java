@@ -2,6 +2,7 @@ package com.vaultix.authorization.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 
 import com.nimbusds.jose.jwk.source.JWKSource;
@@ -15,6 +16,7 @@ import com.vaultix.common.security.JwtBlacklistValidator;
 public class JwtDecoderConfig {
 
     @Bean
+    @Primary
     public JwtDecoder jwtDecoder(
             SigningKeyService signingKeyService,
             JwtBlacklistValidator jwtBlacklistValidator,
