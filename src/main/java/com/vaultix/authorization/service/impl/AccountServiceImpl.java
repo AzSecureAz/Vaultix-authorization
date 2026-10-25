@@ -40,6 +40,7 @@ import com.vaultix.common.dto.notification.NotificationEvent;
 import com.vaultix.common.exception.BadRequestException;
 import com.vaultix.common.exception.ResourceConflictException;
 import com.vaultix.common.exception.ResourceNotFoundException;
+import com.vaultix.common.util.MaskUtil;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -747,6 +748,29 @@ public class AccountServiceImpl implements AccountService {
                             messagingProperties.phoneChangedRoutingKey(),
                             newPhoneConfirmation);
                     log.info("Dispatched phone changed confirmation notification to new phone number '{}' for user: {}", cleanPendingPhone, user.getUsername());
+
+                    /* Dispatch security alert email to user's primary email address */
+                    NotificationEvent emailAlert = NotificationEvent.builder()
+                            .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
+                            .templateCode("auth.phone-changed")
+                            .channel(NotificationChannel.EMAIL)
+                            .recipient(user.getEmail())
+                            .recipientName(recipientName)
+                            .subject("Vaultix - Security Alert: Phone Number Changed")
+                            .params(Map.of(
+                                    "username", user.getUsername(),
+                                    "email", user.getEmail(),
+                                    "oldPhoneNumber", (oldPhone != null && !oldPhone.isBlank()) ? MaskUtil.maskPhone(oldPhone) : "None",
+                                    "newPhoneNumber", MaskUtil.maskPhone(cleanPendingPhone)
+                            ))
+                            .createdAt(Instant.now())
+                            .build();
+
+                    rabbitTemplate.convertAndSend(
+                            messagingProperties.exchange(),
+                            messagingProperties.phoneChangedRoutingKey(),
+                            emailAlert);
+                    log.info("Dispatched phone changed security alert email to '{}' for user: {}", user.getEmail(), user.getUsername());
                 } catch (Exception ex) {
                     log.warn("Failed to dispatch phone changed notification events for user '{}': {}", user.getUsername(), ex.getMessage());
                 }

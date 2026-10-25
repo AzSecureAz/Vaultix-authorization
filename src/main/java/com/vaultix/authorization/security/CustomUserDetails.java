@@ -32,7 +32,10 @@ public class CustomUserDetails implements UserDetails {
     private final UserStatus status;
     private final Instant lockedUntil;
     private final boolean mfaEnabled;
+    private final boolean smsMfaEnabled;
     private final String email;
+    private final String phoneNumber;
+    private final boolean phoneNumberVerified;
     private final Collection<? extends GrantedAuthority> authorities;
     private final Map<String, Set<String>> rolePermissions;
 
@@ -43,7 +46,10 @@ public class CustomUserDetails implements UserDetails {
         this.status = user.getStatus();
         this.lockedUntil = user.getLockedUntil();
         this.mfaEnabled = user.isMfaEnabled();
+        this.smsMfaEnabled = user.isSmsMfaEnabled();
         this.email = user.getEmail();
+        this.phoneNumber = user.getPhoneNumber();
+        this.phoneNumberVerified = user.isPhoneNumberVerified();
 
         Map<String, Set<String>> rolePermMap = new HashMap<>();
         Set<GrantedAuthority> auths = new HashSet<>();

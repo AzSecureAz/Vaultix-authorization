@@ -44,4 +44,8 @@ public interface AuthService {
             @NotNull(message = "MFA login request cannot be null")
             @Valid MfaLoginRequest request,
             ClientContext clientContext);
+
+    void sendLoginSmsOtp(
+            @NotBlank(message = "MFA challenge token is required")
+            @Size(max = 128, message = "MFA challenge token cannot exceed 128 characters") String mfaToken);
 }

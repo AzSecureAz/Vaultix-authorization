@@ -25,6 +25,7 @@ public record UserResponse(
         boolean phoneNumberVerified,
         boolean mfaEnabled,
         boolean passkeyEnabled,
+        boolean smsMfaEnabled,
         boolean hasSocialAccounts,
         int failedLoginAttempts,
         Instant lockedUntil,
@@ -58,6 +59,7 @@ public record UserResponse(
                 .phoneNumberVerified(user.isPhoneNumberVerified())
                 .mfaEnabled(user.isMfaEnabled())
                 .passkeyEnabled(user.isPasskeyEnabled())
+                .smsMfaEnabled(user.isSmsMfaEnabled())
                 .hasSocialAccounts(user.isHasSocialAccounts())
                 .failedLoginAttempts(user.getFailedLoginAttempts())
                 .lockedUntil(user.getLockedUntil())

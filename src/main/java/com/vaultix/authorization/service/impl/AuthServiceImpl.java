@@ -47,6 +47,8 @@ import com.vaultix.authorization.repository.UserRepository;
 import com.vaultix.authorization.repository.UserTotpRepository;
 import com.vaultix.authorization.security.CustomUserDetails;
 import com.vaultix.authorization.service.AuthService;
+import com.vaultix.authorization.service.OtpService;
+import com.vaultix.authorization.service.SmsMfaService;
 import com.vaultix.authorization.service.TokenService;
 import com.vaultix.common.crypto.AesGcmCryptoUtil;
 import com.vaultix.common.crypto.RecoveryCodeUtil;
@@ -57,6 +59,7 @@ import com.vaultix.common.exception.BadRequestException;
 import com.vaultix.common.exception.ResourceConflictException;
 import com.vaultix.common.exception.ResourceNotFoundException;
 import com.vaultix.common.util.ClientContextUtil.ClientContext;
+import com.vaultix.common.util.MaskUtil;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -82,6 +85,8 @@ public class AuthServiceImpl implements AuthService {
     private final RabbitTemplate rabbitTemplate;
     private final AuthMessagingProperties messagingProperties;
     private final StringRedisTemplate stringRedisTemplate;
+    private final OtpService otpService;
+    private final SmsMfaService smsMfaService;
 
     public static final String REDIS_MFA_CHALLENGE_PREFIX = "auth:mfa:challenge:";
     public static final Duration MFA_CHALLENGE_TTL = Duration.ofMinutes(5);
@@ -199,17 +204,24 @@ public class AuthServiceImpl implements AuthService {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         log.info("Authentication successful for user: {}", userDetails.getUsername());
 
-        if (userDetails.isMfaEnabled()) {
+        if (userDetails.isMfaEnabled() || userDetails.isSmsMfaEnabled()) {
             log.info("MFA is enabled for user ID: {}. Issuing MFA challenge token.", userDetails.getId());
             String mfaToken = UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString().replace("-", "");
             stringRedisTemplate.opsForValue().set(REDIS_MFA_CHALLENGE_PREFIX + mfaToken, userDetails.getId().toString(), MFA_CHALLENGE_TTL);
 
             boolean hasRecoveryCodes = userRecoveryCodeRepository.existsByUserIdAndUsedFalse(userDetails.getId());
 
+            String maskedPhone = (userDetails.isSmsMfaEnabled() && userDetails.getPhoneNumber() != null)
+                    ? MaskUtil.maskPhone(userDetails.getPhoneNumber())
+                    : null;
+
             return AuthResponse.builder()
                     .mfaRequired(true)
                     .mfaToken(mfaToken)
                     .hasRecoveryCodes(hasRecoveryCodes)
+                    .totpEnabled(userDetails.isMfaEnabled())
+                    .smsMfaEnabled(userDetails.isSmsMfaEnabled())
+                    .maskedPhoneNumber(maskedPhone)
                     .build();
         }
 
@@ -383,9 +395,23 @@ public class AuthServiceImpl implements AuthService {
                     verified = true;
                     log.info("MFA login verified successfully via direct TOTP authenticator for user ID: {}", userId);
                 }
+                case "sms", "phone" -> {
+                    /* Direct SMS OTP verification */
+                    if (!user.isSmsMfaEnabled()) {
+                        log.warn("MFA login rejected: SMS MFA is not enabled for user ID: {}", userId);
+                        throw new BadRequestException("SMS two-factor authentication is not enabled for this account");
+                    }
+                    boolean codeValid = otpService.verifyOtp("login-sms-mfa", userId.toString(), rawCode);
+                    if (!codeValid) {
+                        log.warn("MFA login failed: Invalid or expired SMS verification code for user ID: {}", userId);
+                        throw new BadCredentialsException("Invalid or expired SMS verification code");
+                    }
+                    verified = true;
+                    log.info("MFA login verified successfully via SMS OTP for user ID: {}", userId);
+                }
                 default -> {
                     log.warn("MFA login rejected: Unsupported factor '{}' for user ID: {}", factor, userId);
-                    throw new BadRequestException("Unsupported MFA factor: '" + factor + "'. Supported factors are 'totp' or 'recovery_code'.");
+                    throw new BadRequestException("Unsupported MFA factor: '" + factor + "'. Supported factors are 'totp', 'sms', or 'recovery_code'.");
                 }
             }
         } else {
@@ -417,6 +443,15 @@ public class AuthServiceImpl implements AuthService {
                         userTotpRepository.save(totp);
                         verified = true;
                         log.info("MFA login verified successfully via auto-detected TOTP for user ID: {}", userId);
+                    }
+                }
+
+                /* Try SMS OTP if not verified via TOTP and user has SMS MFA enabled */
+                if (!verified && user.isSmsMfaEnabled()) {
+                    boolean smsValid = otpService.verifyOtp("login-sms-mfa", userId.toString(), rawCode);
+                    if (smsValid) {
+                        verified = true;
+                        log.info("MFA login verified successfully via auto-detected SMS OTP for user ID: {}", userId);
                     }
                 }
             } else {
@@ -517,5 +552,28 @@ public class AuthServiceImpl implements AuthService {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 message digest algorithm not available", e);
         }
+    }
+
+    @Override
+    public void sendLoginSmsOtp(
+            @NotBlank(message = "MFA challenge token is required")
+            @Size(max = 128, message = "MFA challenge token cannot exceed 128 characters") String mfaToken) {
+
+        String redisKey = REDIS_MFA_CHALLENGE_PREFIX + mfaToken.strip();
+        String userIdStr = stringRedisTemplate.opsForValue().get(redisKey);
+        if (userIdStr == null || userIdStr.isBlank()) {
+            log.warn("Login SMS OTP dispatch failed: invalid or expired MFA challenge token");
+            throw new BadRequestException("Invalid or expired MFA challenge session. Please restart login.");
+        }
+
+        UUID userId;
+        try {
+            userId = UUID.fromString(userIdStr);
+        } catch (IllegalArgumentException e) {
+            log.error("Corrupt user ID in MFA challenge token Redis key: {}", userIdStr);
+            throw new BadRequestException("Invalid MFA challenge session. Please restart login.");
+        }
+
+        smsMfaService.sendLoginSmsOtp(userId);
     }
 }

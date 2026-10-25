@@ -61,6 +61,14 @@ public record AuthMessagingProperties(
         @NotBlank(message = "Recovery codes regenerated routing key is required")
         @Size(max = 256, message = "Recovery codes regenerated routing key cannot exceed 256 characters")
         @DefaultValue("auth.notification.recovery-codes-regenerated")
-        String recoveryCodesRegeneratedRoutingKey) {
+        String recoveryCodesRegeneratedRoutingKey,
+        @NotBlank(message = "Passkey added routing key is required")
+        @Size(max = 256, message = "Passkey added routing key cannot exceed 256 characters")
+        @DefaultValue("auth.notification.passkey-added")
+        String passkeyAddedRoutingKey,
+        @NotBlank(message = "Passkey removed routing key is required")
+        @Size(max = 256, message = "Passkey removed routing key cannot exceed 256 characters")
+        @DefaultValue("auth.notification.passkey-removed")
+        String passkeyRemovedRoutingKey) {
 
 }

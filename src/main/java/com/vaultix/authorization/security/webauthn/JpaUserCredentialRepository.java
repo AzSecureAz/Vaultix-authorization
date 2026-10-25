@@ -1,13 +1,16 @@
 package com.vaultix.authorization.security.webauthn;
 
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.security.web.webauthn.api.AuthenticatorTransport;
 import org.springframework.security.web.webauthn.api.Bytes;
 import org.springframework.security.web.webauthn.api.CredentialRecord;
@@ -17,11 +20,16 @@ import org.springframework.security.web.webauthn.api.PublicKeyCredentialType;
 import org.springframework.security.web.webauthn.management.UserCredentialRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import com.vaultix.authorization.config.properties.AuthMessagingProperties;
 import com.vaultix.authorization.entity.User;
 import com.vaultix.authorization.entity.UserPasskeyCredential;
 import com.vaultix.authorization.repository.UserPasskeyCredentialRepository;
 import com.vaultix.authorization.repository.UserRepository;
+import com.vaultix.common.dto.notification.NotificationChannel;
+import com.vaultix.common.dto.notification.NotificationEvent;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +41,8 @@ public class JpaUserCredentialRepository implements UserCredentialRepository {
 
     private final UserPasskeyCredentialRepository passkeyRepository;
     private final UserRepository userRepository;
+    private final RabbitTemplate rabbitTemplate;
+    private final AuthMessagingProperties messagingProperties;
 
     @Override
     @Transactional(readOnly = true)
@@ -89,10 +99,7 @@ public class JpaUserCredentialRepository implements UserCredentialRepository {
         }
 
         UUID userId = JpaPublicKeyCredentialUserEntityRepository.bytesToUuid(record.getUserEntityUserId());
-        User user = null;
-        if (userId != null) {
-            user = userRepository.findById(userId).orElse(null);
-        }
+        User user = (userId != null) ? userRepository.findById(userId).orElse(null) : null;
 
         if (user == null) {
             log.warn("Cannot save passkey credential '{}': user not found for userEntityUserId '{}'", credId, userEntityId);
@@ -124,6 +131,47 @@ public class JpaUserCredentialRepository implements UserCredentialRepository {
             userRepository.save(user);
         }
         log.info("Saved new passkey credential '{}' for user '{}'", credId, user.getUsername());
+
+        /* Dispatch passkey-added security alert notification email */
+        final User finalUser = user;
+        final String passkeyLabel = newCredential.getLabel();
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    dispatchPasskeyAddedNotification(finalUser, passkeyLabel);
+                }
+            });
+        } else {
+            dispatchPasskeyAddedNotification(finalUser, passkeyLabel);
+        }
+    }
+
+    private void dispatchPasskeyAddedNotification(User user, String passkeyLabel) {
+        try {
+            NotificationEvent event = NotificationEvent.builder()
+                    .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
+                    .templateCode("auth.passkey-added")
+                    .channel(NotificationChannel.EMAIL)
+                    .recipient(user.getEmail())
+                    .recipientName(user.getFullName() != null && !user.getFullName().isBlank() ? user.getFullName() : user.getUsername())
+                    .subject("Vaultix - Security Alert: New Passkey Added")
+                    .params(Map.of(
+                            "username", user.getUsername(),
+                            "email", user.getEmail(),
+                            "passkeyLabel", passkeyLabel != null ? passkeyLabel : "Passkey"
+                    ))
+                    .createdAt(Instant.now())
+                    .build();
+
+            rabbitTemplate.convertAndSend(
+                    messagingProperties.exchange(),
+                    messagingProperties.passkeyAddedRoutingKey(),
+                    event);
+            log.info("Dispatched passkey added security alert email to '{}' for user: {}", user.getEmail(), user.getUsername());
+        } catch (Exception ex) {
+            log.warn("Failed to dispatch passkey added notification for user '{}': {}", user.getUsername(), ex.getMessage());
+        }
     }
 
     @Override

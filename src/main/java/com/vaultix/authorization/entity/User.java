@@ -94,6 +94,11 @@ public class User {
     @ToString.Include
     private boolean passkeyEnabled = false;
 
+    @Column(name = "sms_mfa_enabled", nullable = false)
+    @Builder.Default
+    @ToString.Include
+    private boolean smsMfaEnabled = false;
+
     @Column(name = "has_social_accounts", nullable = false)
     @Builder.Default
     @ToString.Include

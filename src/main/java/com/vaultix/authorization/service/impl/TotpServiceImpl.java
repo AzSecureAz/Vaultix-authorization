@@ -30,8 +30,8 @@ import com.vaultix.authorization.entity.User;
 import com.vaultix.authorization.entity.UserRecoveryCode;
 import com.vaultix.authorization.entity.UserTotp;
 import com.vaultix.authorization.entity.enums.UserStatus;
-import com.vaultix.authorization.repository.UserRepository;
 import com.vaultix.authorization.repository.UserRecoveryCodeRepository;
+import com.vaultix.authorization.repository.UserRepository;
 import com.vaultix.authorization.repository.UserTotpRepository;
 import com.vaultix.authorization.service.TotpService;
 import com.vaultix.common.crypto.AesGcmCryptoUtil;
@@ -159,17 +159,25 @@ public class TotpServiceImpl implements TotpService {
         user.setUpdatedBy(userId);
         userRepository.save(user);
 
-        List<String> recoveryCodes = RecoveryCodeUtil.generateCodes();
-        userRecoveryCodeRepository.deleteByUserId(userId);
+        /* Generate recovery codes only if user does not currently have active recovery codes */
+        List<String> recoveryCodes = List.of();
+        boolean hasExistingRecoveryCodes = userRecoveryCodeRepository.existsByUserIdAndUsedFalse(userId);
+        if (!hasExistingRecoveryCodes) {
+            recoveryCodes = RecoveryCodeUtil.generateCodes();
+            userRecoveryCodeRepository.deleteByUserId(userId);
 
-        List<UserRecoveryCode> recoveryCodeEntities = recoveryCodes.stream()
-                .map(code -> UserRecoveryCode.builder()
-                        .user(user)
-                        .codeHash(hashRecoveryCode(code))
-                        .used(false)
-                        .build())
-                .toList();
-        userRecoveryCodeRepository.saveAll(recoveryCodeEntities);
+            List<UserRecoveryCode> recoveryCodeEntities = recoveryCodes.stream()
+                    .map(code -> UserRecoveryCode.builder()
+                            .user(user)
+                            .codeHash(hashRecoveryCode(code))
+                            .used(false)
+                            .build())
+                    .toList();
+            userRecoveryCodeRepository.saveAll(recoveryCodeEntities);
+            log.info("Generated {} emergency recovery codes for user ID: {}", recoveryCodes.size(), userId);
+        } else {
+            log.info("Preserving existing active emergency recovery codes for user ID: {}", userId);
+        }
 
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
@@ -184,7 +192,8 @@ public class TotpServiceImpl implements TotpService {
                             .subject("Vaultix - Security Alert: Two-Factor Authentication Enabled")
                             .params(Map.of(
                                     "username", user.getUsername(),
-                                    "email", user.getEmail()
+                                    "email", user.getEmail(),
+                                    "factor", "Authenticator App (TOTP)"
                             ))
                             .createdAt(Instant.now())
                             .build();
@@ -201,8 +210,7 @@ public class TotpServiceImpl implements TotpService {
             }
         });
 
-        log.info("Successfully activated TOTP two-factor authentication and generated {} recovery codes for user ID: {}",
-                recoveryCodes.size(), userId);
+        log.info("Successfully activated TOTP two-factor authentication for user ID: {}", userId);
         return new TotpActivationResponse(recoveryCodes);
     }
 
@@ -226,7 +234,12 @@ public class TotpServiceImpl implements TotpService {
         }
 
         userTotpRepository.deleteByUserId(userId);
-        userRecoveryCodeRepository.deleteByUserId(userId);
+
+        /* Clean up recovery codes only if no other MFA factor remains active */
+        if (!user.isSmsMfaEnabled()) {
+            userRecoveryCodeRepository.deleteByUserId(userId);
+            log.info("Removed emergency recovery codes for user ID: {} as no active MFA factors remain", userId);
+        }
 
         user.setMfaEnabled(false);
         user.setUpdatedBy(userId);
@@ -245,7 +258,8 @@ public class TotpServiceImpl implements TotpService {
                             .subject("Vaultix - Security Alert: Two-Factor Authentication Disabled")
                             .params(Map.of(
                                     "username", user.getUsername(),
-                                    "email", user.getEmail()
+                                    "email", user.getEmail(),
+                                    "factor", "Authenticator App (TOTP)"
                             ))
                             .createdAt(Instant.now())
                             .build();

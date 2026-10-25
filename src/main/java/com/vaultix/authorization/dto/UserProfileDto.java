@@ -28,6 +28,7 @@ public record UserProfileDto(
         boolean phoneNumberVerified,
         boolean mfaEnabled,
         boolean passkeyEnabled,
+        boolean smsMfaEnabled,
         boolean hasSocialAccounts,
         Instant lastLoginAt,
         Instant createdAt,
@@ -68,6 +69,7 @@ public record UserProfileDto(
                 .phoneNumberVerified(user.isPhoneNumberVerified())
                 .mfaEnabled(user.isMfaEnabled())
                 .passkeyEnabled(user.isPasskeyEnabled())
+                .smsMfaEnabled(user.isSmsMfaEnabled())
                 .hasSocialAccounts(user.isHasSocialAccounts())
                 .lastLoginAt(user.getLastLoginAt())
                 .createdAt(user.getCreatedAt())

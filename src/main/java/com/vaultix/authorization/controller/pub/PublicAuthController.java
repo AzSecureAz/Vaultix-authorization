@@ -18,6 +18,7 @@ import com.vaultix.authorization.dto.RefreshTokenRequest;
 import com.vaultix.authorization.dto.RegisterRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
 import com.vaultix.authorization.dto.mfa.MfaLoginRequest;
+import com.vaultix.authorization.dto.mfa.SendLoginSmsOtpRequest;
 import com.vaultix.authorization.security.AuthCookieHelper;
 import com.vaultix.authorization.service.AuthService;
 import com.vaultix.common.dto.ApiResponse;
@@ -104,5 +105,13 @@ public class PublicAuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
                 .body(ApiResponse.success("Authentication successful", authResponse));
+    }
+
+    @PostMapping({"/login/mfa/sms/send-otp", "/login/mfa/sms/send", "/mfa/sms/send-login-otp"})
+    public ResponseEntity<ApiResponse<Void>> sendLoginSmsOtp(
+            @Valid @RequestBody SendLoginSmsOtpRequest request) {
+
+        authService.sendLoginSmsOtp(request.mfaToken());
+        return ResponseEntity.ok(ApiResponse.success("SMS verification code sent successfully."));
     }
 }
