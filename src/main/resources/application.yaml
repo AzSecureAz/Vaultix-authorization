@@ -115,7 +115,7 @@ vaultix:
     base-url: ${VAULTIX_FRONTEND_BASE_URL:https://zj153pc4-3000.inc1.devtunnels.ms}
   oauth2:
     google:
-      client-id: ${VAULTIX_GOOGLE_CLIENT_ID:YOUR_GOOGLE_CLIENT_ID}
+      client-id: ${VAULTIX_GOOGLE_CLIENT_ID:867635310817-dcd4puegegcnf7bart5gu3gs5f48375i.apps.googleusercontent.com}
   rabbitmq:
     exchange: ${VAULTIX_RABBITMQ_AUTH_EXCHANGE:auth.exchange}
     password-reset-routing-key: ${VAULTIX_RABBITMQ_AUTH_PASSWORD_RESET_ROUTING_KEY:auth.notification.password-reset}
