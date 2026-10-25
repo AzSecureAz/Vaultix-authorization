@@ -292,8 +292,8 @@ public class TotpServiceImpl implements TotpService {
             throw new BadRequestException("Account is " + user.getStatus().name().toLowerCase(Locale.ROOT) + ". Please contact support.");
         }
 
-        if (!user.isMfaEnabled()) {
-            log.warn("Recovery codes query rejected: User ID {} does not have MFA enabled", userId);
+        if (!user.isMfaEnabled() && !user.isSmsMfaEnabled()) {
+            log.warn("Recovery codes query rejected: User ID {} does not have any 2FA factor enabled", userId);
             throw new BadRequestException("Two-factor authentication is not currently enabled on this account");
         }
 
@@ -313,8 +313,8 @@ public class TotpServiceImpl implements TotpService {
             throw new BadRequestException("Account is " + user.getStatus().name().toLowerCase(Locale.ROOT) + ". Please contact support.");
         }
 
-        if (!user.isMfaEnabled()) {
-            log.warn("Recovery codes regeneration rejected: User ID {} does not have MFA enabled", userId);
+        if (!user.isMfaEnabled() && !user.isSmsMfaEnabled()) {
+            log.warn("Recovery codes regeneration rejected: User ID {} does not have any 2FA factor enabled", userId);
             throw new BadRequestException("Two-factor authentication is not currently enabled on this account");
         }
 
