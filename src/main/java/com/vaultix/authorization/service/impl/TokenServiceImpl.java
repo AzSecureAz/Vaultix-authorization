@@ -286,21 +286,25 @@ public class TokenServiceImpl implements TokenService {
     }
 
     private void blacklistTokensAfterCommit(List<UUID> activeAccessTokenJtis) {
+        if (activeAccessTokenJtis == null || activeAccessTokenJtis.isEmpty()) {
+            return;
+        }
+
+        List<String> jtiStrings = activeAccessTokenJtis.stream()
+                .map(UUID::toString)
+                .toList();
+
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    for (UUID jti : activeAccessTokenJtis) {
-                        tokenBlacklistService.blacklist(jti.toString(), jwtProperties.accessTokenExpiration());
-                    }
-                    log.debug("Successfully blacklisted {} access token JTIs in Redis after transaction commit", activeAccessTokenJtis.size());
+                    tokenBlacklistService.blacklistAll(jtiStrings, jwtProperties.accessTokenExpiration());
+                    log.debug("Successfully batch-blacklisted {} access token JTIs in Redis after transaction commit", jtiStrings.size());
                 }
             });
         } else {
-            for (UUID jti : activeAccessTokenJtis) {
-                tokenBlacklistService.blacklist(jti.toString(), jwtProperties.accessTokenExpiration());
-            }
-            log.debug("Successfully blacklisted {} access token JTIs in Redis immediately", activeAccessTokenJtis.size());
+            tokenBlacklistService.blacklistAll(jtiStrings, jwtProperties.accessTokenExpiration());
+            log.debug("Successfully batch-blacklisted {} access token JTIs in Redis immediately", jtiStrings.size());
         }
     }
 
