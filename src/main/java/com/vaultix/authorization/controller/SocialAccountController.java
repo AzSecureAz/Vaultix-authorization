@@ -53,7 +53,7 @@ public class SocialAccountController {
         return ResponseEntity.ok(ApiResponse.success("Linked social accounts retrieved successfully", accounts));
     }
 
-    @RequireSudo
+    @RequireSudo(maxAgeSeconds = 300)
     @PostMapping({"/google/link", "/google"})
     public ResponseEntity<ApiResponse<SocialAccountResponse>> linkGoogle(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
@@ -64,7 +64,7 @@ public class SocialAccountController {
         return ResponseEntity.ok(ApiResponse.success("Google account linked successfully", response));
     }
 
-    @RequireSudo
+    @RequireSudo(maxAgeSeconds = 300)
     @PostMapping({"/github/link", "/github"})
     public ResponseEntity<ApiResponse<SocialAccountResponse>> linkGitHub(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
@@ -75,7 +75,7 @@ public class SocialAccountController {
         return ResponseEntity.ok(ApiResponse.success("GitHub account linked successfully", response));
     }
 
-    @RequireSudo
+    @RequireSudo(maxAgeSeconds = 300)
     @DeleteMapping({"/{provider}", "/{provider}/unlink"})
     public ResponseEntity<ApiResponse<Void>> unlinkAccount(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,

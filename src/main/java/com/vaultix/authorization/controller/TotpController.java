@@ -35,7 +35,7 @@ public class TotpController {
 
     private final TotpService totpService;
 
-    @RequireSudo
+    @RequireSudo(maxAgeSeconds = 300)
     @PostMapping({"/setup", "/initiate"})
     public ResponseEntity<ApiResponse<TotpSetupResponse>> setupTotp(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
@@ -45,7 +45,7 @@ public class TotpController {
         return ResponseEntity.ok(ApiResponse.success("TOTP setup initiated. Scan the QR code or enter the key manually.", response));
     }
 
-    @RequireSudo
+    @RequireSudo(maxAgeSeconds = 300)
     @PostMapping({"/activate", "/verify"})
     public ResponseEntity<ApiResponse<TotpActivationResponse>> activateTotp(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
@@ -58,7 +58,7 @@ public class TotpController {
                 response));
     }
 
-    @RequireSudo
+    @RequireSudo(maxAgeSeconds = 300)
     @PostMapping("/disable")
     public ResponseEntity<ApiResponse<Void>> disableTotp(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
@@ -77,7 +77,7 @@ public class TotpController {
         return ResponseEntity.ok(ApiResponse.success("Remaining recovery codes count retrieved successfully.", remaining));
     }
 
-    @RequireSudo
+    @RequireSudo(maxAgeSeconds = 300)
     @PostMapping({"/recovery-codes/regenerate", "/recovery-codes"})
     public ResponseEntity<ApiResponse<RecoveryCodesResponse>> regenerateRecoveryCodes(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {

@@ -39,7 +39,7 @@ public class MfaRecoveryCodeController {
         return ResponseEntity.ok(ApiResponse.success("Remaining recovery codes count retrieved successfully.", remaining));
     }
 
-    @RequireSudo
+    @RequireSudo(maxAgeSeconds = 300)
     @PostMapping({"", "/", "/regenerate"})
     public ResponseEntity<ApiResponse<RecoveryCodesResponse>> regenerateRecoveryCodes(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {

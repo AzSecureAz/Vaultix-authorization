@@ -36,6 +36,7 @@ public class PasskeyController {
 
     private final PasskeyService passkeyService;
 
+    @RequireSudo
     @GetMapping({"", "/"})
     public ResponseEntity<ApiResponse<List<PasskeyResponse>>> listPasskeys(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
@@ -45,6 +46,7 @@ public class PasskeyController {
         return ResponseEntity.ok(ApiResponse.success("Passkeys retrieved successfully.", passkeys));
     }
 
+    @RequireSudo(maxAgeSeconds = 300)
     @PatchMapping("/{id}")
     public ResponseEntity<ApiResponse<PasskeyResponse>> updatePasskey(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
@@ -56,7 +58,7 @@ public class PasskeyController {
         return ResponseEntity.ok(ApiResponse.success("Passkey label updated successfully.", response));
     }
 
-    @RequireSudo
+    @RequireSudo(maxAgeSeconds = 300)
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deletePasskey(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,

@@ -60,9 +60,9 @@ Complete endpoint reference for the **Vaultix Authorization Service**.
 | `POST` | `/mfa/recovery-codes`, `/mfa/recovery-codes/regenerate`, `/mfa/totp/recovery-codes/regenerate` | Invalidate existing recovery codes and generate 10 fresh emergency recovery codes **(Requires Sudo)** | Bearer JWT | No |
 | `POST` | `/webauthn/register/options` | Request WebAuthn publicKey credential creation options for passkey registration **(Requires Sudo)** | Bearer JWT | No |
 | `POST` | `/webauthn/register` | Register new passkey credential (public key, authenticator transports, attestation) **(Requires Sudo)** | Bearer JWT | No |
-| `GET` | `/mfa/passkeys`, `/passkeys` | Retrieve all registered passkeys for authenticated user | Bearer JWT | No |
-| `PATCH` | `/mfa/passkeys/{id}` | Update user-defined label/nickname for a registered passkey | Bearer JWT | No |
-| `DELETE` | `/mfa/passkeys/{id}` | Delete passkey credential & auto-disable passkey flag if last credential removed **(Requires Sudo)** | Bearer JWT | No |
+| `GET` | `/mfa/passkeys`, `/passkeys` | Retrieve all registered passkeys for authenticated user **(Requires Sudo)** | Bearer JWT | No |
+| `PATCH` | `/mfa/passkeys/{id}` | Update user-defined label/nickname for a registered passkey **(Requires Sudo)** | Bearer JWT | No |
+| `DELETE` | `/mfa/passkeys/{id}` | Delete passkey credential & auto-disable passkey flag if last credential removed **(Requires Sudo, max age: 5m)** | Bearer JWT | No |
 
 ### 2.3 Connected Social Accounts (`/social`)
 

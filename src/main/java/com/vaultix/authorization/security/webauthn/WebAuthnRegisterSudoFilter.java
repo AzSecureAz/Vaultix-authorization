@@ -59,7 +59,7 @@ public class WebAuthnRegisterSudoFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (sessionId == null || !sudoService.isSudoActive(sessionId)) {
+        if (sessionId == null || !sudoService.isSudoActive(sessionId, 300)) {
             log.warn("Sudo verification required for passkey registration endpoint: {}", request.getRequestURI());
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             response.setHeader("X-Sudo-Required", "true");
