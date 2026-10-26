@@ -44,6 +44,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import com.vaultix.authorization.config.properties.AuthMessagingProperties;
 import com.vaultix.authorization.config.properties.KekProperties;
+import com.vaultix.authorization.config.properties.SudoProperties;
 import com.vaultix.authorization.dto.SudoResponse;
 import com.vaultix.authorization.dto.SudoVerifyRequest;
 import com.vaultix.authorization.dto.oauth2.GitHubLoginRequest;
@@ -98,6 +99,7 @@ public class AuthSudoServiceImpl implements AuthSudoService {
     private final SmsMfaService smsMfaService;
     private final OtpService otpService;
     private final SudoService sudoService;
+    private final SudoProperties sudoProperties;
     private final KekProperties kekProperties;
     private final RabbitTemplate rabbitTemplate;
     private final AuthMessagingProperties messagingProperties;
@@ -245,10 +247,10 @@ public class AuthSudoServiceImpl implements AuthSudoService {
         }
 
         /* 3. Elevate session in Redis via SudoService */
-        sudoService.elevateSudo(sessionId);
+        sudoService.elevateSudo(sessionId, sudoProperties.duration());
         log.info("Successfully elevated sudo mode for session ID: {}, user: {}", sessionId, user.getUsername());
 
-        long remaining = sudoService.getRemainingSeconds(sessionId).orElse(SudoService.DEFAULT_SUDO_DURATION.toSeconds());
+        long remaining = sudoService.getRemainingSeconds(sessionId).orElse(sudoProperties.duration().toSeconds());
         return SudoResponse.active(remaining);
     }
 
@@ -387,10 +389,10 @@ public class AuthSudoServiceImpl implements AuthSudoService {
         }
 
         /* 4. Elevate session in Redis via SudoService */
-        sudoService.elevateSudo(sessionId);
+        sudoService.elevateSudo(sessionId, sudoProperties.duration());
         log.info("Successfully elevated sudo mode via Passkey for session ID: {}, user: {}", sessionId, user.getUsername());
 
-        long remaining = sudoService.getRemainingSeconds(sessionId).orElse(SudoService.DEFAULT_SUDO_DURATION.toSeconds());
+        long remaining = sudoService.getRemainingSeconds(sessionId).orElse(sudoProperties.duration().toSeconds());
         return SudoResponse.active(remaining);
     }
 
