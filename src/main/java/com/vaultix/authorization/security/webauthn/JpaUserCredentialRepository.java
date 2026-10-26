@@ -28,6 +28,7 @@ import com.vaultix.authorization.entity.User;
 import com.vaultix.authorization.entity.UserPasskeyCredential;
 import com.vaultix.authorization.repository.UserPasskeyCredentialRepository;
 import com.vaultix.authorization.repository.UserRepository;
+import com.vaultix.authorization.validation.ValidPasskeyLabelValidator;
 import com.vaultix.common.dto.notification.NotificationChannel;
 import com.vaultix.common.dto.notification.NotificationEvent;
 
@@ -89,7 +90,7 @@ public class JpaUserCredentialRepository implements UserCredentialRepository {
             existing.setBackupState(record.isBackupState());
             existing.setLastUsedAt(record.getLastUsed());
             if (record.getLabel() != null && !record.getLabel().isBlank()) {
-                existing.setLabel(record.getLabel());
+                existing.setLabel(ValidPasskeyLabelValidator.sanitizeOrDefault(record.getLabel(), existing.getLabel()));
             }
             if (record.getTransports() != null) {
                 existing.setAuthenticatorTransports(serializeTransports(record.getTransports()));
@@ -106,6 +107,8 @@ public class JpaUserCredentialRepository implements UserCredentialRepository {
             return;
         }
 
+        String safeLabel = ValidPasskeyLabelValidator.sanitizeOrDefault(record.getLabel(), "Passkey");
+
         UserPasskeyCredential newCredential = UserPasskeyCredential.builder()
                 .user(user)
                 .credentialId(credId)
@@ -119,7 +122,7 @@ public class JpaUserCredentialRepository implements UserCredentialRepository {
                 .publicKeyCredentialType(record.getCredentialType() != null ? record.getCredentialType().getValue() : "public-key")
                 .attestationObject(record.getAttestationObject() != null ? record.getAttestationObject().getBytes() : null)
                 .attestationClientDataJson(record.getAttestationClientDataJSON() != null ? record.getAttestationClientDataJSON().getBytes() : null)
-                .label(record.getLabel() != null && !record.getLabel().isBlank() ? record.getLabel() : "Passkey")
+                .label(safeLabel)
                 .lastUsedAt(record.getLastUsed())
                 .createdAt(record.getCreated())
                 .build();
