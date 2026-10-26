@@ -5,10 +5,9 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -52,13 +51,14 @@ public class WebAuthnRegisterSudoFilter extends OncePerRequestFilter {
             return;
         }
 
-        Jwt jwt = extractJwt(auth);
-        if (jwt == null) {
+        UUID sessionId;
+        try {
+            sessionId = SecurityUtil.extractSessionId(auth);
+        } catch (BadCredentialsException e) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        UUID sessionId = SecurityUtil.extractSessionId(jwt);
         if (sessionId == null || !sudoService.isSudoActive(sessionId)) {
             log.warn("Sudo verification required for passkey registration endpoint: {}", request.getRequestURI());
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
@@ -87,18 +87,5 @@ public class WebAuthnRegisterSudoFilter extends OncePerRequestFilter {
         }
         String uri = request.getRequestURI();
         return uri != null && uri.contains("/webauthn/register");
-    }
-
-    private Jwt extractJwt(Authentication authentication) {
-        if (authentication == null) {
-            return null;
-        }
-        if (authentication.getPrincipal() instanceof Jwt principalJwt) {
-            return principalJwt;
-        }
-        if (authentication instanceof JwtAuthenticationToken jwtAuthToken) {
-            return jwtAuthToken.getToken();
-        }
-        return null;
     }
 }
