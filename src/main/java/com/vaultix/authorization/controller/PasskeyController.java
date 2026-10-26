@@ -9,10 +9,10 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.vaultix.authorization.dto.mfa.PasskeyResponse;
@@ -47,7 +47,7 @@ public class PasskeyController {
     }
 
     @RequireSudo(maxAgeSeconds = 300)
-    @PatchMapping("/{id}")
+    @RequestMapping(value = "/{id}", method = {RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.POST})
     public ResponseEntity<ApiResponse<PasskeyResponse>> updatePasskey(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
             @PathVariable("id") @NotNull(message = "Passkey ID is required") UUID id,

@@ -21,6 +21,7 @@ import com.vaultix.authorization.dto.ConfirmEmailChangeRequest;
 import com.vaultix.authorization.dto.ConfirmPhoneNumberChangeRequest;
 import com.vaultix.authorization.dto.RequestEmailChangeRequest;
 import com.vaultix.authorization.dto.RequestPhoneNumberChangeRequest;
+import com.vaultix.authorization.dto.UpdateFullNameRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
 import com.vaultix.authorization.dto.VerifyEmailRequest;
 import com.vaultix.authorization.dto.VerifyPhoneNumberRequest;
@@ -53,6 +54,16 @@ public class AccountController {
         UUID userId = SecurityUtil.extractActorId(jwt);
         UserProfileDto profile = accountService.getProfile(userId);
         return ResponseEntity.ok(ApiResponse.success("Current user profile", profile));
+    }
+
+    @RequestMapping(value = {"/full-name", "/full-name/change", "/full-name-change", "/name"}, method = {RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.POST})
+    public ResponseEntity<ApiResponse<UserProfileDto>> updateFullName(
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
+            @Valid @RequestBody UpdateFullNameRequest request) {
+
+        UUID userId = SecurityUtil.extractActorId(jwt);
+        UserProfileDto profile = accountService.updateFullName(userId, request);
+        return ResponseEntity.ok(ApiResponse.success("Full name updated successfully", profile));
     }
 
     @RequireSudo(maxAgeSeconds = 300)

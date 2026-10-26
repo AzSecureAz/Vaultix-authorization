@@ -27,6 +27,7 @@ import com.vaultix.authorization.dto.ConfirmPhoneNumberChangeRequest;
 import com.vaultix.authorization.dto.RequestEmailChangeRequest;
 import com.vaultix.authorization.dto.RequestPhoneNumberChangeRequest;
 import com.vaultix.authorization.dto.RevertEmailRequest;
+import com.vaultix.authorization.dto.UpdateFullNameRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
 import com.vaultix.authorization.dto.VerifyEmailRequest;
 import com.vaultix.authorization.dto.VerifyPhoneNumberRequest;
@@ -86,6 +87,33 @@ public class AccountServiceImpl implements AccountService {
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with ID: " + userId));
 
         return UserProfileDto.fromEntity(user);
+    }
+
+    @Override
+    @Transactional
+    public UserProfileDto updateFullName(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            @NotNull(message = "Update full name request cannot be null")
+            @Valid UpdateFullNameRequest request) {
+
+        log.info("Processing full name update request for user ID: {}", userId);
+
+        User user = userRepository.findWithRolesAndPermissionsById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        if (user.getStatus() == UserStatus.DISABLED || user.getStatus() == UserStatus.DELETED) {
+            log.warn("Full name update rejected for {} user: {}", user.getStatus(), user.getUsername());
+            throw new BadRequestException("Account is " + user.getStatus().name().toLowerCase(Locale.ROOT) + ". Please contact support.");
+        }
+
+        String cleanFullName = request.fullName().strip();
+        user.setFullName(cleanFullName);
+        user.setUpdatedBy(userId);
+
+        User savedUser = userRepository.save(user);
+        log.info("Successfully updated full name for user: {}", user.getUsername());
+
+        return UserProfileDto.fromEntity(savedUser);
     }
 
     @Override

@@ -11,6 +11,7 @@ import com.vaultix.authorization.dto.ConfirmPhoneNumberChangeRequest;
 import com.vaultix.authorization.dto.RequestEmailChangeRequest;
 import com.vaultix.authorization.dto.RequestPhoneNumberChangeRequest;
 import com.vaultix.authorization.dto.RevertEmailRequest;
+import com.vaultix.authorization.dto.UpdateFullNameRequest;
 import com.vaultix.authorization.dto.UserProfileDto;
 import com.vaultix.authorization.dto.VerifyEmailRequest;
 import com.vaultix.authorization.dto.VerifyPhoneNumberRequest;
@@ -22,6 +23,11 @@ import jakarta.validation.constraints.NotNull;
 public interface AccountService {
 
     UserProfileDto getProfile(@NotNull(message = "User ID cannot be null") UUID userId);
+
+    UserProfileDto updateFullName(
+            @NotNull(message = "User ID cannot be null") UUID userId,
+            @NotNull(message = "Update full name request cannot be null")
+            @Valid UpdateFullNameRequest request);
 
     void changeUsername(
             @NotNull(message = "User ID cannot be null") UUID userId,
