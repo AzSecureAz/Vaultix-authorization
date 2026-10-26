@@ -82,4 +82,6 @@ public interface AccountService {
     void revertEmail(
             @NotNull(message = "Revert email request cannot be null")
             @Valid RevertEmailRequest request);
+
+    void deleteAccount(@NotNull(message = "User ID cannot be null") UUID userId);
 }

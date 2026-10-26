@@ -923,6 +923,57 @@ public class AccountServiceImpl implements AccountService {
         });
     }
 
+    @Override
+    @Transactional
+    public void deleteAccount(@NotNull(message = "User ID cannot be null") UUID userId) {
+        log.info("Processing self-service account deletion for user ID: {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        if (user.getStatus() == UserStatus.DELETED) {
+            log.warn("Account deletion rejected for already deleted user: {}", user.getUsername());
+            throw new BadRequestException("Account is already deleted");
+        }
+
+        user.setStatus(UserStatus.DELETED);
+        user.setUpdatedBy(userId);
+        userRepository.save(user);
+
+        int revokedSessions = tokenService.revokeAllUserTokens(userId);
+        log.info("Marked user '{}' as DELETED (self-service). Revoked {} active sessions.", user.getUsername(), revokedSessions);
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    NotificationEvent event = NotificationEvent.builder()
+                            .eventId(UUID.ofEpochMillis(System.currentTimeMillis()))
+                            .templateCode("auth.account-deleted")
+                            .channel(NotificationChannel.EMAIL)
+                            .recipient(user.getEmail())
+                            .recipientName(user.getFullName() != null && !user.getFullName().isBlank() ? user.getFullName() : user.getUsername())
+                            .subject("Vaultix - Security Alert: Account Deleted")
+                            .params(Map.of(
+                                    "username", user.getUsername(),
+                                    "email", user.getEmail()
+                            ))
+                            .createdAt(Instant.now())
+                            .build();
+
+                    rabbitTemplate.convertAndSend(
+                            messagingProperties.exchange(),
+                            messagingProperties.accountDeletedRoutingKey(),
+                            event);
+                    log.info("Dispatched account deleted security notification to exchange '{}' with routing key '{}' for user: {}",
+                            messagingProperties.exchange(), messagingProperties.accountDeletedRoutingKey(), user.getUsername());
+                } catch (Exception ex) {
+                    log.warn("Failed to dispatch account deleted notification for user '{}': {}", user.getUsername(), ex.getMessage());
+                }
+            }
+        });
+    }
+
     private String buildFrontendUrl(String path) {
         String base = frontendProperties.baseUrl().replaceAll("/+$", "");
         String cleanPath = path.startsWith("/") ? path : "/" + path;

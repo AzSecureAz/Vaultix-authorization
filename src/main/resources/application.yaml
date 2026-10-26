@@ -142,3 +142,4 @@ vaultix:
     passkey-removed-routing-key: ${VAULTIX_RABBITMQ_AUTH_PASSKEY_REMOVED_ROUTING_KEY:auth.notification.passkey-removed}
     social-account-linked-routing-key: ${VAULTIX_RABBITMQ_AUTH_SOCIAL_ACCOUNT_LINKED_ROUTING_KEY:auth.notification.social-account-linked}
     social-account-unlinked-routing-key: ${VAULTIX_RABBITMQ_AUTH_SOCIAL_ACCOUNT_UNLINKED_ROUTING_KEY:auth.notification.social-account-unlinked}
+    account-deleted-routing-key: ${VAULTIX_RABBITMQ_AUTH_ACCOUNT_DELETED_ROUTING_KEY:auth.notification.account-deleted}
