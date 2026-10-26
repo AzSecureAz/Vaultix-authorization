@@ -12,7 +12,7 @@ Complete endpoint reference for the **Vaultix Authorization Service**.
 
 | Method | Endpoint | Description | Auth Required | Client Context Tracked |
 | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/public/register` | Register a new user account & dispatch welcome email | No | No |
+| `POST` | `/public/register` | Register a new user account & dispatch welcome email (Guarded by `registration.enabled`) | No | No |
 | `POST` | `/public/login` | Authenticate with username/password, issue access token & set refresh cookie | No | Yes (`X-Client-IP`, `X-Device-*`) |
 | `POST` | `/public/login/google`, `/public/oauth2/google` | Authenticate using Google OIDC ID token, auto-provision user & issue tokens | No | Yes |
 | `POST` | `/public/login/github`, `/public/oauth2/github` | Authenticate using GitHub OAuth2 authorization code, auto-provision & issue tokens | No | Yes |

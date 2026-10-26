@@ -84,6 +84,8 @@ vaultix:
       duration: ${VAULTIX_AUTH_LOCKOUT_DURATION:15m}
     sudo:
       duration: ${VAULTIX_AUTH_SUDO_DURATION:30m}
+    registration:
+      enabled: ${VAULTIX_REGISTRATION_ENABLED:true}
     kek:
       master-key: ${VAULTIX_SECURITY_KEK_MASTER_KEY:3xhw5B4DZicmirWLS4h3ZkA4pBFZwyKlG6cvEYvdf7I=}
     jwt:

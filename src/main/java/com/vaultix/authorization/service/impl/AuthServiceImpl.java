@@ -27,11 +27,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.annotation.Validated;
 
 import com.vaultix.authorization.config.properties.AuthMessagingProperties;
 import com.vaultix.authorization.config.properties.KekProperties;
 import com.vaultix.authorization.config.properties.LockoutProperties;
+import com.vaultix.authorization.config.properties.RegistrationProperties;
 import com.vaultix.authorization.dto.AuthResponse;
 import com.vaultix.authorization.dto.LoginRequest;
 import com.vaultix.authorization.dto.RefreshTokenRequest;
@@ -81,6 +83,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserTotpRepository userTotpRepository;
     private final KekProperties kekProperties;
     private final LockoutProperties lockoutProperties;
+    private final RegistrationProperties registrationProperties;
     private final PasswordEncoder passwordEncoder;
     private final RabbitTemplate rabbitTemplate;
     private final AuthMessagingProperties messagingProperties;
@@ -99,6 +102,11 @@ public class AuthServiceImpl implements AuthService {
 
         String cleanUsername = request.username().strip().toLowerCase(Locale.ROOT);
         String cleanEmail = request.email().strip().toLowerCase(Locale.ROOT);
+
+        if (!registrationProperties.enabled()) {
+            log.warn("Registration rejected for '{}': public registration is currently disabled", cleanEmail);
+            throw new AccessDeniedException("Public registration is currently disabled. Please contact an administrator.");
+        }
         String cleanFullName = (request.fullName() != null && !request.fullName().isBlank())
                 ? request.fullName().strip()
                 : null;

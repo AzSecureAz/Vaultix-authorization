@@ -20,6 +20,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -27,6 +28,7 @@ import org.springframework.validation.annotation.Validated;
 
 import com.vaultix.authorization.config.properties.AuthMessagingProperties;
 import com.vaultix.authorization.config.properties.GoogleProperties;
+import com.vaultix.authorization.config.properties.RegistrationProperties;
 import com.vaultix.authorization.dto.AuthResponse;
 import com.vaultix.authorization.dto.oauth2.GoogleLoginRequest;
 import com.vaultix.authorization.dto.oauth2.SocialAccountResponse;
@@ -68,6 +70,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
     private final RabbitTemplate rabbitTemplate;
     private final AuthMessagingProperties messagingProperties;
     private final GoogleProperties googleProperties;
+    private final RegistrationProperties registrationProperties;
     private final JwtDecoder googleJwtDecoder;
 
     public GoogleAuthServiceImpl(
@@ -80,6 +83,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
             RabbitTemplate rabbitTemplate,
             AuthMessagingProperties messagingProperties,
             GoogleProperties googleProperties,
+            RegistrationProperties registrationProperties,
             @Qualifier("googleIdTokenDecoder") JwtDecoder googleJwtDecoder) {
         this.userSocialAccountRepository = userSocialAccountRepository;
         this.userRepository = userRepository;
@@ -90,6 +94,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
         this.rabbitTemplate = rabbitTemplate;
         this.messagingProperties = messagingProperties;
         this.googleProperties = googleProperties;
+        this.registrationProperties = registrationProperties;
         this.googleJwtDecoder = googleJwtDecoder;
     }
 
@@ -317,6 +322,11 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
             String displayName,
             String avatarUrl,
             ClientContext clientContext) {
+
+        if (!registrationProperties.enabled()) {
+            log.warn("Auto-provisioning rejected for Google user '{}': public registration is currently disabled", cleanEmail);
+            throw new AccessDeniedException("Public registration is currently disabled. Please contact an administrator.");
+        }
 
         String username = generateUniqueUsername(cleanEmail);
         Instant now = Instant.now();

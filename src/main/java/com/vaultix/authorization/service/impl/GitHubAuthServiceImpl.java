@@ -17,6 +17,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
@@ -31,6 +32,7 @@ import org.springframework.web.client.RestClientResponseException;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.vaultix.authorization.config.properties.AuthMessagingProperties;
 import com.vaultix.authorization.config.properties.GitHubProperties;
+import com.vaultix.authorization.config.properties.RegistrationProperties;
 import com.vaultix.authorization.dto.AuthResponse;
 import com.vaultix.authorization.dto.oauth2.GitHubLoginRequest;
 import com.vaultix.authorization.dto.oauth2.SocialAccountResponse;
@@ -76,6 +78,7 @@ public class GitHubAuthServiceImpl implements GitHubAuthService {
     private final RabbitTemplate rabbitTemplate;
     private final AuthMessagingProperties messagingProperties;
     private final GitHubProperties gitHubProperties;
+    private final RegistrationProperties registrationProperties;
     private final RestClient restClient;
 
     public GitHubAuthServiceImpl(
@@ -87,7 +90,8 @@ public class GitHubAuthServiceImpl implements GitHubAuthService {
             StringRedisTemplate stringRedisTemplate,
             RabbitTemplate rabbitTemplate,
             AuthMessagingProperties messagingProperties,
-            GitHubProperties gitHubProperties) {
+            GitHubProperties gitHubProperties,
+            RegistrationProperties registrationProperties) {
 
         this.userSocialAccountRepository = userSocialAccountRepository;
         this.userRepository = userRepository;
@@ -98,6 +102,7 @@ public class GitHubAuthServiceImpl implements GitHubAuthService {
         this.rabbitTemplate = rabbitTemplate;
         this.messagingProperties = messagingProperties;
         this.gitHubProperties = gitHubProperties;
+        this.registrationProperties = registrationProperties;
 
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Duration.ofSeconds(5));
@@ -330,6 +335,11 @@ public class GitHubAuthServiceImpl implements GitHubAuthService {
             String displayName,
             String avatarUrl,
             ClientContext clientContext) {
+
+        if (!registrationProperties.enabled()) {
+            log.warn("Auto-provisioning rejected for GitHub user '{}': public registration is currently disabled", identity.email());
+            throw new AccessDeniedException("Public registration is currently disabled. Please contact an administrator.");
+        }
 
         String username = determineCandidateUsername(identity.login(), identity.email());
         Instant now = Instant.now();
