@@ -30,6 +30,7 @@ public record UserResponse(
         int failedLoginAttempts,
         Instant lockedUntil,
         Instant lastLoginAt,
+        Integer level,
         Set<String> roles,
         Instant createdAt,
         UUID createdBy,
@@ -42,9 +43,15 @@ public record UserResponse(
         }
 
         Set<String> roleNames = new HashSet<>();
+        Integer highestRoleLevel = null;
         if (user.getRoles() != null) {
             for (Role role : user.getRoles()) {
                 roleNames.add(role.getName());
+                if (role.getLevel() != null) {
+                    if (highestRoleLevel == null || role.getLevel() < highestRoleLevel) {
+                        highestRoleLevel = role.getLevel();
+                    }
+                }
             }
         }
 
@@ -64,6 +71,7 @@ public record UserResponse(
                 .failedLoginAttempts(user.getFailedLoginAttempts())
                 .lockedUntil(user.getLockedUntil())
                 .lastLoginAt(user.getLastLoginAt())
+                .level(highestRoleLevel)
                 .roles(roleNames)
                 .createdAt(user.getCreatedAt())
                 .createdBy(user.getCreatedBy())

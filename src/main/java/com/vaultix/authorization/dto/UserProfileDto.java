@@ -33,6 +33,7 @@ public record UserProfileDto(
         boolean hasPassword,
         Instant lastLoginAt,
         Instant createdAt,
+        Integer level,
         Set<String> roles,
         Set<String> permissions) {
 
@@ -43,11 +44,17 @@ public record UserProfileDto(
 
         Set<String> roleNames = new HashSet<>();
         Set<String> permissionNames = new HashSet<>();
+        Integer highestRoleLevel = null;
 
         if (user.getRoles() != null) {
             for (Role role : user.getRoles()) {
                 if (role.getStatus() == RoleStatus.ENABLED) {
                     roleNames.add(role.getName());
+                    if (role.getLevel() != null) {
+                        if (highestRoleLevel == null || role.getLevel() < highestRoleLevel) {
+                            highestRoleLevel = role.getLevel();
+                        }
+                    }
                     if (role.getPermissions() != null) {
                         for (Permission perm : role.getPermissions()) {
                             if (perm.getStatus() == PermissionStatus.ENABLED) {
@@ -75,6 +82,7 @@ public record UserProfileDto(
                 .hasPassword(user.getPasswordHash() != null && !user.getPasswordHash().isBlank())
                 .lastLoginAt(user.getLastLoginAt())
                 .createdAt(user.getCreatedAt())
+                .level(highestRoleLevel)
                 .roles(roleNames)
                 .permissions(permissionNames)
                 .build();
