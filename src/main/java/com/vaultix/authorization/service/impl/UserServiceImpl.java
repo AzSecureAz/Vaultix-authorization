@@ -188,8 +188,6 @@ public class UserServiceImpl implements UserService {
         User savedUser = userRepository.save(user);
         log.info("User '{}' updated successfully by actor {}", savedUser.getUsername(), actorId);
 
-        tokenService.revokeAllUserTokens(savedUser.getId());
-
         return UserResponse.fromEntity(savedUser);
     }
 
