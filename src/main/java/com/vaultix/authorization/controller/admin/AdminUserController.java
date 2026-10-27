@@ -27,6 +27,7 @@ import com.vaultix.authorization.dto.admin.UserResponse;
 import com.vaultix.authorization.security.AuthSecurityExpressions;
 import com.vaultix.authorization.service.UserService;
 import com.vaultix.common.dto.ApiResponse;
+import com.vaultix.common.security.RequireSudo;
 import com.vaultix.common.security.SecurityUtil;
 
 import jakarta.validation.Valid;
@@ -45,6 +46,7 @@ public class AdminUserController {
 
     private final UserService userService;
 
+    @RequireSudo
     @PostMapping
     @PreAuthorize(AuthSecurityExpressions.CAN_CREATE_USERS)
     public ResponseEntity<ApiResponse<UserResponse>> createUser(
@@ -81,6 +83,7 @@ public class AdminUserController {
         return ResponseEntity.ok(ApiResponse.success("User retrieved successfully", user));
     }
 
+    @RequireSudo
     @RequestMapping(value = "/{identifier}", method = {RequestMethod.PUT, RequestMethod.PATCH})
     @PreAuthorize(AuthSecurityExpressions.CAN_UPDATE_USERS)
     public ResponseEntity<ApiResponse<UserResponse>> updateUser(
@@ -97,6 +100,7 @@ public class AdminUserController {
         return ResponseEntity.ok(ApiResponse.success("User updated successfully", updatedUser));
     }
 
+    @RequireSudo
     @PostMapping("/{identifier}/disable")
     @PreAuthorize(AuthSecurityExpressions.CAN_UPDATE_USERS)
     public ResponseEntity<ApiResponse<UserResponse>> disableUser(
@@ -112,6 +116,7 @@ public class AdminUserController {
         return ResponseEntity.ok(ApiResponse.success("User disabled successfully", disabledUser));
     }
 
+    @RequireSudo
     @PostMapping("/{identifier}/enable")
     @PreAuthorize(AuthSecurityExpressions.CAN_UPDATE_USERS)
     public ResponseEntity<ApiResponse<UserResponse>> enableUser(
@@ -127,6 +132,7 @@ public class AdminUserController {
         return ResponseEntity.ok(ApiResponse.success("User enabled successfully", enabledUser));
     }
 
+    @RequireSudo
     @DeleteMapping("/{identifier}")
     @PreAuthorize(AuthSecurityExpressions.CAN_DELETE_USERS)
     public ResponseEntity<ApiResponse<UserResponse>> deleteUser(
@@ -142,6 +148,7 @@ public class AdminUserController {
         return ResponseEntity.ok(ApiResponse.success("User deleted successfully", deletedUser));
     }
 
+    @RequireSudo
     @PostMapping("/{identifier}/restore")
     @PreAuthorize(AuthSecurityExpressions.CAN_RESTORE_USERS)
     public ResponseEntity<ApiResponse<UserResponse>> restoreUser(

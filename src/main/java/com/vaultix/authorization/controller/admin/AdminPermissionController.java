@@ -22,6 +22,7 @@ import com.vaultix.authorization.security.AuthSecurityExpressions;
 import com.vaultix.authorization.service.PermissionService;
 import com.vaultix.common.dto.ApiResponse;
 import com.vaultix.common.security.CommonSecurityExpressions;
+import com.vaultix.common.security.RequireSudo;
 import com.vaultix.common.security.SecurityUtil;
 
 import jakarta.validation.constraints.NotBlank;
@@ -62,6 +63,7 @@ public class AdminPermissionController {
         return ResponseEntity.ok(ApiResponse.success("Permission retrieved successfully", permission));
     }
 
+    @RequireSudo
     @PostMapping("/{identifier}/disable")
     @PreAuthorize(CommonSecurityExpressions.IS_ADMIN)
     public ResponseEntity<ApiResponse<PermissionResponse>> disablePermission(
@@ -77,6 +79,7 @@ public class AdminPermissionController {
         return ResponseEntity.ok(ApiResponse.success("Permission disabled successfully", disabledPermission));
     }
 
+    @RequireSudo
     @PostMapping("/{identifier}/enable")
     @PreAuthorize(CommonSecurityExpressions.IS_ADMIN)
     public ResponseEntity<ApiResponse<PermissionResponse>> enablePermission(

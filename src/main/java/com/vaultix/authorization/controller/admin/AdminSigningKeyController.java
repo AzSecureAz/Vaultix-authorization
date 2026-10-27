@@ -22,6 +22,7 @@ import com.vaultix.authorization.security.AuthSecurityExpressions;
 import com.vaultix.authorization.service.SigningKeyService;
 import com.vaultix.common.dto.ApiResponse;
 import com.vaultix.common.security.CommonSecurityExpressions;
+import com.vaultix.common.security.RequireSudo;
 import com.vaultix.common.security.SecurityUtil;
 
 import jakarta.validation.constraints.NotBlank;
@@ -62,6 +63,7 @@ public class AdminSigningKeyController {
         return ResponseEntity.ok(ApiResponse.success("Cryptographic signing key retrieved successfully", key));
     }
 
+    @RequireSudo
     @PostMapping("/rotate")
     @PreAuthorize(AuthSecurityExpressions.CAN_ROTATE_KEYS)
     public ResponseEntity<ApiResponse<SigningKeyResponse>> rotateSigningKey(
@@ -73,6 +75,7 @@ public class AdminSigningKeyController {
         return ResponseEntity.ok(ApiResponse.success("Cryptographic signing key rotated successfully", rotatedKey));
     }
 
+    @RequireSudo
     @PostMapping("/{kid}/revoke")
     @PreAuthorize(CommonSecurityExpressions.IS_ADMIN)
     public ResponseEntity<ApiResponse<SigningKeyResponse>> revokeSigningKey(

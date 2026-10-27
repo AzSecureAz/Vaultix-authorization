@@ -27,6 +27,7 @@ import com.vaultix.authorization.dto.admin.UpdateRoleRequest;
 import com.vaultix.authorization.security.AuthSecurityExpressions;
 import com.vaultix.authorization.service.RoleService;
 import com.vaultix.common.dto.ApiResponse;
+import com.vaultix.common.security.RequireSudo;
 import com.vaultix.common.security.SecurityUtil;
 
 import jakarta.validation.Valid;
@@ -45,6 +46,7 @@ public class AdminRoleController {
 
     private final RoleService roleService;
 
+    @RequireSudo
     @PostMapping
     @PreAuthorize(AuthSecurityExpressions.CAN_CREATE_ROLES)
     public ResponseEntity<ApiResponse<RoleResponse>> createRole(
@@ -81,6 +83,7 @@ public class AdminRoleController {
         return ResponseEntity.ok(ApiResponse.success("Role retrieved successfully", role));
     }
 
+    @RequireSudo
     @RequestMapping(value = "/{identifier}", method = {RequestMethod.PUT, RequestMethod.PATCH})
     @PreAuthorize(AuthSecurityExpressions.CAN_UPDATE_ROLES)
     public ResponseEntity<ApiResponse<RoleResponse>> updateRole(
@@ -97,6 +100,7 @@ public class AdminRoleController {
         return ResponseEntity.ok(ApiResponse.success("Role updated successfully", updatedRole));
     }
 
+    @RequireSudo
     @PostMapping("/{identifier}/disable")
     @PreAuthorize(AuthSecurityExpressions.CAN_UPDATE_ROLES)
     public ResponseEntity<ApiResponse<RoleResponse>> disableRole(
@@ -112,6 +116,7 @@ public class AdminRoleController {
         return ResponseEntity.ok(ApiResponse.success("Role disabled successfully", disabledRole));
     }
 
+    @RequireSudo
     @PostMapping("/{identifier}/enable")
     @PreAuthorize(AuthSecurityExpressions.CAN_UPDATE_ROLES)
     public ResponseEntity<ApiResponse<RoleResponse>> enableRole(
@@ -127,6 +132,7 @@ public class AdminRoleController {
         return ResponseEntity.ok(ApiResponse.success("Role enabled successfully", enabledRole));
     }
 
+    @RequireSudo
     @DeleteMapping("/{identifier}")
     @PreAuthorize(AuthSecurityExpressions.CAN_DELETE_ROLES)
     public ResponseEntity<ApiResponse<RoleResponse>> deleteRole(
@@ -142,6 +148,7 @@ public class AdminRoleController {
         return ResponseEntity.ok(ApiResponse.success("Role deleted successfully", deletedRole));
     }
 
+    @RequireSudo
     @PostMapping("/{identifier}/restore")
     @PreAuthorize(AuthSecurityExpressions.CAN_RESTORE_ROLES)
     public ResponseEntity<ApiResponse<RoleResponse>> restoreRole(
