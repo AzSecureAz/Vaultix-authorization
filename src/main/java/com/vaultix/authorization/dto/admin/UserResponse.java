@@ -27,6 +27,7 @@ public record UserResponse(
         boolean passkeyEnabled,
         boolean smsMfaEnabled,
         boolean hasSocialAccounts,
+        boolean hasPassword,
         int failedLoginAttempts,
         Instant lockedUntil,
         Instant lastLoginAt,
@@ -68,6 +69,7 @@ public record UserResponse(
                 .passkeyEnabled(user.isPasskeyEnabled())
                 .smsMfaEnabled(user.isSmsMfaEnabled())
                 .hasSocialAccounts(user.isHasSocialAccounts())
+                .hasPassword(user.getPasswordHash() != null && !user.getPasswordHash().isBlank())
                 .failedLoginAttempts(user.getFailedLoginAttempts())
                 .lockedUntil(user.getLockedUntil())
                 .lastLoginAt(user.getLastLoginAt())
