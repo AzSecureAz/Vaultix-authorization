@@ -8,11 +8,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.vaultix.authorization.dto.AuthResponse;
+import com.vaultix.authorization.entity.User;
 import com.vaultix.authorization.entity.enums.UserStatus;
 import com.vaultix.authorization.repository.UserRepository;
 import com.vaultix.authorization.security.AuthCookieHelper;
@@ -20,7 +22,6 @@ import com.vaultix.authorization.security.CustomUserDetails;
 import com.vaultix.authorization.security.CustomUserDetailsService;
 import com.vaultix.authorization.service.TokenService;
 import com.vaultix.common.dto.ApiResponse;
-import com.vaultix.common.exception.BadRequestException;
 import com.vaultix.common.util.ClientContextUtil;
 import com.vaultix.common.util.ClientContextUtil.ClientContext;
 
@@ -52,17 +53,33 @@ public class WebAuthnAuthenticationSuccessHandler implements AuthenticationSucce
         String username = authentication.getName();
         CustomUserDetails userDetails = (CustomUserDetails) userDetailsService.loadUserByUsername(username);
 
-        userRepository.findById(userDetails.getId()).ifPresent(user -> {
-            if (user.getStatus() != UserStatus.ACTIVE) {
-                log.warn("Passkey login rejected for non-active user '{}' (status: {})", user.getUsername(), user.getStatus());
-                throw new BadRequestException("Account is not active. Status: " + user.getStatus());
+        User user = userRepository.findById(userDetails.getId()).orElse(null);
+        if (user == null || user.getStatus() != UserStatus.ACTIVE) {
+            SecurityContextHolder.clearContext();
+            String errorMsg;
+            if (user == null || user.getStatus() == UserStatus.DELETED) {
+                errorMsg = "Account not found or has been deleted.";
+            } else if (user.getStatus() == UserStatus.DISABLED) {
+                errorMsg = "Account is disabled. Please contact support.";
+            } else if (user.getStatus() == UserStatus.LOCKED) {
+                errorMsg = "Account is temporarily locked due to multiple failed login attempts. Please try again later.";
+            } else {
+                errorMsg = "Account is not active. Please contact support.";
             }
 
-            user.setFailedLoginAttempts(0);
-            user.setLockedUntil(null);
-            user.setLastLoginAt(Instant.now());
-            userRepository.save(user);
-        });
+            log.warn("Passkey login rejected for user '{}' (status: {})", username, user != null ? user.getStatus() : "NOT_FOUND");
+            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.setCharacterEncoding("UTF-8");
+            ApiResponse<Void> apiResponse = ApiResponse.error(errorMsg);
+            objectMapper.writeValue(response.getWriter(), apiResponse);
+            return;
+        }
+
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+        user.setLastLoginAt(Instant.now());
+        userRepository.save(user);
 
         ClientContext clientContext = ClientContextUtil.extract(request);
         AuthResponse authResponse = tokenService.issueTokens(userDetails, ClientContext.ofNullable(clientContext));
