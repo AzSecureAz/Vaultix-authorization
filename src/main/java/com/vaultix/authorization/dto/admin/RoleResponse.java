@@ -51,4 +51,22 @@ public record RoleResponse(
                 .updatedBy(entity.getUpdatedBy())
                 .build();
     }
+
+    public static RoleResponse fromEntityWithoutPermissions(Role entity) {
+        if (entity == null) {
+            return null;
+        }
+
+        return RoleResponse.builder()
+                .id(entity.getId())
+                .name(entity.getName())
+                .description(entity.getDescription())
+                .level(entity.getLevel())
+                .status(entity.getStatus())
+                .createdAt(entity.getCreatedAt())
+                .createdBy(entity.getCreatedBy())
+                .updatedAt(entity.getUpdatedAt())
+                .updatedBy(entity.getUpdatedBy())
+                .build();
+    }
 }

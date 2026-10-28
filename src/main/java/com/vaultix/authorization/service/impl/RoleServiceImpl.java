@@ -67,11 +67,25 @@ public class RoleServiceImpl implements RoleService {
     @Override
     @Transactional(readOnly = true)
     public Page<RoleResponse> getAllRoles(Pageable pageable) {
+        return getAllRoles(null, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<RoleResponse> getAllRoles(String search, Pageable pageable) {
         Pageable page = (pageable != null && pageable.isPaged())
                 ? (pageable.getPageSize() > 50
                 ? PageRequest.of(pageable.getPageNumber(), 50, pageable.getSort())
                 : pageable)
                 : PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        if (search != null && !search.isBlank()) {
+            String cleanSearch = search.strip();
+            log.debug("Searching roles containing '{}' with pageable: {}", cleanSearch, page);
+            return roleRepository.findByNameContainingIgnoreCase(cleanSearch, page)
+                    .map(RoleResponse::fromEntityWithoutPermissions);
+        }
+
         log.debug("Retrieving all roles with pageable: {}", page);
         return roleRepository.findAllWithPermissionsBy(page)
                 .map(RoleResponse::fromEntity);

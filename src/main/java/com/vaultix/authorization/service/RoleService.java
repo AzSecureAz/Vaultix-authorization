@@ -20,6 +20,8 @@ public interface RoleService {
 
     Page<RoleResponse> getAllRoles(Pageable pageable);
 
+    Page<RoleResponse> getAllRoles(String search, Pageable pageable);
+
     RoleResponse getRoleByIdentifier(
             @NotBlank(message = "Role identifier is required")
             @Size(max = 64, message = "Role identifier cannot exceed 64 characters") String identifier);

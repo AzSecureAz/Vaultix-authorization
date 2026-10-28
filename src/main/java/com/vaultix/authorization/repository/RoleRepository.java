@@ -30,6 +30,8 @@ public interface RoleRepository extends JpaRepository<Role, UUID> {
 
     Optional<Role> findByName(String name);
 
+    Page<Role> findByNameContainingIgnoreCase(String name, Pageable pageable);
+
     Set<Role> findAllByNameIn(Set<String> names);
 
     @Modifying

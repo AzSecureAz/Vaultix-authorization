@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.vaultix.authorization.dto.admin.CreateRoleRequest;
@@ -61,12 +62,13 @@ public class AdminRoleController {
     }
 
     @GetMapping
-    @PreAuthorize(AuthSecurityExpressions.CAN_READ_ROLES)
+    @PreAuthorize(AuthSecurityExpressions.CAN_READ_ROLES + " or " + AuthSecurityExpressions.CAN_CREATE_USERS)
     public ResponseEntity<ApiResponse<Page<RoleResponse>>> getAllRoles(
+            @RequestParam(value = "search", required = false) String search,
             @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        log.info("Admin request to retrieve roles with pageable: {}", pageable);
-        Page<RoleResponse> roles = roleService.getAllRoles(pageable);
+        log.info("Admin request to retrieve roles with search: '{}', pageable: {}", search, pageable);
+        Page<RoleResponse> roles = roleService.getAllRoles(search, pageable);
         return ResponseEntity.ok(ApiResponse.success("Roles retrieved successfully", roles));
     }
 
