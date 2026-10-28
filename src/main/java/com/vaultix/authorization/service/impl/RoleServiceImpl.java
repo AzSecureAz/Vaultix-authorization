@@ -103,7 +103,7 @@ public class RoleServiceImpl implements RoleService {
                     + " (must be strictly greater than your highest active role level " + actor.highestLevel() + ")");
         }
 
-        Set<Permission> permissionsToAssign = Set.of();
+        Set<Permission> permissionsToAssign = new HashSet<>();
         if (request.permissions() != null && !request.permissions().isEmpty()) {
             Set<String> requestedPermNames = request.permissions().stream()
                     .filter(perm -> perm != null && !perm.isBlank())
@@ -378,7 +378,7 @@ public class RoleServiceImpl implements RoleService {
             UUID actorId) {
 
         if (requestedNames.isEmpty()) {
-            return Set.of();
+            return new HashSet<>();
         }
 
         Set<String> newlyAddedPermissions = requestedNames.stream()
@@ -410,7 +410,7 @@ public class RoleServiceImpl implements RoleService {
             throw new AccessDeniedException("Cannot assign disabled permissions: " + disabledPerms);
         }
 
-        return permissionsToAssign;
+        return new HashSet<>(permissionsToAssign);
     }
 
     private void publishRevocationAfterCommit(String roleName) {
