@@ -62,14 +62,24 @@ public class AdminRoleController {
     }
 
     @GetMapping
-    @PreAuthorize(AuthSecurityExpressions.CAN_READ_ROLES + " or " + AuthSecurityExpressions.CAN_CREATE_USERS)
+    @PreAuthorize(AuthSecurityExpressions.CAN_READ_ROLES)
     public ResponseEntity<ApiResponse<Page<RoleResponse>>> getAllRoles(
-            @RequestParam(value = "search", required = false) String search,
             @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        log.info("Admin request to retrieve roles with search: '{}', pageable: {}", search, pageable);
-        Page<RoleResponse> roles = roleService.getAllRoles(search, pageable);
+        log.info("Admin request to retrieve roles with pageable: {}", pageable);
+        Page<RoleResponse> roles = roleService.getAllRoles(pageable);
         return ResponseEntity.ok(ApiResponse.success("Roles retrieved successfully", roles));
+    }
+
+    @GetMapping("/assignable")
+    @PreAuthorize(AuthSecurityExpressions.CAN_CREATE_USERS + " or " + AuthSecurityExpressions.CAN_UPDATE_USERS)
+    public ResponseEntity<ApiResponse<Page<RoleResponse>>> getAssignableRoles(
+            @RequestParam(value = "search", required = false) String search,
+            @PageableDefault(sort = "level", direction = Sort.Direction.ASC) Pageable pageable) {
+
+        log.info("Admin request to retrieve assignable roles for user management with search: '{}', pageable: {}", search, pageable);
+        Page<RoleResponse> roles = roleService.getAssignableRoles(search, pageable);
+        return ResponseEntity.ok(ApiResponse.success("Assignable roles retrieved successfully", roles));
     }
 
     @GetMapping("/{identifier}")

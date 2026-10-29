@@ -20,7 +20,7 @@ public interface RoleService {
 
     Page<RoleResponse> getAllRoles(Pageable pageable);
 
-    Page<RoleResponse> getAllRoles(String search, Pageable pageable);
+    Page<RoleResponse> getAssignableRoles(String search, Pageable pageable);
 
     RoleResponse getRoleByIdentifier(
             @NotBlank(message = "Role identifier is required")
