@@ -10,8 +10,10 @@ import org.springframework.validation.annotation.Validated;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.vaultix.authorization.dto.admin.SigningKeyResponse;
+import com.vaultix.authorization.specification.request.SigningKeySearchRequest;
 import com.vaultix.common.constant.SecurityTopics;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -39,6 +41,8 @@ public interface SigningKeyService {
     void handleRevocationEvent(String eventPayload);
 
     Page<SigningKeyResponse> getAllSigningKeys(Pageable pageable);
+
+    Page<SigningKeyResponse> searchSigningKeys(@Valid SigningKeySearchRequest request, Pageable pageable);
 
     SigningKeyResponse getKeyByKid(
             @NotBlank(message = "Key ID is required")

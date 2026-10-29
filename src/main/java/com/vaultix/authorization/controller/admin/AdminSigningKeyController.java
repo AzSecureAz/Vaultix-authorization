@@ -14,17 +14,20 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.vaultix.authorization.dto.admin.SigningKeyResponse;
 import com.vaultix.authorization.security.AuthSecurityExpressions;
 import com.vaultix.authorization.service.SigningKeyService;
+import com.vaultix.authorization.specification.request.SigningKeySearchRequest;
 import com.vaultix.common.dto.ApiResponse;
 import com.vaultix.common.security.CommonSecurityExpressions;
 import com.vaultix.common.security.RequireSudo;
 import com.vaultix.common.security.SecurityUtil;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -47,6 +50,17 @@ public class AdminSigningKeyController {
 
         log.info("Admin request to retrieve signing keys with pageable: {}", pageable);
         Page<SigningKeyResponse> keys = signingKeyService.getAllSigningKeys(pageable);
+        return ResponseEntity.ok(ApiResponse.success("Cryptographic signing keys retrieved successfully", keys));
+    }
+
+    @PostMapping("/search")
+    @PreAuthorize(AuthSecurityExpressions.CAN_READ_KEYS)
+    public ResponseEntity<ApiResponse<Page<SigningKeyResponse>>> searchSigningKeys(
+            @Valid @RequestBody(required = false) SigningKeySearchRequest request,
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        log.info("Admin request to search signing keys with request: {}, pageable: {}", request, pageable);
+        Page<SigningKeyResponse> keys = signingKeyService.searchSigningKeys(request, pageable);
         return ResponseEntity.ok(ApiResponse.success("Cryptographic signing keys retrieved successfully", keys));
     }
 

@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,7 +16,7 @@ import com.vaultix.authorization.entity.SigningKey;
 import com.vaultix.authorization.entity.enums.KeyStatus;
 
 @Repository
-public interface SigningKeyRepository extends JpaRepository<SigningKey, UUID> {
+public interface SigningKeyRepository extends JpaRepository<SigningKey, UUID>, JpaSpecificationExecutor<SigningKey> {
 
     Optional<SigningKey> findByStatus(KeyStatus status);
 

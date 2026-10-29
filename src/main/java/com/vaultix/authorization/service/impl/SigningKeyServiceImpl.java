@@ -22,6 +22,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +44,8 @@ import com.vaultix.authorization.entity.SigningKey;
 import com.vaultix.authorization.entity.enums.KeyStatus;
 import com.vaultix.authorization.repository.SigningKeyRepository;
 import com.vaultix.authorization.service.SigningKeyService;
+import com.vaultix.authorization.specification.SigningKeySpecification;
+import com.vaultix.authorization.specification.request.SigningKeySearchRequest;
 import com.vaultix.common.crypto.AesGcmCryptoUtil;
 import com.vaultix.common.exception.ResourceConflictException;
 import com.vaultix.common.exception.ResourceNotFoundException;
@@ -203,12 +206,21 @@ public class SigningKeyServiceImpl implements SigningKeyService, ApplicationRunn
     @Override
     @Transactional(readOnly = true)
     public Page<SigningKeyResponse> getAllSigningKeys(Pageable pageable) {
+        return searchSigningKeys(null, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<SigningKeyResponse> searchSigningKeys(SigningKeySearchRequest request, Pageable pageable) {
         Pageable page = (pageable != null && pageable.isPaged())
                 ? (pageable.getPageSize() > 50
                 ? PageRequest.of(pageable.getPageNumber(), 50, pageable.getSort())
                 : pageable)
                 : PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return signingKeyRepository.findAll(page)
+
+        log.debug("Searching signing keys with request: {}, pageable: {}", request, page);
+        Specification<SigningKey> spec = SigningKeySpecification.withFilters(request);
+        return signingKeyRepository.findAll(spec, page)
                 .map(SigningKeyResponse::fromEntity);
     }
 
