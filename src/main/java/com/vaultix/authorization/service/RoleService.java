@@ -9,6 +9,7 @@ import org.springframework.validation.annotation.Validated;
 import com.vaultix.authorization.dto.admin.CreateRoleRequest;
 import com.vaultix.authorization.dto.admin.RoleResponse;
 import com.vaultix.authorization.dto.admin.UpdateRoleRequest;
+import com.vaultix.authorization.specification.request.RoleSearchRequest;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -19,6 +20,8 @@ import jakarta.validation.constraints.Size;
 public interface RoleService {
 
     Page<RoleResponse> getAllRoles(Pageable pageable);
+
+    Page<RoleResponse> searchRoles(@Valid RoleSearchRequest request, Pageable pageable);
 
     Page<RoleResponse> getAssignableRoles(String search, Pageable pageable);
 

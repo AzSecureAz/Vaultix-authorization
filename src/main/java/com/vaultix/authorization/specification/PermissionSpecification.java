@@ -103,14 +103,14 @@ public final class PermissionSpecification {
 
             Set<String> cleanNames = names.stream()
                     .filter(name -> name != null && !name.isBlank())
-                    .map(name -> name.strip().toUpperCase(Locale.ROOT))
+                    .map(name -> name.strip().toLowerCase(Locale.ROOT))
                     .collect(Collectors.toSet());
 
             if (cleanNames.isEmpty()) {
                 return cb.conjunction();
             }
 
-            return cb.upper(root.get("name")).in(cleanNames);
+            return cb.lower(root.get("name")).in(cleanNames);
         };
     }
 

@@ -13,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.access.AccessDeniedException;
@@ -36,6 +37,8 @@ import com.vaultix.authorization.repository.PermissionRepository;
 import com.vaultix.authorization.repository.RoleRepository;
 import com.vaultix.authorization.repository.UserRepository;
 import com.vaultix.authorization.service.RoleService;
+import com.vaultix.authorization.specification.RoleSpecification;
+import com.vaultix.authorization.specification.request.RoleSearchRequest;
 import com.vaultix.common.constant.SecurityTopics;
 import com.vaultix.common.exception.BadRequestException;
 import com.vaultix.common.exception.ResourceConflictException;
@@ -67,14 +70,21 @@ public class RoleServiceImpl implements RoleService {
     @Override
     @Transactional(readOnly = true)
     public Page<RoleResponse> getAllRoles(Pageable pageable) {
+        return searchRoles(null, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<RoleResponse> searchRoles(RoleSearchRequest request, Pageable pageable) {
         Pageable page = (pageable != null && pageable.isPaged())
                 ? (pageable.getPageSize() > 50
                 ? PageRequest.of(pageable.getPageNumber(), 50, pageable.getSort())
                 : pageable)
                 : PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
 
-        log.debug("Retrieving all roles with pageable: {}", page);
-        return roleRepository.findAllWithPermissionsBy(page)
+        log.debug("Searching roles with request: {}, pageable: {}", request, page);
+        Specification<Role> spec = RoleSpecification.withFilters(request);
+        return roleRepository.findAll(spec, page)
                 .map(RoleResponse::fromEntity);
     }
 

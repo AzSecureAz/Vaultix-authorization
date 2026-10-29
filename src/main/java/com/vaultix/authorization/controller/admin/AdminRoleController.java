@@ -27,6 +27,7 @@ import com.vaultix.authorization.dto.admin.RoleResponse;
 import com.vaultix.authorization.dto.admin.UpdateRoleRequest;
 import com.vaultix.authorization.security.AuthSecurityExpressions;
 import com.vaultix.authorization.service.RoleService;
+import com.vaultix.authorization.specification.request.RoleSearchRequest;
 import com.vaultix.common.dto.ApiResponse;
 import com.vaultix.common.security.RequireSudo;
 import com.vaultix.common.security.SecurityUtil;
@@ -68,6 +69,17 @@ public class AdminRoleController {
 
         log.info("Admin request to retrieve roles with pageable: {}", pageable);
         Page<RoleResponse> roles = roleService.getAllRoles(pageable);
+        return ResponseEntity.ok(ApiResponse.success("Roles retrieved successfully", roles));
+    }
+
+    @PostMapping("/search")
+    @PreAuthorize(AuthSecurityExpressions.CAN_READ_ROLES)
+    public ResponseEntity<ApiResponse<Page<RoleResponse>>> searchRoles(
+            @Valid @RequestBody(required = false) RoleSearchRequest request,
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        log.info("Admin request to search roles with request: {}, pageable: {}", request, pageable);
+        Page<RoleResponse> roles = roleService.searchRoles(request, pageable);
         return ResponseEntity.ok(ApiResponse.success("Roles retrieved successfully", roles));
     }
 
