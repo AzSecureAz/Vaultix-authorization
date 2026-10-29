@@ -7,7 +7,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.validation.annotation.Validated;
 
 import com.vaultix.authorization.dto.admin.PermissionResponse;
+import com.vaultix.authorization.specification.request.PermissionSearchRequest;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -16,6 +18,8 @@ import jakarta.validation.constraints.Size;
 public interface PermissionService {
 
     Page<PermissionResponse> getAllPermissions(Pageable pageable);
+
+    Page<PermissionResponse> searchPermissions(@Valid PermissionSearchRequest request, Pageable pageable);
 
     PermissionResponse getPermissionByIdentifier(
             @NotBlank(message = "Permission identifier is required")

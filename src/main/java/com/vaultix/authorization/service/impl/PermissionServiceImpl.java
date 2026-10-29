@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,8 @@ import com.vaultix.authorization.entity.Permission;
 import com.vaultix.authorization.entity.enums.PermissionStatus;
 import com.vaultix.authorization.repository.PermissionRepository;
 import com.vaultix.authorization.service.PermissionService;
+import com.vaultix.authorization.specification.PermissionSpecification;
+import com.vaultix.authorization.specification.request.PermissionSearchRequest;
 import com.vaultix.common.constant.SecurityTopics;
 import com.vaultix.common.exception.ResourceNotFoundException;
 import com.vaultix.common.security.PermissionRevocationService;
@@ -47,13 +50,21 @@ public class PermissionServiceImpl implements PermissionService {
     @Override
     @Transactional(readOnly = true)
     public Page<PermissionResponse> getAllPermissions(Pageable pageable) {
+        return searchPermissions(null, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<PermissionResponse> searchPermissions(PermissionSearchRequest request, Pageable pageable) {
         Pageable page = (pageable != null && pageable.isPaged())
                 ? (pageable.getPageSize() > 50
                 ? PageRequest.of(pageable.getPageNumber(), 50, pageable.getSort())
                 : pageable)
                 : PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
-        log.debug("Retrieving all permissions with pageable: {}", page);
-        return permissionRepository.findAll(page)
+
+        log.debug("Searching permissions with request: {}, pageable: {}", request, page);
+        Specification<Permission> spec = PermissionSpecification.withFilters(request);
+        return permissionRepository.findAll(spec, page)
                 .map(PermissionResponse::fromEntity);
     }
 
