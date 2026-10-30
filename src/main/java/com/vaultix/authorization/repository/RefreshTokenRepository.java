@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -30,6 +32,13 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
             @Param("userId") UUID userId,
             @Param("currentJti") UUID currentJti,
             @Param("now") Instant now);
+
+    @Query("SELECT r FROM RefreshToken r WHERE r.user.id = :userId AND r.accessTokenJti <> :currentJti AND r.revoked = false AND r.expiresAt > :now")
+    Page<RefreshToken> findActiveSessionsByUserIdExcludingCurrent(
+            @Param("userId") UUID userId,
+            @Param("currentJti") UUID currentJti,
+            @Param("now") Instant now,
+            Pageable pageable);
 
     @Modifying
     @Query(value = """
