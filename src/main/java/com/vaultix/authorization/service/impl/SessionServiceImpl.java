@@ -5,7 +5,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -63,10 +65,16 @@ public class SessionServiceImpl implements SessionService {
             @NotNull(message = "Current access token JTI is required") UUID currentAccessTokenJti,
             Pageable pageable) {
 
-        log.debug("Fetching other active sessions for user ID: {} excluding JTI: {}", userId, currentAccessTokenJti);
+        Pageable page = (pageable != null && pageable.isPaged())
+                ? (pageable.getPageSize() > 50
+                ? PageRequest.of(pageable.getPageNumber(), 50, pageable.getSort())
+                : pageable)
+                : PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        log.debug("Fetching other active sessions for user ID: {} excluding JTI: {}, pageable: {}", userId, currentAccessTokenJti, page);
 
         Page<RefreshToken> sessions = refreshTokenRepository.findActiveSessionsByUserIdExcludingCurrent(
-                userId, currentAccessTokenJti, Instant.now(), pageable);
+                userId, currentAccessTokenJti, Instant.now(), page);
 
         return sessions.map(session -> SessionResponse.fromEntity(session, currentAccessTokenJti));
     }

@@ -6,7 +6,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.data.web.SortDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -47,12 +46,12 @@ public class SessionController {
     @GetMapping
     public ResponseEntity<ApiResponse<Page<SessionResponse>>> getOtherSessions(
             @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt,
-            @PageableDefault(size = 10)
-            @SortDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
         UUID userId = SecurityUtil.extractActorId(jwt);
         UUID currentAccessTokenJti = SecurityUtil.extractTokenId(jwt);
 
+        log.info("Request to retrieve other active sessions for user ID: {} with pageable: {}", userId, pageable);
         Page<SessionResponse> sessions = sessionService.getOtherActiveSessions(userId, currentAccessTokenJti, pageable);
         return ResponseEntity.ok(ApiResponse.success("Other active sessions", sessions));
     }
