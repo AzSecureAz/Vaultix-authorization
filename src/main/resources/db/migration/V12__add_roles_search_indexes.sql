@@ -7,9 +7,6 @@
 /* Ensure pg_trgm extension is active for trigram GIN text search */
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
-/* GIN trigram index on role name for accelerated wildcard / substring LIKE queries */
-CREATE INDEX IF NOT EXISTS idx_roles_name_trgm ON roles USING gin (name gin_trgm_ops);
-
 /* GIN trigram expression index on UPPER(name) for case-insensitive uppercase LIKE queries */
 CREATE INDEX IF NOT EXISTS idx_roles_name_upper_trgm ON roles USING gin (UPPER(name) gin_trgm_ops);
 

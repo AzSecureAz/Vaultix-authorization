@@ -1,6 +1,7 @@
 package com.vaultix.authorization.specification;
 
 import java.time.Instant;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
@@ -63,7 +64,7 @@ public final class SigningKeySpecification {
                 return cb.conjunction();
             }
 
-            String cleanSearch = search.strip().toLowerCase();
+            String cleanSearch = search.strip().toLowerCase(Locale.ROOT);
             String pattern = "%" + cleanSearch + "%";
 
             return cb.like(cb.lower(root.get("kid")), pattern);

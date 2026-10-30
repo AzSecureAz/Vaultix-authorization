@@ -26,6 +26,7 @@ import com.vaultix.authorization.dto.admin.UpdateUserRequest;
 import com.vaultix.authorization.dto.admin.UserResponse;
 import com.vaultix.authorization.security.AuthSecurityExpressions;
 import com.vaultix.authorization.service.UserService;
+import com.vaultix.authorization.specification.request.UserSearchRequest;
 import com.vaultix.common.dto.ApiResponse;
 import com.vaultix.common.security.RequireSudo;
 import com.vaultix.common.security.SecurityUtil;
@@ -67,6 +68,17 @@ public class AdminUserController {
 
         log.info("Admin request to retrieve users with pageable: {}", pageable);
         Page<UserResponse> users = userService.getAllUsers(pageable);
+        return ResponseEntity.ok(ApiResponse.success("Users retrieved successfully", users));
+    }
+
+    @PostMapping("/search")
+    @PreAuthorize(AuthSecurityExpressions.CAN_READ_USERS)
+    public ResponseEntity<ApiResponse<Page<UserResponse>>> searchUsers(
+            @Valid @RequestBody(required = false) UserSearchRequest request,
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        log.info("Admin request to search users with request: {}, pageable: {}", request, pageable);
+        Page<UserResponse> users = userService.searchUsers(request, pageable);
         return ResponseEntity.ok(ApiResponse.success("Users retrieved successfully", users));
     }
 

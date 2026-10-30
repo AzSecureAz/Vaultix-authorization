@@ -7,9 +7,6 @@
 /* Enable pg_trgm extension for fast trigram GIN text search */
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
-/* GIN trigram index on permission name for accelerated wildcard / substring LIKE queries */
-CREATE INDEX IF NOT EXISTS idx_permissions_name_trgm ON permissions USING gin (name gin_trgm_ops);
-
 /* GIN trigram expression index on LOWER(name) for case-insensitive lowercase LIKE queries */
 CREATE INDEX IF NOT EXISTS idx_permissions_name_lower_trgm ON permissions USING gin (LOWER(name) gin_trgm_ops);
 

@@ -7,8 +7,8 @@
 /* Ensure pg_trgm extension is active for trigram GIN text search */
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
-/* GIN trigram index on kid for accelerated wildcard / substring LIKE queries */
-CREATE INDEX IF NOT EXISTS idx_signing_keys_kid_trgm ON signing_keys USING gin (kid gin_trgm_ops);
+/* GIN trigram expression index on LOWER(kid) for wildcard / substring queries */
+CREATE INDEX IF NOT EXISTS idx_signing_keys_kid_lower_trgm ON signing_keys USING gin (LOWER(kid) gin_trgm_ops);
 
 /* B-Tree index on status to cover all statuses (ACTIVE, ROTATED, REVOKED) */
 CREATE INDEX IF NOT EXISTS idx_signing_keys_status ON signing_keys(status);

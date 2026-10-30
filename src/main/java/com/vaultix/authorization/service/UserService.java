@@ -9,6 +9,7 @@ import org.springframework.validation.annotation.Validated;
 import com.vaultix.authorization.dto.admin.CreateUserRequest;
 import com.vaultix.authorization.dto.admin.UpdateUserRequest;
 import com.vaultix.authorization.dto.admin.UserResponse;
+import com.vaultix.authorization.specification.request.UserSearchRequest;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -19,6 +20,8 @@ import jakarta.validation.constraints.Size;
 public interface UserService {
 
     Page<UserResponse> getAllUsers(Pageable pageable);
+
+    Page<UserResponse> searchUsers(@Valid UserSearchRequest request, Pageable pageable);
 
     UserResponse getUserByIdentifier(
             @NotBlank(message = "User identifier is required")

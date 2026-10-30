@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,8 @@ import com.vaultix.authorization.repository.RoleRepository;
 import com.vaultix.authorization.repository.UserRepository;
 import com.vaultix.authorization.service.TokenService;
 import com.vaultix.authorization.service.UserService;
+import com.vaultix.authorization.specification.UserSpecification;
+import com.vaultix.authorization.specification.request.UserSearchRequest;
 import com.vaultix.common.exception.BadRequestException;
 import com.vaultix.common.exception.ResourceConflictException;
 import com.vaultix.common.exception.ResourceNotFoundException;
@@ -55,13 +58,21 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public Page<UserResponse> getAllUsers(Pageable pageable) {
+        return searchUsers(null, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<UserResponse> searchUsers(UserSearchRequest request, Pageable pageable) {
         Pageable page = (pageable != null && pageable.isPaged())
                 ? (pageable.getPageSize() > 50
                 ? PageRequest.of(pageable.getPageNumber(), 50, pageable.getSort())
                 : pageable)
                 : PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
-        log.debug("Retrieving all users with pageable: {}", page);
-        return userRepository.findAllWithRolesBy(page)
+
+        log.debug("Searching users with request: {}, pageable: {}", request, page);
+        Specification<User> spec = UserSpecification.withFilters(request);
+        return userRepository.findAll(spec, page)
                 .map(UserResponse::fromEntity);
     }
 
