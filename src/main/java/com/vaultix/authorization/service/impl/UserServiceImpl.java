@@ -28,7 +28,9 @@ import com.vaultix.authorization.entity.enums.RoleStatus;
 import com.vaultix.authorization.entity.enums.UserStatus;
 import com.vaultix.authorization.repository.RoleRepository;
 import com.vaultix.authorization.repository.UserRepository;
+import com.vaultix.authorization.service.SmsMfaService;
 import com.vaultix.authorization.service.TokenService;
+import com.vaultix.authorization.service.TotpService;
 import com.vaultix.authorization.service.UserService;
 import com.vaultix.authorization.specification.UserSpecification;
 import com.vaultix.authorization.specification.request.UserSearchRequest;
@@ -54,6 +56,8 @@ public class UserServiceImpl implements UserService {
     private final TokenService tokenService;
     private final StringRedisTemplate stringRedisTemplate;
     private final UserProperties userProperties;
+    private final TotpService totpService;
+    private final SmsMfaService smsMfaService;
 
     @Override
     @Transactional(readOnly = true)
@@ -317,6 +321,54 @@ public class UserServiceImpl implements UserService {
         user.setUpdatedBy(actorId);
         User savedUser = userRepository.save(user);
         log.info("Marked user '{}' as RESTORED (DISABLED) by actor: {}", username, actorId);
+
+        return UserResponse.fromEntity(savedUser);
+    }
+
+    @Override
+    @Transactional
+    public UserResponse resetMfa(
+            @NotBlank(message = "User identifier is required")
+            @Size(max = 256, message = "User identifier cannot exceed 256 characters") String identifier,
+            @NotNull(message = "Actor ID cannot be null") UUID actorId) {
+
+        User user = findUserEntityByIdentifier(identifier);
+        String username = user.getUsername();
+
+        if (user.getStatus() == UserStatus.DELETED) {
+            throw new BadRequestException("User '" + username + "' is deleted");
+        }
+        if (user.getStatus() == UserStatus.DISABLED) {
+            throw new BadRequestException("User '" + username + "' is disabled");
+        }
+
+        int actorHighestLevel = resolveActorHighestLevel(actorId, "reset MFA for");
+        validateActorPrivilege(user, actorHighestLevel, actorId, "reset MFA for");
+
+        boolean hadTotp = user.isMfaEnabled();
+        boolean hadSms = user.isSmsMfaEnabled();
+
+        if (!hadTotp && !hadSms) {
+            throw new BadRequestException("User '" + username + "' does not have any active two-factor authentication factors");
+        }
+
+        if (hadTotp) {
+            totpService.disableTotp(user.getId());
+        }
+
+        if (hadSms) {
+            smsMfaService.disableSmsMfa(user.getId());
+        }
+
+        /* Invalidate all active tokens and sessions to enforce fresh sign-in */
+        tokenService.revokeAllUserTokens(user.getId());
+
+        User updatedUser = userRepository.findById(user.getId()).orElse(user);
+        updatedUser.setUpdatedBy(actorId);
+        User savedUser = userRepository.save(updatedUser);
+
+        log.info("Successfully reset MFA for user '{}' (hadTotp={}, hadSms={}) by actor ID: {}",
+                username, hadTotp, hadSms, actorId);
 
         return UserResponse.fromEntity(savedUser);
     }

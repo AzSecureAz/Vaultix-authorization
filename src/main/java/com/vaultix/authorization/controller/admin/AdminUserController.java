@@ -175,4 +175,20 @@ public class AdminUserController {
         UserResponse restoredUser = userService.restoreUser(cleanIdentifier, actorId);
         return ResponseEntity.ok(ApiResponse.success("User restored successfully", restoredUser));
     }
+
+    @RequireSudo
+    @PostMapping("/{identifier}/reset-mfa")
+    @PreAuthorize(AuthSecurityExpressions.CAN_UPDATE_USERS)
+    public ResponseEntity<ApiResponse<UserResponse>> resetMfa(
+            @PathVariable("identifier")
+            @NotBlank(message = "User identifier is required")
+            @Size(max = 256, message = "User identifier cannot exceed 256 characters") String identifier,
+            @AuthenticationPrincipal @NotNull(message = "Authentication token is required") Jwt jwt) {
+
+        UUID actorId = SecurityUtil.extractActorId(jwt);
+        String cleanIdentifier = identifier.strip();
+        log.info("Admin request to reset MFA for user '{}' by actor ID: {}", cleanIdentifier, actorId);
+        UserResponse updatedUser = userService.resetMfa(cleanIdentifier, actorId);
+        return ResponseEntity.ok(ApiResponse.success("Two-factor authentication reset successfully for user", updatedUser));
+    }
 }
