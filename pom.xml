@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.1.1</version>
+		<version>4.1.2</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.vaultix</groupId>
@@ -13,11 +13,11 @@
 	<version>0.0.1</version>
 	<properties>
 		<java.version>27</java.version>
-		<spring-cloud.version>2025.1.3</spring-cloud.version>
+		<spring-cloud.version>2025.1.4</spring-cloud.version>
 		<lombok.version>1.18.48</lombok.version>
 		<common.version>0.0.1</common.version>
 		<shedlock.version>7.10.1</shedlock.version>
-		<libphonenumber.version>9.0.41</libphonenumber.version>
+		<libphonenumber.version>9.0.42</libphonenumber.version>
 	</properties>
 	<dependencies>
 		<dependency>
