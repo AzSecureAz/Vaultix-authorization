@@ -24,7 +24,7 @@ Complete endpoint reference for the **Vaultix Authorization Service**.
 | `POST`, `GET` | `/public/email/revert`, `/public/email-revert` | Revert compromised account email back to previous address using 7-day token & revoke attacker sessions | Token / Query | No |
 | `POST` | `/webauthn/authenticate/options` | Request WebAuthn publicKey credential request options (challenge, RP ID, user verification) | No | No |
 | `POST` | `/login/webauthn` | Authenticate passkey credential assertion, issue access token & set refresh cookie | No | Yes |
-| `GET` | `/.well-known/jwks.json` | Public JWK Set containing RSA-2048 verification keys | No | No |
+| `GET` | `/.well-known/jwks.json` | Public JWK Set containing active and retired RSA-2048 verification keys | No | No |
 
 ---
 
@@ -62,7 +62,7 @@ Complete endpoint reference for the **Vaultix Authorization Service**.
 | `POST` | `/webauthn/register` | Register new passkey credential (public key, authenticator transports, attestation) **(Requires Sudo)** | Bearer JWT | No |
 | `GET` | `/mfa/passkeys`, `/passkeys` | Retrieve all registered passkeys for authenticated user **(Requires Sudo)** | Bearer JWT | No |
 | `PATCH` | `/mfa/passkeys/{id}` | Update user-defined label/nickname for a registered passkey **(Requires Sudo)** | Bearer JWT | No |
-| `DELETE` | `/mfa/passkeys/{id}` | Delete passkey credential & auto-disable passkey flag if last credential removed **(Requires Sudo, max age: 5m)** | Bearer JWT | No |
+| `DELETE` | `/mfa/passkeys/{id}` | Delete passkey credential & auto-disable passkey flag if last credential removed **(Requires Sudo)** | Bearer JWT | No |
 
 ### 2.3 Connected Social Accounts (`/social`)
 
@@ -73,11 +73,14 @@ Complete endpoint reference for the **Vaultix Authorization Service**.
 | `POST` | `/social/github/link`, `/social/github` | Link GitHub account to current user account via OAuth2 authorization code **(Requires Sudo)** | Bearer JWT | No |
 | `DELETE` | `/social/{provider}`, `/social/{provider}/unlink` | Unlink social provider account (prevented if account has no password or other login methods) **(Requires Sudo)** | Bearer JWT | No |
 
-### 2.4 Session Management & Logout
+### 2.4 Active Session Management & Revocation (`/sessions`, `/auth/sessions`)
 
 | Method | Endpoint | Description | Auth Required | Client Context Tracked |
 | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/logout` | Revoke current session refresh token and clear cookie | Bearer JWT | No |
+| `GET` | `/sessions/current`, `/auth/sessions/current` | Retrieve detailed metadata for the session tied to the current access token | Bearer JWT | No |
+| `GET` | `/sessions`, `/auth/sessions` | Retrieve paginated list of other active sessions (`Page<SessionResponse>`) | Bearer JWT | No |
+| `DELETE` | `/sessions/{sessionId}`, `/auth/sessions/{sessionId}` | Revoke a specific active session by UUID (deletes refresh token & blacklists JTI) | Bearer JWT | No |
+| `POST` | `/logout` | Revoke current session refresh token and clear HTTP-only cookie | Bearer JWT | No |
 | `POST` | `/logout-other`, `/logout/other` | Revoke all other active sessions for user, keeping current device authenticated | Bearer JWT | No |
 | `POST` | `/logout-all`, `/logout/all` | Revoke ALL active refresh tokens for the user and blacklist current JWT in Redis | Bearer JWT | No |
 
@@ -98,31 +101,38 @@ When accessing sensitive endpoints marked **(Requires Sudo)** without active ele
 
 ## 3. Admin User Management (`/admin/users`)
 
+All mutating endpoints in this section require active Sudo elevation (`@RequireSudo`).
+
 | Method | Endpoint | Description | PreAuthorize Expression |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/admin/users` | Create user with assigned roles (password set via reset flow) | `hasAuthority('user:create')` |
+| `POST` | `/admin/users` | Create user with assigned roles (password set via reset flow) **(Requires Sudo)** | `hasAuthority('user:create')` |
 | `GET` | `/admin/users` | Retrieve paginated list of users with roles | `hasAuthority('user:read')` |
+| `POST` | `/admin/users/search` | Search users with dynamic Criteria specification (`UserSearchRequest`) | `hasAuthority('user:read')` |
 | `GET` | `/admin/users/{identifier}` | Retrieve user by UUID, username, or email | `hasAuthority('user:read')` |
-| `PUT`, `PATCH` | `/admin/users/{identifier}` | Update user roles (revokes active sessions on change) | `hasAuthority('user:update')` |
-| `POST` | `/admin/users/{identifier}/disable` | Disable user and revoke all active sessions | `hasAuthority('user:update')` |
-| `POST` | `/admin/users/{identifier}/enable` | Re-enable user and clear lockout state | `hasAuthority('user:update')` |
-| `DELETE` | `/admin/users/{identifier}` | Soft-delete user and revoke active sessions | `hasAuthority('user:delete')` |
-| `POST` | `/admin/users/{identifier}/restore` | Restore soft-deleted user (placed in DISABLED state) | `hasAuthority('user:restore')` |
+| `PUT`, `PATCH` | `/admin/users/{identifier}` | Update user roles (revokes active sessions on change) **(Requires Sudo)** | `hasAuthority('user:update')` |
+| `POST` | `/admin/users/{identifier}/disable` | Disable user and revoke all active sessions **(Requires Sudo)** | `hasAuthority('user:update')` |
+| `POST` | `/admin/users/{identifier}/enable` | Re-enable user and clear lockout state **(Requires Sudo)** | `hasAuthority('user:update')` |
+| `DELETE` | `/admin/users/{identifier}` | Soft-delete user and revoke active sessions **(Requires Sudo)** | `hasAuthority('user:delete')` |
+| `POST` | `/admin/users/{identifier}/restore` | Restore soft-deleted user (placed in DISABLED state) **(Requires Sudo)** | `hasAuthority('user:restore')` |
+| `POST` | `/admin/users/{identifier}/reset-mfa` | Reset all MFA factors (TOTP, SMS, Passkeys), revoke active sessions & alert **(Requires Sudo)** | `hasAuthority('user:update')` |
 
 ---
 
 ## 4. Admin Role Management (`/admin/roles`)
 
+All mutating endpoints in this section require active Sudo elevation (`@RequireSudo`).
+
 | Method | Endpoint | Description | PreAuthorize Expression |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/admin/roles` | Create a new role with level and permissions | `hasAuthority('role:create')` |
+| `POST` | `/admin/roles` | Create a new role with level and permissions **(Requires Sudo)** | `hasAuthority('role:create')` |
 | `GET` | `/admin/roles` | Retrieve paginated list of roles with permissions | `hasAuthority('role:read')` |
+| `POST` | `/admin/roles/search` | Search roles with dynamic Criteria specification (`RoleSearchRequest`) | `hasAuthority('role:read')` |
 | `GET` | `/admin/roles/{identifier}` | Retrieve role by UUID or role name | `hasAuthority('role:read')` |
-| `PUT`, `PATCH` | `/admin/roles/{identifier}` | Update role description and assigned permissions | `hasAuthority('role:update')` |
-| `POST` | `/admin/roles/{identifier}/disable` | Disable role and broadcast revocation event | `hasAuthority('role:update')` |
-| `POST` | `/admin/roles/{identifier}/enable` | Re-enable previously disabled role | `hasAuthority('role:update')` |
-| `DELETE` | `/admin/roles/{identifier}` | Soft-delete role and broadcast revocation event | `hasAuthority('role:delete')` |
-| `POST` | `/admin/roles/{identifier}/restore` | Restore soft-deleted role (placed in DISABLED state) | `hasAuthority('role:restore')` |
+| `PUT`, `PATCH` | `/admin/roles/{identifier}` | Update role description and assigned permissions **(Requires Sudo)** | `hasAuthority('role:update')` |
+| `POST` | `/admin/roles/{identifier}/disable` | Disable role and broadcast revocation event **(Requires Sudo)** | `hasAuthority('role:update')` |
+| `POST` | `/admin/roles/{identifier}/enable` | Re-enable previously disabled role **(Requires Sudo)** | `hasAuthority('role:update')` |
+| `DELETE` | `/admin/roles/{identifier}` | Soft-delete role and broadcast revocation event **(Requires Sudo)** | `hasAuthority('role:delete')` |
+| `POST` | `/admin/roles/{identifier}/restore` | Restore soft-deleted role (placed in DISABLED state) **(Requires Sudo)** | `hasAuthority('role:restore')` |
 
 ---
 
@@ -141,6 +151,7 @@ When accessing sensitive endpoints marked **(Requires Sudo)** without active ele
 | Method | Endpoint | Description | PreAuthorize Expression |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/admin/signing-keys` | Retrieve paginated history of signing keys | `hasAuthority('key:read')` |
+| `POST` | `/admin/signing-keys/search` | Search signing keys with dynamic Criteria specification (`SigningKeySearchRequest`) | `hasAuthority('key:read')` |
 | `GET` | `/admin/signing-keys/{kid}` | Retrieve signing key metadata by Key ID | `hasAuthority('key:read')` |
 | `POST` | `/admin/signing-keys/rotate` | Manually rotate active RSA signing key | `hasAuthority('key:rotate')` |
 | `POST` | `/admin/signing-keys/{kid}/revoke` | Revoke a compromised or retired signing key | `hasRole('ADMIN')` |
