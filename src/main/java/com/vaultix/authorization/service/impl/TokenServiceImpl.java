@@ -56,6 +56,7 @@ public class TokenServiceImpl implements TokenService {
     private final UserRepository userRepository;
     private final JwtProperties jwtProperties;
     private final TokenBlacklistService tokenBlacklistService;
+    private final SessionRevocationHelper sessionRevocationHelper;
 
     @Override
     @Transactional
@@ -180,10 +181,7 @@ public class TokenServiceImpl implements TokenService {
         User user = existingSession.getUser();
         if (user.getStatus() == UserStatus.DISABLED || user.getStatus() == UserStatus.DELETED) {
             log.warn("Attempt to refresh token for disabled/deleted user: {}", user.getUsername());
-            existingSession.setRevoked(true);
-            existingSession.setRevokedAt(Instant.now());
-            refreshTokenRepository.save(existingSession);
-            tokenBlacklistService.blacklist(existingSession.getAccessTokenJti().toString(), jwtProperties.accessTokenExpiration());
+            sessionRevocationHelper.revokeSessionImmediately(existingSession);
             throw new BadCredentialsException("User account is disabled");
         }
 
@@ -193,10 +191,7 @@ public class TokenServiceImpl implements TokenService {
         if (incomingGen != existingSession.getGen()) {
             log.warn("SECURITY ALERT: Token replay detected! Incoming gen: {}, DB gen: {} for user ID: {}",
                     incomingGen, existingSession.getGen(), user.getId());
-            existingSession.setRevoked(true);
-            existingSession.setRevokedAt(Instant.now());
-            refreshTokenRepository.save(existingSession);
-            tokenBlacklistService.blacklist(existingSession.getAccessTokenJti().toString(), jwtProperties.accessTokenExpiration());
+            sessionRevocationHelper.revokeSessionImmediately(existingSession);
             throw new BadCredentialsException("Token replay detected: session revoked");
         }
 
